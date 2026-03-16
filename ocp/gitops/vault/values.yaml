@@ -1,4 +1,5 @@
 namespace: vault
+clusterDomain: ""
 
 vault:
   global:
@@ -28,7 +29,7 @@ vault:
           path = "/vault/data"
         }
     route:
-      enabled: true
+      enabled: false
     dataStorage:
       enabled: true
       size: 10Gi
