@@ -18,11 +18,10 @@ testUser:
 services:
   gitlab:
     enabled: true
-    # GET with Bearer token — expects 200
-    validationPath: /api/v4/user
+    # GitLab doesn't accept Keycloak tokens directly — validate via Keycloak userinfo
+    validationPath: ""
   ocp:
     enabled: true
-    # Token introspection only (no simple API to call with OIDC token)
     validationPath: ""
 
 # Alerting
