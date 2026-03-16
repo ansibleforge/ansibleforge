@@ -1,0 +1,41 @@
+namespace: sso-monitor
+clusterDomain: ""
+clusterName: ""
+
+image: registry.access.redhat.com/ubi9/python-311:latest
+
+# Keycloak OIDC configuration
+keycloak:
+  realm: sso
+
+# Test user credentials — pulled from AWS Secrets Manager via ExternalSecret
+testUser:
+  username: sysadmin
+
+# Services to monitor — each needs a Keycloak OIDC client ID and a validation endpoint
+services:
+  gitlab:
+    enabled: true
+    clientId: gitlab
+    # GET with Bearer token — expects 200
+    validationPath: /api/v4/user
+  ocp:
+    enabled: true
+    clientId: idp-4-ocp
+    # Token introspection only (no simple API to call with OIDC token)
+    validationPath: ""
+
+# Alerting
+alerting:
+  enabled: true
+  # Fire alert after this many minutes of failure
+  forDuration: 5m
+
+# Enable User Workload Monitoring (creates ConfigMap in openshift-monitoring)
+enableUserWorkloadMonitoring: true
+
+# Scrape interval
+scrapeInterval: 60s
+
+# Probe interval (how often the exporter tests logins, in seconds)
+probeIntervalSeconds: 300

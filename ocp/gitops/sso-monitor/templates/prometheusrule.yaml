@@ -1,0 +1,37 @@
+{{- if .Values.alerting.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sso-monitor
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: sso-monitor
+spec:
+  groups:
+  - name: sso-login-health
+    rules:
+    - alert: SSOLoginFailure
+      expr: sso_login_success == 0
+      for: {{ .Values.alerting.forDuration }}
+      labels:
+        severity: critical
+      annotations:
+        summary: "SSO login failing for {{`{{ $labels.service }}`}}"
+        description: "Keycloak ROPC token grant for service {{`{{ $labels.service }}`}} user {{`{{ $labels.user }}`}} has been failing for more than {{ .Values.alerting.forDuration }}."
+    - alert: SSOServiceValidationFailure
+      expr: sso_validation_success == 0
+      for: {{ .Values.alerting.forDuration }}
+      labels:
+        severity: warning
+      annotations:
+        summary: "SSO token rejected by {{`{{ $labels.service }}`}}"
+        description: "Downstream service {{`{{ $labels.service }}`}} is rejecting valid Keycloak tokens for user {{`{{ $labels.user }}`}}."
+    - alert: SSOLoginSlow
+      expr: sso_login_duration_seconds > 5
+      for: {{ .Values.alerting.forDuration }}
+      labels:
+        severity: warning
+      annotations:
+        summary: "SSO login slow for {{`{{ $labels.service }}`}}"
+        description: "Keycloak ROPC token grant for {{`{{ $labels.service }}`}} is taking more than 5 seconds."
+{{- end }}

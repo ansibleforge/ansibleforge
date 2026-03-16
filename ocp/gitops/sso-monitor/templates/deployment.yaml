@@ -1,0 +1,83 @@
+{{- $clusterDomain := .Values.clusterDomain }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sso-monitor
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: sso-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sso-monitor
+  template:
+    metadata:
+      labels:
+        app: sso-monitor
+    spec:
+      containers:
+      - name: exporter
+        image: {{ .Values.image }}
+        command:
+        - /bin/bash
+        - -c
+        - |
+          pip install --quiet prometheus_client requests urllib3 &&
+          python3 /opt/exporter/exporter.py
+        ports:
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        env:
+        - name: KEYCLOAK_URL
+          value: "https://keycloak.{{ $clusterDomain }}"
+        - name: REALM
+          value: {{ .Values.keycloak.realm | quote }}
+        - name: TEST_USERNAME
+          value: {{ .Values.testUser.username | quote }}
+        - name: TEST_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: sso-monitor-credentials
+              key: test-user-password
+        - name: PROBE_INTERVAL
+          value: {{ .Values.probeIntervalSeconds | quote }}
+        - name: SERVICES_JSON
+          value: {{ include "sso-monitor.servicesJson" . | quote }}
+        {{- range $name, $svc := .Values.services }}
+        {{- if $svc.enabled }}
+        - name: {{ $name | upper }}_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: sso-monitor-credentials
+              key: {{ $name }}-client-secret
+        {{- end }}
+        {{- end }}
+        volumeMounts:
+        - name: script
+          mountPath: /opt/exporter
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+          initialDelaySeconds: 15
+          periodSeconds: 10
+      volumes:
+      - name: script
+        configMap:
+          name: sso-monitor-script
