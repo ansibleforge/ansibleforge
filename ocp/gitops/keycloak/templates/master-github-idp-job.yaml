@@ -226,7 +226,7 @@ spec:
                   "identityProviderMapper": "oidc-username-idp-mapper",
                   "config": {
                     "syncMode": "INHERIT",
-                    "template": "${ALIAS}.${CLAIM.login}"
+                    "template": "${CLAIM.login}"
                   }
                 }'
 
