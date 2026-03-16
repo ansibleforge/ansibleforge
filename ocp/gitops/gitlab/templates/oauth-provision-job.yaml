@@ -168,3 +168,12 @@ spec:
                 "gitlab-openshift-oauth"
 
               echo "=== All OAuth apps provisioned ==="
+
+              # --- Instance settings ---
+              echo ""
+              echo "=== Configuring GitLab instance settings ==="
+              curl -sk -X PUT -H "Authorization: Bearer $TOKEN" \
+                "$GITLAB_URL/api/v4/application/settings" \
+                -d "signup_enabled=false" \
+                | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'signup_enabled={d.get(\"signup_enabled\")}')"
+              echo "Instance settings applied"
