@@ -1,7 +1,9 @@
+{{- $clusterDomain := .Values.clusterDomain }}
+{{- if not $clusterDomain }}
 {{- $ingressConfig := lookup "config.openshift.io/v1" "Ingress" "" "cluster" }}
-{{- $clusterDomain := "" }}
 {{- if and $ingressConfig $ingressConfig.spec }}
 {{- $clusterDomain = $ingressConfig.spec.domain }}
+{{- end }}
 {{- end }}
 apiVersion: console.openshift.io/v1
 kind: ConsoleLink
