@@ -103,6 +103,42 @@ spec:
                   -d "$PAYLOAD" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'Created: id={d[\"id\"]} name={d[\"name\"]}')"
               fi
 
+              # Get the authenticator ID (whether just created or existing)
+              AUTH_ID=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                "$AAP_URL/api/gateway/v1/authenticators/" \
+                | python3 -c "
+              import json,sys
+              for a in json.load(sys.stdin).get('results',[]):
+                  if 'keycloak' in a.get('type',''):
+                      print(a['id']); break
+              ")
+
+              # Ensure admins -> superuser map exists
+              MAP_EXISTS=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                "$AAP_URL/api/gateway/v1/authenticators/$AUTH_ID/authenticator_maps/" \
+                | python3 -c "
+              import json,sys
+              for m in json.load(sys.stdin).get('results',[]):
+                  if m.get('map_type') == 'is_superuser':
+                      print(m['id']); break
+              " 2>/dev/null || echo "")
+
+              if [ -z "$MAP_EXISTS" ]; then
+                echo "Creating admins -> superuser map..."
+                curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/gateway/v1/authenticator_maps/" \
+                  -H "Content-Type: application/json" \
+                  -d "{
+                    \"name\": \"Admins are superusers\",
+                    \"authenticator\": $AUTH_ID,
+                    \"map_type\": \"is_superuser\",
+                    \"triggers\": {\"groups\": {\"has_or\": [\"admins\"]}},
+                    \"revoke\": true
+                  }" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'Created map: {d[\"name\"]}')"
+              else
+                echo "Admins -> superuser map already exists (id=$MAP_EXISTS)"
+              fi
+
               echo "=== AAP Keycloak SSO configured ==="
 ---
 apiVersion: external-secrets.io/v1beta1
