@@ -169,6 +169,13 @@ spec:
               id.token.claim: "true"
               access.token.claim: "true"
               userinfo.token.claim: "true"
+          - name: audience
+            protocol: openid-connect
+            protocolMapper: oidc-audience-mapper
+            config:
+              included.client.audience: aap
+              id.token.claim: "true"
+              access.token.claim: "true"
       - clientId: sso-monitor
         enabled: true
         protocol: openid-connect
