@@ -36,6 +36,13 @@ spec:
           value: "https://keycloak.{{ $clusterDomain }}"
         - name: REALM
           value: {{ .Values.keycloak.realm | quote }}
+        - name: CLIENT_ID
+          value: {{ .Values.keycloak.clientId | quote }}
+        - name: CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: sso-monitor-credentials
+              key: client-secret
         - name: TEST_USERNAME
           value: {{ .Values.testUser.username | quote }}
         - name: TEST_PASSWORD
@@ -47,15 +54,6 @@ spec:
           value: {{ .Values.probeIntervalSeconds | quote }}
         - name: SERVICES_JSON
           value: {{ include "sso-monitor.servicesJson" . | quote }}
-        {{- range $name, $svc := .Values.services }}
-        {{- if $svc.enabled }}
-        - name: {{ $name | upper }}_CLIENT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: sso-monitor-credentials
-              key: {{ $name }}-client-secret
-        {{- end }}
-        {{- end }}
         volumeMounts:
         - name: script
           mountPath: /opt/exporter

@@ -16,8 +16,8 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "SSO login failing for {{`{{ $labels.service }}`}}"
-        description: "Keycloak ROPC token grant for service {{`{{ $labels.service }}`}} user {{`{{ $labels.user }}`}} has been failing for more than {{ .Values.alerting.forDuration }}."
+        summary: "Keycloak SSO login failing"
+        description: "Keycloak ROPC token grant for user {{`{{ $labels.user }}`}} has been failing for more than {{ .Values.alerting.forDuration }}."
     - alert: SSOServiceValidationFailure
       expr: sso_validation_success == 0
       for: {{ .Values.alerting.forDuration }}
@@ -25,13 +25,13 @@ spec:
         severity: warning
       annotations:
         summary: "SSO token rejected by {{`{{ $labels.service }}`}}"
-        description: "Downstream service {{`{{ $labels.service }}`}} is rejecting valid Keycloak tokens for user {{`{{ $labels.user }}`}}."
+        description: "Downstream service {{`{{ $labels.service }}`}} is rejecting Keycloak tokens for user {{`{{ $labels.user }}`}}."
     - alert: SSOLoginSlow
       expr: sso_login_duration_seconds > 5
       for: {{ .Values.alerting.forDuration }}
       labels:
         severity: warning
       annotations:
-        summary: "SSO login slow for {{`{{ $labels.service }}`}}"
-        description: "Keycloak ROPC token grant for {{`{{ $labels.service }}`}} is taking more than 5 seconds."
+        summary: "Keycloak SSO login slow"
+        description: "Keycloak ROPC token grant is taking more than 5 seconds (current: {{`{{ $value }}`}}s)."
 {{- end }}

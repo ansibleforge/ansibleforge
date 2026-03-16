@@ -28,6 +28,10 @@ spec:
       secret:
         name: keycloak-gitlab-client-secret
         key: client-secret
+    SSO_MONITOR_CLIENT_SECRET:
+      secret:
+        name: keycloak-sso-monitor-client-secret
+        key: client-secret
     {{- if .Values.gitlab.broker }}
     GITLAB_BROKER_CLIENT_ID:
       secret:
@@ -133,6 +137,20 @@ spec:
               id.token.claim: "true"
               access.token.claim: "true"
               userinfo.token.claim: "true"
+      - clientId: sso-monitor
+        enabled: true
+        protocol: openid-connect
+        publicClient: false
+        standardFlowEnabled: false
+        directAccessGrantsEnabled: true
+        serviceAccountsEnabled: false
+        secret: ${SSO_MONITOR_CLIENT_SECRET}
+        defaultClientScopes:
+          - openid
+          - profile
+          - email
+        optionalClientScopes:
+          - groups
       {{- if and .Values.aws.saml .Values.aws.accountId }}
       - clientId: "urn:amazon:webservices"
         name: "Amazon Web Services"

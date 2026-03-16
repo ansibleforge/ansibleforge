@@ -7,21 +7,21 @@ image: registry.access.redhat.com/ubi9/python-311:latest
 # Keycloak OIDC configuration
 keycloak:
   realm: sso
+  # Dedicated monitoring client with ROPC (Direct Access Grants) enabled
+  clientId: sso-monitor
 
 # Test user credentials — pulled from AWS Secrets Manager via ExternalSecret
 testUser:
   username: sysadmin
 
-# Services to monitor — each needs a Keycloak OIDC client ID and a validation endpoint
+# Services to validate tokens against after successful ROPC grant
 services:
   gitlab:
     enabled: true
-    clientId: gitlab
     # GET with Bearer token — expects 200
     validationPath: /api/v4/user
   ocp:
     enabled: true
-    clientId: idp-4-ocp
     # Token introspection only (no simple API to call with OIDC token)
     validationPath: ""
 

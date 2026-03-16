@@ -8,9 +8,9 @@ data:
     #!/usr/bin/env python3
     """SSO Login Health Exporter for Prometheus.
 
-    Periodically tests Keycloak OIDC ROPC token grants for each configured
-    service client, optionally validates the token against downstream APIs,
-    and exposes the results as Prometheus metrics.
+    Uses a dedicated Keycloak OIDC client (with ROPC/Direct Access Grants)
+    to test token issuance, then optionally validates the token against
+    downstream service APIs.
     """
 
     import json
@@ -30,13 +30,13 @@ data:
     # --- Prometheus metrics ---
     LOGIN_SUCCESS = Gauge(
         "sso_login_success",
-        "Whether ROPC token grant succeeded (1=ok, 0=fail)",
-        ["service", "user"],
+        "Whether Keycloak ROPC token grant succeeded (1=ok, 0=fail)",
+        ["user"],
     )
     LOGIN_DURATION = Gauge(
         "sso_login_duration_seconds",
-        "Time taken for ROPC token grant",
-        ["service", "user"],
+        "Time taken for Keycloak ROPC token grant",
+        ["user"],
     )
     VALIDATION_SUCCESS = Gauge(
         "sso_validation_success",
@@ -45,22 +45,19 @@ data:
     )
 
     # --- Configuration from environment ---
-    KEYCLOAK_URL = os.environ["KEYCLOAK_URL"]            # https://keycloak.<domain>
-    REALM = os.environ["REALM"]                          # sso
-    TEST_USERNAME = os.environ["TEST_USERNAME"]           # sysadmin
-    TEST_PASSWORD = os.environ["TEST_PASSWORD"]           # from Secret
-    SERVICES_JSON = os.environ["SERVICES_JSON"]           # JSON array of service configs
+    KEYCLOAK_URL = os.environ["KEYCLOAK_URL"]
+    REALM = os.environ["REALM"]
+    CLIENT_ID = os.environ["CLIENT_ID"]
+    CLIENT_SECRET = os.environ["CLIENT_SECRET"]
+    TEST_USERNAME = os.environ["TEST_USERNAME"]
+    TEST_PASSWORD = os.environ["TEST_PASSWORD"]
+    SERVICES_JSON = os.environ["SERVICES_JSON"]
     PROBE_INTERVAL = int(os.environ.get("PROBE_INTERVAL", "300"))
 
     TOKEN_URL = f"{KEYCLOAK_URL}/realms/{REALM}/protocol/openid-connect/token"
 
 
-    def load_services():
-        """Parse service definitions from JSON env var."""
-        return json.loads(SERVICES_JSON)
-
-
-    def get_token(client_id, client_secret):
+    def get_token():
         """Perform ROPC token grant and return (token, duration) or (None, duration)."""
         start = time.monotonic()
         try:
@@ -68,8 +65,8 @@ data:
                 TOKEN_URL,
                 data={
                     "grant_type": "password",
-                    "client_id": client_id,
-                    "client_secret": client_secret,
+                    "client_id": CLIENT_ID,
+                    "client_secret": CLIENT_SECRET,
                     "username": TEST_USERNAME,
                     "password": TEST_PASSWORD,
                     "scope": "openid",
@@ -80,18 +77,18 @@ data:
             duration = time.monotonic() - start
             if resp.status_code == 200:
                 return resp.json().get("access_token"), duration
-            log.warning("Token grant failed for %s: %s %s", client_id, resp.status_code, resp.text[:200])
+            log.warning("Token grant failed: %s %s", resp.status_code, resp.text[:200])
             return None, duration
         except Exception as exc:
             duration = time.monotonic() - start
-            log.error("Token grant exception for %s: %s", client_id, exc)
+            log.error("Token grant exception: %s", exc)
             return None, duration
 
 
     def validate_service(service_url, validation_path, token):
         """Call downstream service API with Bearer token, return True if 2xx."""
         if not validation_path:
-            return True  # no validation endpoint configured — skip
+            return True
         url = f"{service_url}{validation_path}"
         try:
             resp = requests.get(
@@ -110,34 +107,31 @@ data:
 
 
     def probe_all():
-        """Run one round of probes for all services."""
-        services = load_services()
+        """Run one round of probes."""
+        services = json.loads(SERVICES_JSON)
+
+        # Step 1: Test Keycloak token grant
+        token, duration = get_token()
+        LOGIN_DURATION.labels(user=TEST_USERNAME).set(duration)
+        LOGIN_SUCCESS.labels(user=TEST_USERNAME).set(1 if token else 0)
+        log.info("keycloak login=%s duration=%.2fs", "ok" if token else "FAIL", duration)
+
+        # Step 2: Validate token against each downstream service
         for svc in services:
             name = svc["name"]
-            client_id = svc["clientId"]
-            client_secret_env = svc.get("clientSecretEnv", "")
-            client_secret = os.environ.get(client_secret_env, "") if client_secret_env else ""
             service_url = svc.get("serviceUrl", "")
             validation_path = svc.get("validationPath", "")
 
-            token, duration = get_token(client_id, client_secret)
-            LOGIN_DURATION.labels(service=name, user=TEST_USERNAME).set(duration)
-
-            if token:
-                LOGIN_SUCCESS.labels(service=name, user=TEST_USERNAME).set(1)
+            if token and validation_path:
                 valid = validate_service(service_url, validation_path, token)
                 VALIDATION_SUCCESS.labels(service=name, user=TEST_USERNAME).set(1 if valid else 0)
+                log.info("validate service=%s result=%s", name, "ok" if valid else "FAIL")
+            elif token and not validation_path:
+                VALIDATION_SUCCESS.labels(service=name, user=TEST_USERNAME).set(1)
+                log.info("validate service=%s result=skip (no validation path)", name)
             else:
-                LOGIN_SUCCESS.labels(service=name, user=TEST_USERNAME).set(0)
                 VALIDATION_SUCCESS.labels(service=name, user=TEST_USERNAME).set(0)
-
-            log.info(
-                "probe service=%s login=%s duration=%.2fs validation=%s",
-                name,
-                "ok" if token else "FAIL",
-                duration,
-                "ok" if token and valid else ("skip" if token and not validation_path else "FAIL"),
-            )
+                log.info("validate service=%s result=FAIL (no token)", name)
 
 
     def probe_loop():
@@ -153,8 +147,6 @@ data:
     if __name__ == "__main__":
         log.info("Starting SSO monitor exporter on :9090")
         start_http_server(9090)
-        # Run first probe immediately, then loop in background
         probe_thread = threading.Thread(target=probe_loop, daemon=True)
         probe_thread.start()
-        # Keep main thread alive
         probe_thread.join()
