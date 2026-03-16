@@ -4,6 +4,8 @@ kind: Deployment
 metadata:
   name: sso-monitor
   namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
   labels:
     app: sso-monitor
 spec:
