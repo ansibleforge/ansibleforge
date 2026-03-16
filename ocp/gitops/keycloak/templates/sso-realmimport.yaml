@@ -296,7 +296,7 @@ spec:
         identityProviderMapper: oidc-username-idp-mapper
         config:
           syncMode: INHERIT
-          template: "${ALIAS}.${CLAIM.preferred_username}"
+          template: "${CLAIM.preferred_username}"
       {{- end }}
       {{- if .Values.github.broker }}
       - name: github-username
