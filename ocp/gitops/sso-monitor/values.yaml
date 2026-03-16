@@ -18,11 +18,16 @@ testUser:
 services:
   gitlab:
     enabled: true
-    # GitLab doesn't accept Keycloak tokens directly — validate via Keycloak userinfo
     validationPath: ""
   ocp:
     enabled: true
     validationPath: ""
+
+# AWS SAML SSO validation — tests full Keycloak SAML -> AWS STS flow
+aws:
+  enabled: true
+  roleArn: ""
+  providerArn: ""
 
 # Alerting
 alerting:

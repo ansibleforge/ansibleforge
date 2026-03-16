@@ -46,6 +46,16 @@ components:
         - name: aws.accountId
           value: "171109435201"
 
+  sso-monitor:
+    helm:
+      parameters:
+        - name: aws.enabled
+          value: "true"
+        - name: aws.roleArn
+          value: "arn:aws:iam::171109435201:role/KeycloakAdminAccess"
+        - name: aws.providerArn
+          value: "arn:aws:iam::171109435201:saml-provider/keycloak-sso"
+
   cert-manager:
     enabled: true
     syncWave: "1"

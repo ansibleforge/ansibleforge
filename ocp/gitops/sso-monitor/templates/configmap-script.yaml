@@ -8,16 +8,17 @@ data:
     #!/usr/bin/env python3
     """SSO Login Health Exporter for Prometheus.
 
-    Uses a dedicated Keycloak OIDC client (with ROPC/Direct Access Grants)
-    to test token issuance, then optionally validates the token against
-    downstream service APIs.
+    Tests Keycloak OIDC (ROPC) and optionally SAML (IDP-initiated SSO to AWS)
+    flows, exposing results as Prometheus metrics.
     """
 
     import json
     import logging
     import os
+    import re
     import threading
     import time
+    from html.parser import HTMLParser
 
     import requests
     import urllib3
@@ -54,7 +55,26 @@ data:
     SERVICES_JSON = os.environ["SERVICES_JSON"]
     PROBE_INTERVAL = int(os.environ.get("PROBE_INTERVAL", "300"))
 
+    AWS_SAML_ENABLED = os.environ.get("AWS_SAML_ENABLED", "false").lower() == "true"
+    AWS_ROLE_ARN = os.environ.get("AWS_ROLE_ARN", "")
+    AWS_PROVIDER_ARN = os.environ.get("AWS_PROVIDER_ARN", "")
+
     TOKEN_URL = f"{KEYCLOAK_URL}/realms/{REALM}/protocol/openid-connect/token"
+    SAML_IDP_URL = f"{KEYCLOAK_URL}/realms/{REALM}/protocol/saml/clients/urn:amazon:webservices"
+
+
+    class SAMLResponseParser(HTMLParser):
+        """Extract SAMLResponse from Keycloak's auto-submit form."""
+
+        def __init__(self):
+            super().__init__()
+            self.saml_response = None
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "input":
+                attr_dict = dict(attrs)
+                if attr_dict.get("name") == "SAMLResponse":
+                    self.saml_response = attr_dict.get("value", "")
 
 
     def get_token():
@@ -106,6 +126,63 @@ data:
             return False
 
 
+    def probe_aws_saml():
+        """Test full Keycloak SAML -> AWS STS AssumeRoleWithSAML flow."""
+        import boto3
+
+        start = time.monotonic()
+        try:
+            session = requests.Session()
+
+            # Step 1: Hit SAML IDP-initiated SSO — redirects to Keycloak login
+            resp = session.get(SAML_IDP_URL, verify=False, allow_redirects=True)
+            if resp.status_code != 200:
+                log.warning("AWS SAML: failed to get login page: %s", resp.status_code)
+                return False, time.monotonic() - start
+
+            # Step 2: Extract the login form action URL and submit credentials
+            action_match = re.search(r'action="([^"]+)"', resp.text)
+            if not action_match:
+                log.warning("AWS SAML: no login form found in response")
+                return False, time.monotonic() - start
+
+            login_url = action_match.group(1).replace("&amp;", "&")
+            resp = session.post(
+                login_url,
+                data={"username": TEST_USERNAME, "password": TEST_PASSWORD},
+                verify=False,
+                allow_redirects=True,
+            )
+
+            # Step 3: Parse SAMLResponse from the auto-submit form
+            parser = SAMLResponseParser()
+            parser.feed(resp.text)
+            if not parser.saml_response:
+                log.warning("AWS SAML: no SAMLResponse in login response (status=%s)", resp.status_code)
+                return False, time.monotonic() - start
+
+            # Step 4: Call AWS STS AssumeRoleWithSAML
+            sts = boto3.client("sts", region_name="us-east-1")
+            sts_resp = sts.assume_role_with_saml(
+                RoleArn=AWS_ROLE_ARN,
+                PrincipalArn=AWS_PROVIDER_ARN,
+                SAMLAssertion=parser.saml_response,
+            )
+            duration = time.monotonic() - start
+
+            if sts_resp.get("Credentials"):
+                log.info("AWS SAML: STS AssumeRoleWithSAML succeeded (duration=%.2fs)", duration)
+                return True, duration
+
+            log.warning("AWS SAML: STS response missing credentials")
+            return False, duration
+
+        except Exception as exc:
+            duration = time.monotonic() - start
+            log.error("AWS SAML probe error: %s", exc)
+            return False, duration
+
+
     def probe_all():
         """Run one round of probes."""
         services = json.loads(SERVICES_JSON)
@@ -132,6 +209,12 @@ data:
             else:
                 VALIDATION_SUCCESS.labels(service=name, user=TEST_USERNAME).set(0)
                 log.info("validate service=%s result=FAIL (no token)", name)
+
+        # Step 3: Test AWS SAML flow
+        if AWS_SAML_ENABLED:
+            aws_ok, aws_dur = probe_aws_saml()
+            VALIDATION_SUCCESS.labels(service="aws", user=TEST_USERNAME).set(1 if aws_ok else 0)
+            log.info("validate service=aws result=%s duration=%.2fs", "ok" if aws_ok else "FAIL", aws_dur)
 
 
     def probe_loop():

@@ -25,7 +25,7 @@ spec:
         - /bin/bash
         - -c
         - |
-          pip install --quiet prometheus_client requests urllib3 &&
+          pip install --quiet prometheus_client requests urllib3 boto3 lxml &&
           python3 /opt/exporter/exporter.py
         ports:
         - name: metrics
@@ -54,6 +54,14 @@ spec:
           value: {{ .Values.probeIntervalSeconds | quote }}
         - name: SERVICES_JSON
           value: {{ include "sso-monitor.servicesJson" . | quote }}
+        {{- if .Values.aws.enabled }}
+        - name: AWS_SAML_ENABLED
+          value: "true"
+        - name: AWS_ROLE_ARN
+          value: {{ .Values.aws.roleArn | quote }}
+        - name: AWS_PROVIDER_ARN
+          value: {{ .Values.aws.providerArn | quote }}
+        {{- end }}
         volumeMounts:
         - name: script
           mountPath: /opt/exporter
@@ -69,13 +77,13 @@ spec:
           httpGet:
             path: /metrics
             port: metrics
-          initialDelaySeconds: 30
+          initialDelaySeconds: 60
           periodSeconds: 30
         readinessProbe:
           httpGet:
             path: /metrics
             port: metrics
-          initialDelaySeconds: 15
+          initialDelaySeconds: 30
           periodSeconds: 10
       volumes:
       - name: script
