@@ -158,8 +158,7 @@ spec:
           - email
         optionalClientScopes:
           - groups
-        attributes:
-          pkce.code.challenge.method: S256
+        attributes: {}
         protocolMappers:
           - name: groups
             protocol: openid-connect
