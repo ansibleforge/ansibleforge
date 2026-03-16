@@ -17,4 +17,4 @@ spec:
   href: https://aap-aap.{{ $clusterDomain }}
   applicationMenu:
     section: Red Hat Applications
-    imageURL: https://aap-aap.{{ $clusterDomain }}/favicon.ico
+    imageURL: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNiAzNiI+PGNpcmNsZSBjeD0iMTgiIGN5PSIxOCIgcj0iMTgiIGZpbGw9IiNlZTAwMDAiLz48cGF0aCBkPSJNMjQuOCAyMy44bC01LjQtMTUuMWgtMi45bC0uMiAxLjNMMjEgMjMuOGwtNS0xMS42TDExIDIzLjhoLTIuMmwxLjIgMS44aDQuOGwyLjYtNi41IDIuNiA2LjVoNC44bDEuMi0xLjh6IiBmaWxsPSIjZmZmIi8+PC9zdmc+
