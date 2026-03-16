@@ -145,97 +145,23 @@ spec:
                 fi
               }
 
-              ensure_org_check_flow() {
+              clear_post_broker_flow() {
                 local realm="$1"
-                local flow_exists
-                flow_exists=$(curl -sf -k -H "${AUTH}" \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/authentication/flows" \
-                  | python3 -c "
-              import sys,json
-              flows=json.load(sys.stdin)
-              matches=[f for f in flows if f['alias']=='github-org-check']
-              print('yes' if matches else '')
-              ")
-
-                if [ -n "$flow_exists" ]; then
-                  echo "  github-org-check flow already exists"
-                  return
-                fi
-
-                echo "  Creating github-org-check flow..."
-                curl -sf -k -X POST \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/authentication/flows" \
-                  -H "${AUTH}" -H "Content-Type: application/json" \
-                  -d '{"alias": "github-org-check", "providerId": "basic-flow", "topLevel": true, "builtIn": false, "description": "Deny users not in GitHub org"}'
-
-                # Add conditional subflow
-                curl -sf -k -X POST \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/authentication/flows/github-org-check/executions/flow" \
-                  -H "${AUTH}" -H "Content-Type: application/json" \
-                  -d '{"alias": "Deny non-org members", "type": "basic-flow", "provider": "registration-page-form"}'
-
-                # Set subflow to CONDITIONAL
-                local subflow_id
-                subflow_id=$(curl -sf -k -H "${AUTH}" \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/authentication/flows/github-org-check/executions" \
-                  | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
-                curl -sf -k -X PUT \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/authentication/flows/github-org-check/executions" \
-                  -H "${AUTH}" -H "Content-Type: application/json" \
-                  -d "{\"id\": \"${subflow_id}\", \"requirement\": \"CONDITIONAL\", \"displayName\": \"Deny non-org members\"}"
-
-                # Add condition and deny executions
-                curl -sf -k -X POST \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/authentication/flows/Deny%20non-org%20members/executions/execution" \
-                  -H "${AUTH}" -H "Content-Type: application/json" \
-                  -d '{"provider": "conditional-user-role"}'
-                curl -sf -k -X POST \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/authentication/flows/Deny%20non-org%20members/executions/execution" \
-                  -H "${AUTH}" -H "Content-Type: application/json" \
-                  -d '{"provider": "deny-access-authenticator"}'
-
-                # Get execution IDs and configure
-                local execs cond_id deny_id
-                execs=$(curl -sf -k -H "${AUTH}" \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/authentication/flows/Deny%20non-org%20members/executions")
-                cond_id=$(echo "$execs" | python3 -c "import sys,json; execs=json.load(sys.stdin); print(next(e['id'] for e in execs if e['providerId']=='conditional-user-role'))")
-                deny_id=$(echo "$execs" | python3 -c "import sys,json; execs=json.load(sys.stdin); print(next(e['id'] for e in execs if e['providerId']=='deny-access-authenticator'))")
-
-                # Set both to REQUIRED
-                curl -sf -k -X PUT \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/authentication/flows/Deny%20non-org%20members/executions" \
-                  -H "${AUTH}" -H "Content-Type: application/json" \
-                  -d "{\"id\": \"${cond_id}\", \"requirement\": \"REQUIRED\", \"displayName\": \"Condition - user role\", \"providerId\": \"conditional-user-role\"}"
-                curl -sf -k -X PUT \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/authentication/flows/Deny%20non-org%20members/executions" \
-                  -H "${AUTH}" -H "Content-Type: application/json" \
-                  -d "{\"id\": \"${deny_id}\", \"requirement\": \"REQUIRED\", \"displayName\": \"Deny access\", \"providerId\": \"deny-access-authenticator\"}"
-
-                # Configure condition: negate = true, check org-members group
-                curl -sf -k -X POST \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/authentication/executions/${cond_id}/config" \
-                  -H "${AUTH}" -H "Content-Type: application/json" \
-                  -d '{"alias": "Not in org-members", "config": {"condUserRole": "org-members", "negate": "true"}}'
-                curl -sf -k -X POST \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/authentication/executions/${deny_id}/config" \
-                  -H "${AUTH}" -H "Content-Type: application/json" \
-                  -d "{\"alias\": \"Org access denied\", \"config\": {\"errorMessage\": \"Access denied. You must be a member of the ${GITHUB_ORG} GitHub organization.\"}}"
-              }
-
-              set_post_broker_flow() {
-                local realm="$1"
-                echo "  Setting postBrokerLoginFlowAlias on GitHub IdP..."
+                echo "  Clearing postBrokerLoginFlowAlias on GitHub IdP (if set)..."
                 local idp_config
                 idp_config=$(curl -sf -k -H "${AUTH}" \
-                  "${KEYCLOAK_URL}/admin/realms/${realm}/identity-provider/instances/github")
+                  "${KEYCLOAK_URL}/admin/realms/${realm}/identity-provider/instances/github" 2>/dev/null) || return 0
                 echo "$idp_config" | python3 -c "
               import sys,json
               idp = json.load(sys.stdin)
-              idp['postBrokerLoginFlowAlias'] = 'github-org-check'
-              print(json.dumps(idp))
-              " | curl -sf -k -X PUT \
+              if idp.get('postBrokerLoginFlowAlias'):
+                  idp['postBrokerLoginFlowAlias'] = ''
+                  print(json.dumps(idp))
+              else:
+                  sys.exit(1)
+              " 2>/dev/null | curl -sf -k -X PUT \
                   "${KEYCLOAK_URL}/admin/realms/${realm}/identity-provider/instances/github" \
-                  -H "${AUTH}" -H "Content-Type: application/json" -d @-
+                  -H "${AUTH}" -H "Content-Type: application/json" -d @- || echo "  (no change needed)"
               }
 
               configure_github_idp() {
@@ -253,7 +179,6 @@ spec:
                   \"trustEmail\": true,
                   \"storeToken\": true,
                   \"firstBrokerLoginFlowAlias\": \"first broker login\",
-                  \"postBrokerLoginFlowAlias\": \"github-org-check\",
                   \"config\": {
                     \"clientId\": \"${GITHUB_CLIENT_ID}\",
                     \"clientSecret\": \"${GITHUB_CLIENT_SECRET}\",
@@ -332,11 +257,8 @@ spec:
                   }
                 }"
 
-                # Ensure org-check auth flow
-                ensure_org_check_flow "${realm}"
-
-                # Set post-broker-login flow on GitHub IdP
-                set_post_broker_flow "${realm}"
+                # Remove post-broker org-check flow (org membership enforced by mapper)
+                clear_post_broker_flow "${realm}"
               }
 
               # --- Configure SSO realm ---
