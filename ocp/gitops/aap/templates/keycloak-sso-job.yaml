@@ -1,0 +1,127 @@
+{{- if .Values.clusterName }}
+{{- $clusterDomain := .Values.clusterDomain }}
+{{- if not $clusterDomain }}
+{{- $ingressConfig := lookup "config.openshift.io/v1" "Ingress" "" "cluster" }}
+{{- if and $ingressConfig $ingressConfig.spec }}
+{{- $clusterDomain = $ingressConfig.spec.domain }}
+{{- end }}
+{{- end }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aap-keycloak-sso
+  namespace: aap
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: configure-sso
+          image: registry.access.redhat.com/ubi9/ubi:latest
+          env:
+            - name: AAP_URL
+              value: "https://aap-aap.{{ $clusterDomain }}"
+            - name: KC_DOMAIN
+              value: "keycloak.{{ $clusterDomain }}"
+            - name: AAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aap-admin-password
+                  key: password
+            - name: AAP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: aap-keycloak-client-secret
+                  key: client-secret
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+
+              echo "Waiting for AAP Gateway..."
+              for i in $(seq 1 60); do
+                if curl -skf -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/gateway/v1/authenticators/" > /dev/null 2>&1; then
+                  echo "AAP Gateway is ready"
+                  break
+                fi
+                echo "  Attempt $i/60..."
+                sleep 15
+              done
+
+              # Check if Keycloak authenticator already exists
+              EXISTING=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                "$AAP_URL/api/gateway/v1/authenticators/" \
+                | python3 -c "
+              import json,sys
+              data = json.load(sys.stdin)
+              for a in data.get('results',[]):
+                  if 'keycloak' in a.get('type',''):
+                      print(a['id'])
+                      break
+              " 2>/dev/null || echo "")
+
+              # Get Keycloak realm public key
+              PUBLIC_KEY=$(curl -sk "https://$KC_DOMAIN/realms/sso" \
+                | python3 -c "import json,sys; print(json.load(sys.stdin)['public_key'])")
+
+              PAYLOAD=$(python3 -c "
+              import json
+              print(json.dumps({
+                  'name': 'Keycloak SSO',
+                  'enabled': True,
+                  'create_objects': True,
+                  'remove_users': False,
+                  'type': 'ansible_base.authentication.authenticator_plugins.keycloak',
+                  'configuration': {
+                      'ACCESS_TOKEN_URL': 'https://$KC_DOMAIN/realms/sso/protocol/openid-connect/token',
+                      'AUTHORIZATION_URL': 'https://$KC_DOMAIN/realms/sso/protocol/openid-connect/auth',
+                      'KEY': 'aap',
+                      'SECRET': '$AAP_CLIENT_SECRET',
+                      'PUBLIC_KEY': '$PUBLIC_KEY',
+                      'GROUPS_CLAIM': 'groups'
+                  }
+              }))
+              ")
+
+              if [ -n "$EXISTING" ]; then
+                echo "Updating existing Keycloak authenticator (id=$EXISTING)..."
+                curl -sk -X PUT -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/gateway/v1/authenticators/$EXISTING/" \
+                  -H "Content-Type: application/json" \
+                  -d "$PAYLOAD" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'Updated: id={d[\"id\"]} name={d[\"name\"]}')"
+              else
+                echo "Creating Keycloak authenticator..."
+                curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/gateway/v1/authenticators/" \
+                  -H "Content-Type: application/json" \
+                  -d "$PAYLOAD" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'Created: id={d[\"id\"]} name={d[\"name\"]}')"
+              fi
+
+              echo "=== AAP Keycloak SSO configured ==="
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: aap-keycloak-client-secret
+  namespace: aap
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: aws-secrets-manager
+    kind: ClusterSecretStore
+  target:
+    name: aap-keycloak-client-secret
+  data:
+  - secretKey: client-secret
+    remoteRef:
+      key: {{ .Values.clusterName }}/keycloak
+      property: aap-client-secret
+{{- end }}

@@ -28,6 +28,10 @@ spec:
       secret:
         name: keycloak-gitlab-client-secret
         key: client-secret
+    AAP_CLIENT_SECRET:
+      secret:
+        name: keycloak-aap-client-secret
+        key: client-secret
     SSO_MONITOR_CLIENT_SECRET:
       secret:
         name: keycloak-sso-monitor-client-secret
@@ -127,6 +131,35 @@ spec:
           - profile
           - email
         attributes: {}
+        protocolMappers:
+          - name: groups
+            protocol: openid-connect
+            protocolMapper: oidc-group-membership-mapper
+            config:
+              claim.name: groups
+              full.path: "false"
+              id.token.claim: "true"
+              access.token.claim: "true"
+              userinfo.token.claim: "true"
+      - clientId: aap
+        enabled: true
+        protocol: openid-connect
+        publicClient: false
+        standardFlowEnabled: true
+        directAccessGrantsEnabled: false
+        secret: ${AAP_CLIENT_SECRET}
+        redirectUris:
+          - https://aap-aap.{{ $clusterDomain }}/*
+        webOrigins:
+          - https://aap-aap.{{ $clusterDomain }}
+        defaultClientScopes:
+          - openid
+          - profile
+          - email
+        optionalClientScopes:
+          - groups
+        attributes:
+          pkce.code.challenge.method: S256
         protocolMappers:
           - name: groups
             protocol: openid-connect
