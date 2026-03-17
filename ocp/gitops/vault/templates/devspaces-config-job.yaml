@@ -54,16 +54,19 @@ spec:
                 || vault write ssh/config/ca generate_signing_key=true
 
               # SSH role for AAP managed nodes - users sign keys as their own username
-              vault write ssh/roles/managed-nodes \
-                key_type="ca" \
-                allow_user_certificates=true \
-                allowed_users_template=true \
-                allowed_users="{{"{{"}}identity.entity.name{{"}}"}}" \
-                default_user="" \
-                ttl="24h" \
-                max_ttl="24h" \
-                allowed_extensions="permit-pty,permit-agent-forwarding" \
-                default_extensions='{"permit-pty":"","permit-agent-forwarding":""}'
+              vault write ssh/roles/managed-nodes - <<'ROLE'
+              {
+                "key_type": "ca",
+                "allow_user_certificates": true,
+                "allowed_users_template": true,
+                "allowed_users": "{{"{{"}}identity.entity.name{{"}}"}}",
+                "default_user": "",
+                "ttl": "24h",
+                "max_ttl": "24h",
+                "allowed_extensions": "permit-pty,permit-agent-forwarding",
+                "default_extensions": {"permit-pty": "", "permit-agent-forwarding": ""}
+              }
+              ROLE
 
               # Enable Kubernetes auth method (idempotent)
               vault auth list -format=json | grep -q '"kubernetes/"' \
