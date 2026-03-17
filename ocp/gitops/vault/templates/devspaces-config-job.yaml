@@ -218,7 +218,7 @@ spec:
                   ttl="1h"
 
                 # Admin role for users in the admins group
-                curl -sf -X POST \
+                curl -sf -X PUT \
                   -H "X-Vault-Token: ${VAULT_TOKEN}" \
                   -H "Content-Type: application/json" \
                   -d '{
