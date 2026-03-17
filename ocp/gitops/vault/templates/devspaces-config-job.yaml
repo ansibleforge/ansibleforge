@@ -172,17 +172,24 @@ spec:
                   ttl="1h"
 
                 # Admin role for users in the admins group
-                vault write auth/oidc/role/admin \
-                  bound_audiences="vault" \
-                  allowed_redirect_uris="https://vault.{{ .Values.clusterDomain }}/ui/vault/auth/oidc/oidc/callback" \
-                  allowed_redirect_uris="http://localhost:8250/oidc/callback" \
-                  user_claim="preferred_username" \
-                  groups_claim="/groups" \
-                  bound_claims_type="glob" \
-                  bound_claims='{"groups": ["admins"]}' \
-                  oidc_scopes="openid,profile,email,groups" \
-                  policies="admin" \
-                  ttl="1h"
+                curl -sf -X POST \
+                  -H "X-Vault-Token: ${VAULT_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -d '{
+                    "bound_audiences": ["vault"],
+                    "allowed_redirect_uris": [
+                      "https://vault.{{ .Values.clusterDomain }}/ui/vault/auth/oidc/oidc/callback",
+                      "http://localhost:8250/oidc/callback"
+                    ],
+                    "user_claim": "preferred_username",
+                    "groups_claim": "/groups",
+                    "bound_claims_type": "glob",
+                    "bound_claims": {"groups": ["admins"]},
+                    "oidc_scopes": ["openid","profile","email","groups"],
+                    "token_policies": ["admin"],
+                    "token_ttl": "1h"
+                  }' \
+                  "${VAULT_ADDR}/v1/auth/oidc/role/admin"
 
                 # Make OIDC visible on the login page as default
                 vault auth tune -listing-visibility=unauth oidc/
