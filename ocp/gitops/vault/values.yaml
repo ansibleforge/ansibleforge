@@ -1,5 +1,6 @@
 namespace: vault
 clusterDomain: ""
+clusterName: ""
 
 vault:
   global:

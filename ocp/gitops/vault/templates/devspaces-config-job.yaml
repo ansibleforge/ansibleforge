@@ -117,6 +117,81 @@ spec:
               init_secret "ansible" '{"automationhub_token":"test"}'
               init_secret "quay"    '{"username":"test","password":"test"}'
 
+              echo "=== OIDC auth (Keycloak) ==="
+
+              # Read OIDC client secret from K8s secret (if available)
+              OIDC_SECRET_JSON=$(curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                "${API}/api/v1/namespaces/${NS}/secrets/vault-oidc-client-secret" 2>/dev/null || true)
+
+              if [ -n "${OIDC_SECRET_JSON}" ]; then
+                OIDC_CLIENT_SECRET=$(echo "${OIDC_SECRET_JSON}" \
+                  | python3 -c 'import json,sys,base64; d=json.load(sys.stdin); print(base64.b64decode(d["data"]["client-secret"]).decode())')
+
+                # Enable OIDC auth method (idempotent)
+                vault auth list -format=json | grep -q '"oidc/"' \
+                  && echo "OIDC auth already enabled" \
+                  || vault auth enable oidc
+
+                # Configure OIDC with Keycloak
+                vault write auth/oidc/config \
+                  oidc_discovery_url="https://keycloak.{{ .Values.clusterDomain }}/realms/sso" \
+                  oidc_client_id="vault" \
+                  oidc_client_secret="${OIDC_CLIENT_SECRET}" \
+                  default_role="reader"
+
+                # Admin policy - full access
+                vault policy write admin - <<'POLICY'
+              path "*" {
+                capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+              }
+              POLICY
+
+                # Reader policy - read-only secrets
+                vault policy write reader - <<'POLICY'
+              path "secret/data/*" {
+                capabilities = ["read", "list"]
+              }
+              path "secret/metadata/*" {
+                capabilities = ["read", "list"]
+              }
+              path "sys/mounts" {
+                capabilities = ["read"]
+              }
+              POLICY
+
+                # Default role for users not in admins group
+                vault write auth/oidc/role/reader \
+                  bound_audiences="vault" \
+                  allowed_redirect_uris="https://vault.{{ .Values.clusterDomain }}/ui/vault/auth/oidc/oidc/callback" \
+                  allowed_redirect_uris="http://localhost:8250/oidc/callback" \
+                  user_claim="preferred_username" \
+                  groups_claim="/groups" \
+                  oidc_scopes="openid,profile,email,groups" \
+                  policies="reader" \
+                  ttl="1h"
+
+                # Admin role for users in the admins group
+                vault write auth/oidc/role/admin \
+                  bound_audiences="vault" \
+                  allowed_redirect_uris="https://vault.{{ .Values.clusterDomain }}/ui/vault/auth/oidc/oidc/callback" \
+                  allowed_redirect_uris="http://localhost:8250/oidc/callback" \
+                  user_claim="preferred_username" \
+                  groups_claim="/groups" \
+                  bound_claims_type="glob" \
+                  bound_claims='{"groups": ["admins"]}' \
+                  oidc_scopes="openid,profile,email,groups" \
+                  policies="admin" \
+                  ttl="1h"
+
+                # Make OIDC visible on the login page as default
+                vault auth tune -listing-visibility=unauth oidc/
+
+                echo "OIDC auth configured with Keycloak"
+              else
+                echo "WARNING: vault-oidc-client-secret not found, skipping OIDC setup"
+              fi
+
               echo "=== Vault configuration complete ==="
               echo "KV engine:"
               vault secrets list | grep secret
