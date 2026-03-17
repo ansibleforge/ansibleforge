@@ -119,10 +119,10 @@ spec:
 
               echo "=== OIDC auth (Keycloak) ==="
 
-              # Read OIDC client secret from K8s secret (if available)
+              # Read OIDC client secret from keycloak namespace (if available)
               OIDC_SECRET_JSON=$(curl -sf --cacert "${CACERT}" \
                 -H "Authorization: Bearer ${SA_TOKEN}" \
-                "${API}/api/v1/namespaces/${NS}/secrets/vault-oidc-client-secret" 2>/dev/null || true)
+                "${API}/api/v1/namespaces/keycloak/secrets/keycloak-vault-client-secret" 2>/dev/null || true)
 
               if [ -n "${OIDC_SECRET_JSON}" ]; then
                 OIDC_CLIENT_SECRET=$(echo "${OIDC_SECRET_JSON}" \

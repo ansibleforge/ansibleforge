@@ -50,3 +50,33 @@ subjects:
   - kind: ServiceAccount
     name: vault-unseal
     namespace: {{ .Values.namespace }}
+---
+# Allow vault-unseal to read the OIDC client secret from keycloak namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vault-oidc-secret-reader
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["keycloak-vault-client-secret"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vault-oidc-secret-reader
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: vault-oidc-secret-reader
+subjects:
+  - kind: ServiceAccount
+    name: vault-unseal
+    namespace: {{ .Values.namespace }}
