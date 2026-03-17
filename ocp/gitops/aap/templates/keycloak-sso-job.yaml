@@ -19,6 +19,7 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      serviceAccountName: aap-keycloak-sso
       containers:
         - name: configure-sso
           image: registry.access.redhat.com/ubi9/ubi:latest
@@ -32,16 +33,20 @@ spec:
                 secretKeyRef:
                   name: aap-admin-password
                   key: password
-            - name: AAP_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: aap-keycloak-client-secret
-                  key: client-secret
           command:
             - /bin/bash
             - -c
             - |
               set -euo pipefail
+
+              # Read AAP client secret from keycloak namespace
+              SA_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              CACERT="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+              AAP_CLIENT_SECRET=$(curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                "https://kubernetes.default.svc/api/v1/namespaces/keycloak/secrets/keycloak-aap-client-secret" \
+                | python3 -c 'import json,sys,base64; d=json.load(sys.stdin); print(base64.b64decode(d["data"]["client-secret"]).decode())')
+              echo "Retrieved AAP client secret from keycloak namespace"
 
               echo "Waiting for AAP Gateway..."
               for i in $(seq 1 60); do
@@ -141,23 +146,9 @@ spec:
 
               echo "=== AAP Keycloak SSO configured ==="
 ---
-apiVersion: external-secrets.io/v1beta1
-kind: ExternalSecret
+apiVersion: v1
+kind: ServiceAccount
 metadata:
-  name: aap-keycloak-client-secret
+  name: aap-keycloak-sso
   namespace: aap
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
-spec:
-  refreshInterval: 1h
-  secretStoreRef:
-    name: aws-secrets-manager
-    kind: ClusterSecretStore
-  target:
-    name: aap-keycloak-client-secret
-  data:
-  - secretKey: client-secret
-    remoteRef:
-      key: {{ .Values.clusterName }}/keycloak
-      property: aap-client-secret
 {{- end }}

@@ -43,6 +43,28 @@ spec:
                 && echo "KV v2 already enabled" \
                 || vault secrets enable -path=secret kv-v2
 
+              # Enable SSH secrets engine (idempotent)
+              vault secrets list -format=json | grep -q '"ssh/"' \
+                && echo "SSH secrets engine already enabled" \
+                || vault secrets enable ssh
+
+              # Configure SSH CA key pair (idempotent - only generates if not already configured)
+              vault read ssh/config/ca >/dev/null 2>&1 \
+                && echo "SSH CA already configured" \
+                || vault write ssh/config/ca generate_signing_key=true
+
+              # SSH role for AAP managed nodes - users sign keys as their own username
+              vault write ssh/roles/managed-nodes \
+                key_type="ca" \
+                allow_user_certificates=true \
+                allowed_users_template=true \
+                allowed_users="{{"{{"}}identity.entity.name{{"}}"}}" \
+                default_user="" \
+                ttl="24h" \
+                max_ttl="24h" \
+                allowed_extensions="permit-pty,permit-agent-forwarding" \
+                default_extensions='{"permit-pty":"","permit-agent-forwarding":""}'
+
               # Enable Kubernetes auth method (idempotent)
               vault auth list -format=json | grep -q '"kubernetes/"' \
                 && echo "Kubernetes auth already enabled" \
@@ -80,6 +102,12 @@ spec:
               }
               path "secret/metadata/*" {
                 capabilities = ["read", "list"]
+              }
+              path "ssh/sign/*" {
+                capabilities = ["create", "update"]
+              }
+              path "ssh/config/ca" {
+                capabilities = ["read"]
               }
               POLICY
 
@@ -156,6 +184,21 @@ spec:
                 capabilities = ["read", "list"]
               }
               path "sys/mounts" {
+                capabilities = ["read"]
+              }
+              path "identity/*" {
+                capabilities = ["read", "list"]
+              }
+              path "sys/policies/*" {
+                capabilities = ["read", "list"]
+              }
+              path "sys/auth" {
+                capabilities = ["read"]
+              }
+              path "ssh/sign/*" {
+                capabilities = ["create", "update"]
+              }
+              path "ssh/config/ca" {
                 capabilities = ["read"]
               }
               POLICY
