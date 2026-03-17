@@ -211,10 +211,6 @@ spec:
           - https://gitlab.{{ $clusterDomain }}/users/auth/openid_connect/callback
         webOrigins:
           - https://gitlab.{{ $clusterDomain }}
-        defaultClientScopes:
-          - openid
-          - profile
-          - email
         optionalClientScopes:
           - groups
         attributes:
@@ -240,10 +236,6 @@ spec:
           - https://oauth-openshift.{{ $clusterDomain }}/*
         webOrigins:
           - https://oauth-openshift.{{ $clusterDomain }}
-        defaultClientScopes:
-          - openid
-          - profile
-          - email
         attributes: {}
         protocolMappers:
           - name: groups
@@ -266,10 +258,6 @@ spec:
           - https://aap-aap.{{ $clusterDomain }}/*
         webOrigins:
           - https://aap-aap.{{ $clusterDomain }}
-        defaultClientScopes:
-          - openid
-          - profile
-          - email
         optionalClientScopes:
           - groups
         attributes: {}
@@ -298,10 +286,6 @@ spec:
         directAccessGrantsEnabled: true
         serviceAccountsEnabled: false
         secret: ${SSO_MONITOR_CLIENT_SECRET}
-        defaultClientScopes:
-          - openid
-          - profile
-          - email
         optionalClientScopes:
           - groups
       - clientId: vault
@@ -316,10 +300,6 @@ spec:
           - http://localhost:8250/oidc/callback
         webOrigins:
           - https://vault.{{ $clusterDomain }}
-        defaultClientScopes:
-          - openid
-          - profile
-          - email
         optionalClientScopes:
           - groups
         protocolMappers:
