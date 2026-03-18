@@ -107,6 +107,8 @@ components:
       - repoURL: https://charts.openshift.io/
         chart: redhat-developer-hub
         targetRevision: 1.8.4
+        injectClusterParams: true
+        injectClusterRouterBase: true
         helm:
           valueFiles:
             - $values/ocp/gitops/rhdh/values/values.yaml

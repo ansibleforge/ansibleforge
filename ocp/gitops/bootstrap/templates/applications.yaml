@@ -43,6 +43,10 @@ spec:
           - name: clusterName
             value: {{ $.Values.clusterName | quote }}
           {{- end }}
+          {{- if and .injectClusterRouterBase $.Values.clusterDomain }}
+          - name: global.clusterRouterBase
+            value: {{ $.Values.clusterDomain | quote }}
+          {{- end }}
           {{- with .helm }}
           {{- range .parameters }}
           - name: {{ .name }}
