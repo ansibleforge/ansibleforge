@@ -280,5 +280,39 @@ spec:
                 -d "[${ADMIN_ROLE}]" || echo "(role may already be assigned)"
 
               echo ""
+              echo "=== Ensuring default client scopes on all SSO realm clients ==="
+              # The realm import's defaultDefaultClientScopes only applies to
+              # clients created after the scopes. Built-in clients (account,
+              # account-console, admin-cli, etc.) need scopes assigned explicitly.
+              SCOPE_IDS=""
+              for SCOPE_NAME in profile email roles web-origins; do
+                SID=$(curl -sf -k -H "${AUTH}" \
+                  "${KEYCLOAK_URL}/admin/realms/sso/client-scopes" \
+                  | python3 -c "
+              import sys,json
+              for s in json.load(sys.stdin):
+                  if s['name']=='${SCOPE_NAME}':
+                      print(s['id']); break
+              ")
+                if [ -n "$SID" ]; then
+                  SCOPE_IDS="${SCOPE_IDS} ${SID}"
+                fi
+              done
+
+              curl -sf -k -H "${AUTH}" "${KEYCLOAK_URL}/admin/realms/sso/clients" \
+                | python3 -c "
+              import sys,json
+              for c in json.load(sys.stdin):
+                  if c.get('protocol') == 'openid-connect':
+                      print(c['id'])
+              " | while read CLIENT_UUID; do
+                for SID in $SCOPE_IDS; do
+                  curl -sf -k -X PUT -H "${AUTH}" \
+                    "${KEYCLOAK_URL}/admin/realms/sso/clients/${CLIENT_UUID}/default-client-scopes/${SID}" 2>/dev/null || true
+                done
+              done
+              echo "  Done"
+
+              echo ""
               echo "=== GitHub IdP configuration complete for SSO and master realms ==="
 {{- end }}
