@@ -26,9 +26,29 @@ spec:
       {{- with .ref }}
       ref: {{ . }}
       {{- end }}
-      {{- with .helm }}
+      {{- if or .helm .injectClusterParams }}
       helm:
-        {{- toYaml . | nindent 8 }}
+        {{- with .helm }}
+        {{- if .valueFiles }}
+        valueFiles:
+          {{- toYaml .valueFiles | nindent 10 }}
+        {{- end }}
+        {{- end }}
+        parameters:
+          {{- if $.Values.clusterDomain }}
+          - name: clusterDomain
+            value: {{ $.Values.clusterDomain | quote }}
+          {{- end }}
+          {{- if $.Values.clusterName }}
+          - name: clusterName
+            value: {{ $.Values.clusterName | quote }}
+          {{- end }}
+          {{- with .helm }}
+          {{- range .parameters }}
+          - name: {{ .name }}
+            value: {{ .value | quote }}
+          {{- end }}
+          {{- end }}
       {{- end }}
     {{- end }}
   {{- else }}

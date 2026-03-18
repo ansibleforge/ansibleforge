@@ -103,6 +103,7 @@ components:
       namespace: rhdh
     sources:
       - path: ocp/gitops/rhdh/base
+        injectClusterParams: true
       - repoURL: https://charts.openshift.io/
         chart: redhat-developer-hub
         targetRevision: 1.8.4
