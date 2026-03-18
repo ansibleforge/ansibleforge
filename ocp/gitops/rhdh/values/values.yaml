@@ -5,6 +5,8 @@ upstream:
       - rhdh-keycloak-client-secret
     appConfig:
       auth:
+        session:
+          secret: ${BACKEND_SECRET}
         environment: production
         providers:
           oidc:
