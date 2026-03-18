@@ -15,8 +15,8 @@ metadata:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
-  backoffLimit: 2
-  activeDeadlineSeconds: 300
+  backoffLimit: 5
+  activeDeadlineSeconds: 600
   template:
     spec:
       restartPolicy: Never
@@ -63,7 +63,7 @@ spec:
               value: {{ $clusterDomain | quote }}
           args:
             - |
-              set -e
+              set -eo pipefail
 
               echo "=== Obtaining admin token ==="
               TOKEN=$(curl -sf -k "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
@@ -104,7 +104,7 @@ spec:
               ensure_role_for_group() {
                 local realm="$1" role_name="$2" group_id="$3"
                 local role_exists
-                role_exists=$(curl -sf -k -o /dev/null -w "%{http_code}" \
+                role_exists=$(curl -s -k -o /dev/null -w "%{http_code}" \
                   -H "${AUTH}" \
                   "${KEYCLOAK_URL}/admin/realms/${realm}/roles/${role_name}")
                 if [ "$role_exists" != "200" ]; then
@@ -120,10 +120,10 @@ spec:
                 role_json=$(curl -sf -k -H "${AUTH}" \
                   "${KEYCLOAK_URL}/admin/realms/${realm}/roles/${role_name}")
                 echo "  Mapping role ${role_name} to group..."
-                curl -sf -k -X POST \
+                curl -s -k -X POST \
                   "${KEYCLOAK_URL}/admin/realms/${realm}/groups/${group_id}/role-mappings/realm" \
                   -H "${AUTH}" -H "Content-Type: application/json" \
-                  -d "[${role_json}]" || echo "  (role may already be mapped)"
+                  -d "[${role_json}]" -o /dev/null -w "" || echo "  (role may already be mapped)"
               }
 
               upsert_idp_mapper() {
