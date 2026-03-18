@@ -59,6 +59,21 @@ spec:
                 secretKeyRef:
                   name: keycloak-rhdh-client-secret
                   key: client-secret
+            - name: AAP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-aap-client-secret
+                  key: client-secret
+            - name: VAULT_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-vault-client-secret
+                  key: client-secret
+            - name: SSO_MONITOR_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-sso-monitor-client-secret
+                  key: client-secret
             - name: CLUSTER_DOMAIN
               value: {{ $clusterDomain | quote }}
           args:
@@ -321,6 +336,24 @@ spec:
                 done
               done
               echo "  Done"
+
+              echo ""
+              echo "=== Syncing OIDC client secrets in SSO realm ==="
+              for CLIENT_PAIR in "aap:${AAP_CLIENT_SECRET}" "vault:${VAULT_CLIENT_SECRET}" "sso-monitor:${SSO_MONITOR_CLIENT_SECRET}"; do
+                CLIENT_ID="${CLIENT_PAIR%%:*}"
+                CLIENT_SECRET="${CLIENT_PAIR#*:}"
+                CLIENT_UUID=$(curl -sf -k -H "${AUTH}" \
+                  "${KEYCLOAK_URL}/admin/realms/sso/clients?clientId=${CLIENT_ID}" \
+                  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['id'] if d else '')" 2>/dev/null)
+                if [ -n "$CLIENT_UUID" ]; then
+                  curl -s -k -X PUT -H "${AUTH}" -H "Content-Type: application/json" \
+                    "${KEYCLOAK_URL}/admin/realms/sso/clients/${CLIENT_UUID}" \
+                    -d "{\"clientId\":\"${CLIENT_ID}\",\"secret\":\"${CLIENT_SECRET}\"}" \
+                    -o /dev/null -w "" && echo "  ${CLIENT_ID}: synced" || echo "  ${CLIENT_ID}: failed"
+                else
+                  echo "  ${CLIENT_ID}: not found, skipping"
+                fi
+              done
 
               echo ""
               echo "=== Configuring RHDH OIDC client in SSO realm ==="
