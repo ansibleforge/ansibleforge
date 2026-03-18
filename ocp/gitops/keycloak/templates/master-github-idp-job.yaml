@@ -20,6 +20,7 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      serviceAccountName: keycloak-config
       containers:
         - name: configure-github-idp
           image: registry.access.redhat.com/ubi9/ubi:latest
@@ -53,6 +54,13 @@ spec:
                 secretKeyRef:
                   name: keycloak-initial-admin
                   key: password
+            - name: RHDH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-rhdh-client-secret
+                  key: client-secret
+            - name: CLUSTER_DOMAIN
+              value: {{ $clusterDomain | quote }}
           args:
             - |
               set -e
@@ -314,5 +322,124 @@ spec:
               echo "  Done"
 
               echo ""
-              echo "=== GitHub IdP configuration complete for SSO and master realms ==="
+              echo "=== Configuring RHDH OIDC client in SSO realm ==="
+              RHDH_EXISTS=$(curl -sf -k -o /dev/null -w "%{http_code}" \
+                -H "${AUTH}" \
+                "${KEYCLOAK_URL}/admin/realms/sso/clients?clientId=rhdh" \
+                | grep -q 200 && curl -sf -k -H "${AUTH}" \
+                "${KEYCLOAK_URL}/admin/realms/sso/clients?clientId=rhdh" \
+                | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['id'] if d else '')" || echo "")
+
+              RHDH_PAYLOAD=$(python3 -c "
+              import json
+              print(json.dumps({
+                  'clientId': 'rhdh',
+                  'enabled': True,
+                  'protocol': 'openid-connect',
+                  'publicClient': False,
+                  'standardFlowEnabled': True,
+                  'directAccessGrantsEnabled': False,
+                  'secret': '${RHDH_CLIENT_SECRET}',
+                  'redirectUris': ['https://rhdh-developer-hub-rhdh.${CLUSTER_DOMAIN}/api/auth/oidc/handler/frame'],
+                  'webOrigins': ['https://rhdh-developer-hub-rhdh.${CLUSTER_DOMAIN}'],
+                  'defaultClientScopes': [],
+                  'optionalClientScopes': ['groups'],
+                  'protocolMappers': [
+                      {
+                          'name': 'groups',
+                          'protocol': 'openid-connect',
+                          'protocolMapper': 'oidc-group-membership-mapper',
+                          'config': {
+                              'claim.name': 'groups',
+                              'full.path': 'false',
+                              'id.token.claim': 'true',
+                              'access.token.claim': 'true',
+                              'userinfo.token.claim': 'true'
+                          }
+                      },
+                      {
+                          'name': 'audience',
+                          'protocol': 'openid-connect',
+                          'protocolMapper': 'oidc-audience-mapper',
+                          'config': {
+                              'included.client.audience': 'rhdh',
+                              'id.token.claim': 'true',
+                              'access.token.claim': 'true'
+                          }
+                      }
+                  ]
+              }))
+              ")
+
+              if [ -n "$RHDH_EXISTS" ]; then
+                echo "  RHDH client exists, updating..."
+                curl -sf -k -X PUT \
+                  "${KEYCLOAK_URL}/admin/realms/sso/clients/${RHDH_EXISTS}" \
+                  -H "${AUTH}" -H "Content-Type: application/json" \
+                  -d "${RHDH_PAYLOAD}"
+              else
+                echo "  Creating RHDH client..."
+                curl -sf -k -X POST \
+                  "${KEYCLOAK_URL}/admin/realms/sso/clients" \
+                  -H "${AUTH}" -H "Content-Type: application/json" \
+                  -d "${RHDH_PAYLOAD}"
+              fi
+              echo "  Done"
+
+              echo ""
+              echo "=== Copying RHDH client secret to rhdh namespace ==="
+              SA_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              CACERT="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+              ENCODED_SECRET=$(echo -n "${RHDH_CLIENT_SECRET}" | base64 -w0)
+              curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -X PUT \
+                "https://kubernetes.default.svc/api/v1/namespaces/rhdh/secrets/rhdh-keycloak-client-secret" \
+                -d "{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"rhdh-keycloak-client-secret\",\"namespace\":\"rhdh\"},\"type\":\"Opaque\",\"data\":{\"client-secret\":\"${ENCODED_SECRET}\"}}" \
+                2>/dev/null \
+              || curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -X POST \
+                "https://kubernetes.default.svc/api/v1/namespaces/rhdh/secrets" \
+                -d "{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"rhdh-keycloak-client-secret\",\"namespace\":\"rhdh\"},\"type\":\"Opaque\",\"data\":{\"client-secret\":\"${ENCODED_SECRET}\"}}"
+              echo "  Done"
+
+              echo ""
+              echo "=== Configuration complete ==="
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: keycloak-config
+  namespace: {{ .Values.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: keycloak-config
+  namespace: rhdh
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["rhdh-keycloak-client-secret"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keycloak-config
+  namespace: rhdh
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: keycloak-config
+subjects:
+  - kind: ServiceAccount
+    name: keycloak-config
+    namespace: {{ .Values.namespace }}
 {{- end }}

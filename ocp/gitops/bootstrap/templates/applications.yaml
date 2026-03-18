@@ -47,6 +47,12 @@ spec:
           - name: global.clusterRouterBase
             value: {{ $.Values.clusterDomain | quote }}
           {{- end }}
+          {{- if and .injectKeycloakUrl $.Values.clusterDomain }}
+          - name: upstream.backstage.extraEnvVars[0].name
+            value: KEYCLOAK_METADATA_URL
+          - name: upstream.backstage.extraEnvVars[0].value
+            value: {{ printf "https://keycloak.%s/realms/sso/.well-known/openid-configuration" $.Values.clusterDomain | quote }}
+          {{- end }}
           {{- with .helm }}
           {{- range .parameters }}
           - name: {{ .name }}

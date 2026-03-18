@@ -1,4 +1,21 @@
 upstream:
+  backstage:
+    extraEnvVarsSecrets:
+      - rhdh-keycloak-client-secret
+    appConfig:
+      auth:
+        environment: production
+        providers:
+          oidc:
+            production:
+              clientId: rhdh
+              clientSecret: ${client-secret}
+              metadataUrl: ${KEYCLOAK_METADATA_URL}
+              prompt: auto
+              signIn:
+                resolvers:
+                  - resolver: preferredUsernameMatchingUserEntityName
+      signInPage: oidc
   postgresql:
     auth:
       existingSecret: rhdh-postgresql
