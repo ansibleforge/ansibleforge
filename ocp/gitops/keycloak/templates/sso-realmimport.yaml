@@ -50,16 +50,6 @@ spec:
         name: gitlab-broker-credentials
         key: clientSecret
     {{- end }}
-    {{- if .Values.github.broker }}
-    GITHUB_CLIENT_ID:
-      secret:
-        name: github-app-credentials
-        key: client-id
-    GITHUB_CLIENT_SECRET:
-      secret:
-        name: github-app-credentials
-        key: client-secret
-    {{- end }}
   realm:
     realm: sso
     enabled: true
@@ -385,9 +375,8 @@ spec:
         realmRoles:
           - org-members
       {{- end }}
-    {{- if or .Values.gitlab.broker .Values.github.broker }}
+    {{- if .Values.gitlab.broker }}
     identityProviders:
-      {{- if .Values.gitlab.broker }}
       - alias: gitlab
         providerId: oidc
         enabled: true
@@ -404,54 +393,11 @@ spec:
           syncMode: FORCE
           pkceEnabled: "true"
           pkceMethod: S256
-      {{- end }}
-      {{- if .Values.github.broker }}
-      - alias: github
-        providerId: github
-        enabled: true
-        trustEmail: true
-        storeToken: true
-        firstBrokerLoginFlowAlias: first broker login
-        config:
-          clientId: ${GITHUB_CLIENT_ID}
-          clientSecret: ${GITHUB_CLIENT_SECRET}
-          defaultScope: "user:email{{ if .Values.github.mapper }} read:org{{ end }}"
-          syncMode: FORCE
-      {{- end }}
     identityProviderMappers:
-      {{- if .Values.gitlab.broker }}
       - name: gitlab-username
         identityProviderAlias: gitlab
         identityProviderMapper: oidc-username-idp-mapper
         config:
           syncMode: INHERIT
           template: "${CLAIM.preferred_username}"
-      {{- end }}
-      {{- if .Values.github.broker }}
-      - name: github-username
-        identityProviderAlias: github
-        identityProviderMapper: oidc-username-idp-mapper
-        config:
-          syncMode: INHERIT
-          template: "${CLAIM.login}"
-      {{- if and .Values.github.mapper .Values.github.org }}
-      - name: github-org-admins
-        identityProviderAlias: github
-        identityProviderMapper: github-org-to-group-mapper
-        config:
-          syncMode: FORCE
-          github.org: {{ .Values.github.org }}
-          {{- if .Values.github.team }}
-          github.team: {{ .Values.github.team }}
-          {{- end }}
-          keycloak.group: admins
-      - name: github-org-members
-        identityProviderAlias: github
-        identityProviderMapper: github-org-to-group-mapper
-        config:
-          syncMode: FORCE
-          github.org: {{ .Values.github.org }}
-          keycloak.group: org-members
-      {{- end }}
-      {{- end }}
     {{- end }}
