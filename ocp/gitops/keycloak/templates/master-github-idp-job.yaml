@@ -340,6 +340,7 @@ spec:
                   'publicClient': False,
                   'standardFlowEnabled': True,
                   'directAccessGrantsEnabled': False,
+                  'serviceAccountsEnabled': True,
                   'secret': '${RHDH_CLIENT_SECRET}',
                   'redirectUris': ['https://rhdh-developer-hub-rhdh.${CLUSTER_DOMAIN}/api/auth/oidc/handler/frame'],
                   'webOrigins': ['https://rhdh-developer-hub-rhdh.${CLUSTER_DOMAIN}'],
@@ -385,6 +386,31 @@ spec:
                   -H "${AUTH}" -H "Content-Type: application/json" \
                   -d "${RHDH_PAYLOAD}"
               fi
+              echo "  Done"
+
+              echo ""
+              echo "=== Assigning realm-management roles to RHDH service account ==="
+              RHDH_CLIENT_UUID=$(curl -sf -k -H "${AUTH}" \
+                "${KEYCLOAK_URL}/admin/realms/sso/clients?clientId=rhdh" \
+                | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
+              SA_USER_ID=$(curl -sf -k -H "${AUTH}" \
+                "${KEYCLOAK_URL}/admin/realms/sso/clients/${RHDH_CLIENT_UUID}/service-account-user" \
+                | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+              REALM_MGMT_UUID=$(curl -sf -k -H "${AUTH}" \
+                "${KEYCLOAK_URL}/admin/realms/sso/clients?clientId=realm-management" \
+                | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
+              ROLES=$(curl -sf -k -H "${AUTH}" \
+                "${KEYCLOAK_URL}/admin/realms/sso/clients/${REALM_MGMT_UUID}/roles" \
+                | python3 -c "
+              import sys,json
+              roles = json.load(sys.stdin)
+              needed = [r for r in roles if r['name'] in ('view-users','query-users','query-groups','view-realm')]
+              print(json.dumps(needed))
+              ")
+              curl -sf -k -X POST \
+                "${KEYCLOAK_URL}/admin/realms/sso/users/${SA_USER_ID}/role-mappings/clients/${REALM_MGMT_UUID}" \
+                -H "${AUTH}" -H "Content-Type: application/json" \
+                -d "${ROLES}" || echo "  (roles may already be assigned)"
               echo "  Done"
 
               echo ""
