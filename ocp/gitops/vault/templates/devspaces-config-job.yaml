@@ -54,19 +54,8 @@ spec:
                 || vault write ssh/config/ca generate_signing_key=true
 
               # SSH role for AAP managed nodes - users sign keys as their own username
-              vault write ssh/roles/managed-nodes - <<'ROLE'
-              {
-                "key_type": "ca",
-                "allow_user_certificates": true,
-                "allowed_users_template": true,
-                "allowed_users": "{{"{{"}}identity.entity.name{{"}}"}}",
-                "default_user": "",
-                "ttl": "24h",
-                "max_ttl": "24h",
-                "allowed_extensions": "permit-pty,permit-agent-forwarding",
-                "default_extensions": {"permit-pty": "", "permit-agent-forwarding": ""}
-              }
-              ROLE
+              echo '{"key_type":"ca","allow_user_certificates":true,"allowed_users_template":true,"allowed_users":"{{"{{"}}identity.entity.name{{"}}"}}","default_user":"","ttl":"24h","max_ttl":"24h","allowed_extensions":"permit-pty,permit-agent-forwarding","default_extensions":{"permit-pty":"","permit-agent-forwarding":""}}' \
+                | vault write ssh/roles/managed-nodes -
 
               # Enable Kubernetes auth method (idempotent)
               vault auth list -format=json | grep -q '"kubernetes/"' \
@@ -218,19 +207,8 @@ spec:
                   ttl="1h"
 
                 # Admin role for users in the admins group
-                vault write auth/oidc/role/admin - <<'ADMINROLE'
-                {
-                  "bound_audiences": ["vault"],
-                  "allowed_redirect_uris": ["https://vault.{{ .Values.clusterDomain }}/ui/vault/auth/oidc/oidc/callback", "http://localhost:8250/oidc/callback"],
-                  "user_claim": "preferred_username",
-                  "groups_claim": "/groups",
-                  "bound_claims_type": "glob",
-                  "bound_claims": {"groups": ["admins"]},
-                  "oidc_scopes": ["openid","profile","email","groups"],
-                  "token_policies": ["admin"],
-                  "token_ttl": "1h"
-                }
-                ADMINROLE
+                echo '{"bound_audiences":["vault"],"allowed_redirect_uris":["https://vault.{{ .Values.clusterDomain }}/ui/vault/auth/oidc/oidc/callback","http://localhost:8250/oidc/callback"],"user_claim":"preferred_username","groups_claim":"/groups","bound_claims_type":"glob","bound_claims":{"groups":["admins"]},"oidc_scopes":["openid","profile","email","groups"],"token_policies":["admin"],"token_ttl":"1h"}' \
+                  | vault write auth/oidc/role/admin -
 
                 # Make OIDC visible on the login page as default
                 vault auth tune -listing-visibility=unauth oidc/
