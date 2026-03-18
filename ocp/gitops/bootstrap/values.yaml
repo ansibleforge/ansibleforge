@@ -167,7 +167,6 @@ components:
     syncWave: "2"
     path: ocp/gitops/auth
     syncOptions:
-      - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
       - RespectIgnoreDifferences=true
     ignoreDifferences:
