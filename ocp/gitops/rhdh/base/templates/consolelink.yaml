@@ -1,0 +1,16 @@
+{{- $clusterDomain := "" }}
+{{- $ingressConfig := lookup "config.openshift.io/v1" "Ingress" "" "cluster" }}
+{{- if and $ingressConfig $ingressConfig.spec }}
+{{- $clusterDomain = $ingressConfig.spec.domain }}
+{{- end }}
+apiVersion: console.openshift.io/v1
+kind: ConsoleLink
+metadata:
+  name: rhdh
+spec:
+  location: ApplicationMenu
+  text: Developer Hub
+  href: https://backstage-developer-hub-rhdh.{{ $clusterDomain }}
+  applicationMenu:
+    section: Red Hat Applications
+    imageURL: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzOCAzOCI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj48Y2lyY2xlIGN4PSIxOSIgY3k9IjE5IiByPSIxOSIgZmlsbD0iIzRBOTBEOSIvPjxwYXRoIGZpbGw9IiNGRkYiIGQ9Ik0xMiAxMmgxNHYxNEgxMnoiLz48cGF0aCBmaWxsPSIjNEE5MEQ5IiBkPSJNMTQgMTRoMTB2MTBIMTR6Ii8+PHBhdGggZmlsbD0iI0ZGRiIgZD0iTTE2IDE2aDZ2NmgtNnoiLz48L2c+PC9zdmc+

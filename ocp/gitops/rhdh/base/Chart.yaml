@@ -1,0 +1,4 @@
+apiVersion: v2
+name: rhdh-base
+version: 0.1.0
+description: Base resources for Red Hat Developer Hub
