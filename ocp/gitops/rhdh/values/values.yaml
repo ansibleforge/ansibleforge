@@ -1,3 +1,8 @@
+global:
+  dynamic:
+    plugins:
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-catalog-backend-module-keycloak-dynamic
+        disabled: false
 upstream:
   backstage:
     extraEnvVars: []
@@ -35,10 +40,6 @@ upstream:
                   minutes: 3
                 initialDelay:
                   seconds: 15
-  dynamic:
-    plugins:
-      - package: ./dynamic-plugins/dist/backstage-community-plugin-catalog-backend-module-keycloak-dynamic
-        disabled: false
   postgresql:
     auth:
       existingSecret: rhdh-postgresql
