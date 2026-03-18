@@ -197,10 +197,11 @@ spec:
 
                 if [ "$existing" = "200" ]; then
                   echo "  GitHub IdP exists, updating..."
-                  curl -sf -k -X PUT \
+                  curl -s -k -X PUT \
                     "${KEYCLOAK_URL}/admin/realms/${realm}/identity-provider/instances/github" \
                     -H "${AUTH}" -H "Content-Type: application/json" \
-                    -d "$idp_payload"
+                    -d "$idp_payload" -o /dev/null -w "%{http_code}" | grep -q "2[0-9][0-9]" \
+                    && echo "  Updated" || echo "  Update skipped (IdP may have stale state)"
                 else
                   echo "  Creating GitHub IdP..."
                   curl -sf -k -X POST \
