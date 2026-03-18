@@ -52,6 +52,12 @@ spec:
             value: KEYCLOAK_METADATA_URL
           - name: upstream.backstage.extraEnvVars[0].value
             value: {{ printf "https://keycloak.%s/realms/sso/.well-known/openid-configuration" $.Values.clusterDomain | quote }}
+          - name: upstream.backstage.extraEnvVars[1].name
+            value: POSTGRESQL_ADMIN_PASSWORD
+          - name: upstream.backstage.extraEnvVars[1].valueFrom.secretKeyRef.name
+            value: rhdh-postgresql
+          - name: upstream.backstage.extraEnvVars[1].valueFrom.secretKeyRef.key
+            value: postgres-password
           {{- end }}
           {{- with .helm }}
           {{- range .parameters }}
