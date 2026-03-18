@@ -187,11 +187,11 @@ spec:
               path "sys/auth" {
                 capabilities = ["read"]
               }
+              path "ssh/*" {
+                capabilities = ["read", "list"]
+              }
               path "ssh/sign/*" {
                 capabilities = ["create", "update"]
-              }
-              path "ssh/config/ca" {
-                capabilities = ["read"]
               }
               POLICY
 
