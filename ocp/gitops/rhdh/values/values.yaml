@@ -1,5 +1,3 @@
-global:
-  clusterRouterBase: apps.cluster.example.com
 upstream:
   postgresql:
     auth:

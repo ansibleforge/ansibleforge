@@ -97,7 +97,7 @@ components:
       - SkipDryRunOnMissingResource=true
 
   rhdh:
-    enabled: false
+    enabled: true
     syncWave: "2"
     destination:
       namespace: rhdh
