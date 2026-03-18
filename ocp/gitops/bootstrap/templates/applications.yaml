@@ -58,6 +58,12 @@ spec:
             value: rhdh-postgresql
           - name: upstream.backstage.extraEnvVars[1].valueFrom.secretKeyRef.key
             value: postgres-password
+          - name: upstream.backstage.extraEnvVars[2].name
+            value: BACKEND_SECRET
+          - name: upstream.backstage.extraEnvVars[2].valueFrom.secretKeyRef.name
+            value: rhdh-auth
+          - name: upstream.backstage.extraEnvVars[2].valueFrom.secretKeyRef.key
+            value: backend-secret
           {{- end }}
           {{- with .helm }}
           {{- range .parameters }}
