@@ -31,3 +31,9 @@ spec:
   no_log: true
   redis_mode: standalone
   route_tls_termination_mechanism: Edge
+  gateway:
+    extra_settings:
+      - setting: FLAGS
+        value:
+          FEATURE_FLAGS_UI_PAGE: True
+          FEATURE_FLAGS_RUNTIME_TOGGLING: True
