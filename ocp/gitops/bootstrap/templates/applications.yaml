@@ -64,6 +64,10 @@ spec:
             value: rhdh-auth
           - name: upstream.backstage.extraEnvVars[2].valueFrom.secretKeyRef.key
             value: backend-secret
+          - name: upstream.backstage.extraEnvVars[3].name
+            value: KEYCLOAK_BASE_URL
+          - name: upstream.backstage.extraEnvVars[3].value
+            value: {{ printf "https://keycloak.%s" $.Values.clusterDomain | quote }}
           {{- end }}
           {{- with .helm }}
           {{- range .parameters }}

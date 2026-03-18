@@ -19,6 +19,26 @@ upstream:
                 resolvers:
                   - resolver: preferredUsernameMatchingUserEntityName
       signInPage: oidc
+      catalog:
+        providers:
+          keycloakOrg:
+            default:
+              baseUrl: ${KEYCLOAK_BASE_URL}
+              loginRealm: sso
+              realm: sso
+              clientId: rhdh
+              clientSecret: ${client-secret}
+              schedule:
+                frequency:
+                  minutes: 5
+                timeout:
+                  minutes: 3
+                initialDelay:
+                  seconds: 15
+  dynamic:
+    plugins:
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-catalog-backend-module-keycloak-dynamic
+        disabled: false
   postgresql:
     auth:
       existingSecret: rhdh-postgresql
