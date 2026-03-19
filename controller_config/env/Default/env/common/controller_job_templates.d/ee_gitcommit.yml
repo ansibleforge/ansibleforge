@@ -7,7 +7,8 @@ controller_templates:
     playbook: containers/ee-ansibleforge/gitcommit.yaml
     inventory: Localhost
     execution_environment: "EE AnsibleForge"
-    credentials: []
+    credentials:
+      - GitHub PAT
     extra_vars:
       git_dir: /tmp/ansibleforge
       buildconfig: bc-ee-ansibleforge

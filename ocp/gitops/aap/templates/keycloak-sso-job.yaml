@@ -234,6 +234,80 @@ spec:
                 echo "WARNING: HashiCorp Vault Secret Lookup credential type not found"
               fi
 
+              echo "=== GitHub Token credential type ==="
+
+              # Create custom credential type that injects GITHUB_TOKEN as env var
+              GH_CRED_TYPE_ID=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                "$AAP_URL/api/controller/v2/credential_types/?name=GitHub+Personal+Access+Token" \
+                | python3 -c "
+              import json,sys
+              data = json.load(sys.stdin)
+              if data['count'] > 0: print(data['results'][0]['id'])
+              " 2>/dev/null || echo "")
+
+              if [ -z "$GH_CRED_TYPE_ID" ]; then
+                GH_CRED_TYPE_ID=$(curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/controller/v2/credential_types/" \
+                  -H "Content-Type: application/json" \
+                  -d '{
+                    "name": "GitHub Personal Access Token",
+                    "kind": "cloud",
+                    "inputs": {
+                      "fields": [
+                        {"id": "token", "label": "GitHub Token", "type": "string", "secret": true}
+                      ],
+                      "required": ["token"]
+                    },
+                    "injectors": {
+                      "env": {"GITHUB_TOKEN": "{{ "{{" }} token {{ "}}" }}"}
+                    }
+                  }' | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+                echo "Created GitHub PAT credential type (id=$GH_CRED_TYPE_ID)"
+              else
+                echo "GitHub PAT credential type already exists (id=$GH_CRED_TYPE_ID)"
+              fi
+
+              # Create GitHub PAT credential with token from Vault
+              if [ -n "$GH_CRED_TYPE_ID" ] && [ -n "$VAULT_CRED_EXISTS" ]; then
+                GH_CRED_ID=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/controller/v2/credentials/?name=GitHub+PAT" \
+                  | python3 -c "
+              import json,sys
+              data = json.load(sys.stdin)
+              if data['count'] > 0: print(data['results'][0]['id'])
+              " 2>/dev/null || echo "")
+
+                if [ -z "$GH_CRED_ID" ]; then
+                  GH_CRED_ID=$(curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                    "$AAP_URL/api/controller/v2/credentials/" \
+                    -H "Content-Type: application/json" \
+                    -d "{
+                      \"name\": \"GitHub PAT\",
+                      \"credential_type\": $GH_CRED_TYPE_ID,
+                      \"organization\": 1,
+                      \"inputs\": {}
+                    }" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+                  echo "Created GitHub PAT credential (id=$GH_CRED_ID)"
+
+                  # Link token field to Vault
+                  curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                    "$AAP_URL/api/controller/v2/credentials/$GH_CRED_ID/input_sources/" \
+                    -H "Content-Type: application/json" \
+                    -d "{
+                      \"input_field_name\": \"token\",
+                      \"source_credential\": $VAULT_CRED_EXISTS,
+                      \"metadata\": {
+                        \"secret_path\": \"secret/github\",
+                        \"secret_key\": \"token\",
+                        \"secret_version\": \"\"
+                      }
+                    }" > /dev/null
+                  echo "Linked GitHub PAT token to Vault Lookup"
+                else
+                  echo "GitHub PAT credential already exists (id=$GH_CRED_ID)"
+                fi
+              fi
+
               echo "=== AnsibleForge project ==="
 
               # Helper: idempotent create-or-get for API resources

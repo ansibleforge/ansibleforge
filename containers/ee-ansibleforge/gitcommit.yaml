@@ -6,16 +6,27 @@
   vars:
     github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
     git_user: ansible_automation_platform
-    git_user_email: ansible_automation_platform@dragonslair.dev
+    git_user_email: ansible_automation_platform@ansibleforge.dev
     commit_message: "Create context dir for execution environment"
-    git_dir: /tmp/ansible-devspaces
+    git_repo: https://github.com/hfenner/ansibleforge.git
+    git_dir: /tmp/ansibleforge
+    ee_subdir: containers/ee-ansibleforge
     buildconfig: bc-ee-ansibleforge
-    namespace: hfenner-devspaces
+    namespace: shared-builds
+
+  pre_tasks:
+    - name: Validate GitHub token is available
+      ansible.builtin.assert:
+        that:
+          - github_token | length > 0
+        fail_msg: >-
+          GITHUB_TOKEN is empty. Attach a credential that injects
+          GITHUB_TOKEN or pass github_token as an extra var.
 
   tasks:
     - name: Git checkout
       ansible.builtin.git: # noqa: latest
-        repo: "https://{{ github_token }}@github.com/hfenner/ansible-devspaces"
+        repo: "https://{{ github_token }}@{{ git_repo | regex_replace('^https?://', '') }}"
         dest: "{{ git_dir }}"
         depth: 1
 
@@ -23,7 +34,7 @@
       ansible.builtin.command:
       args:
         cmd: "ansible-builder create"
-        chdir: "{{ git_dir }}/ee-ansibleforge"
+        chdir: "{{ git_dir }}/{{ ee_subdir }}"
       register: ansible_builder_output
       changed_when: ansible_builder_output.rc != 0
 
@@ -31,14 +42,14 @@
       ansible.builtin.command: # noqa: command-instead-of-module
       args:
         cmd: "git add -f context/"
-        chdir: "{{ git_dir }}/ee-ansibleforge"
+        chdir: "{{ git_dir }}/{{ ee_subdir }}"
       register: git_add_output
       changed_when: git_add_output.rc != 0
 
     - name: Detect if staging area has changes
       ansible.builtin.command: # noqa: command-instead-of-module
         cmd: git diff --cached
-        chdir: "{{ git_dir }}/ee-ansibleforge"
+        chdir: "{{ git_dir }}/{{ ee_subdir }}"
       register: git_diff_output
       changed_when: git_diff_output.stdout | length > 0
 
@@ -59,7 +70,7 @@
       register: git_push_output
       changed_when: git_push_output.rc != 0
 
-    - name: Starts build from build config
+    - name: Start build from build config
       redhat.openshift.openshift_build:
         namespace: "{{ namespace }}"
         build_config_name: "{{ buildconfig }}"

@@ -1,0 +1,15 @@
+---
+controller_credential_types:
+  - name: GitHub Personal Access Token
+    kind: cloud
+    inputs:
+      fields:
+        - id: token
+          label: GitHub Token
+          type: string
+          secret: true
+      required:
+        - token
+    injectors:
+      env:
+        GITHUB_TOKEN: "{{ '{{' }} token {{ '}}' }}"

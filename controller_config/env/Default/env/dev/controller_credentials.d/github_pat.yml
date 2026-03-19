@@ -1,0 +1,13 @@
+---
+controller_credentials:
+  - name: GitHub PAT
+    credential_type: GitHub Personal Access Token
+    organization: Default
+    inputs: {}
+    input_sources:
+      - source_credential: Vault Lookup
+        target: token
+        metadata:
+          secret_path: "secret/github"
+          secret_key: "token"
+          secret_version: ""
