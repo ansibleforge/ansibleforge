@@ -8,7 +8,11 @@
     controller_username: "{{ lookup('env', 'CONTROLLER_USERNAME') | default('admin', true) }}"
     controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
     controller_validate_certs: false
-    controller_configuration_dir: "{{ playbook_dir }}"
+    dir_orgs_vars: "{{ playbook_dir }}/env"
+    orgs:
+      - name: Default
+        assign_default_ee_to_jt: false
+        assign_galaxy_credentials_to_org: false
   pre_tasks:
     - name: Validate controller connection
       ansible.builtin.assert:
