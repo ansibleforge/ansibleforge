@@ -294,7 +294,7 @@ spec:
                 curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
                   "$AAP_URL/api/controller/v2/hosts/" \
                   -H "Content-Type: application/json" \
-                  -d "{\"name\":\"localhost\",\"inventory\":$INV_ID,\"variables\":\"{\\\"ansible_connection\\\": \\\"local\\\", \\\"ansible_python_interpreter\\\": \\\"{{ '{{' }} ansible_playbook_python {{ '}}' }}\\\"}\"}" > /dev/null
+                  -d "{\"name\":\"localhost\",\"inventory\":$INV_ID,\"variables\":\"{\\\"ansible_connection\\\": \\\"local\\\"}\"}" > /dev/null
                 echo "Created localhost host in inventory"
               fi
 
