@@ -1,8 +1,4 @@
 ---
-controller_inventories:
-  - name: Localhost
-    organization: Default
-
 controller_hosts:
   - name: localhost
     inventory: Localhost
