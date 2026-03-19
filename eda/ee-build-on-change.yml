@@ -1,0 +1,45 @@
+---
+- name: Rebuild EE when execution-environment.yaml changes
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+      filters:
+        - ansible.eda.json_filter:
+            exclude_keys:
+              - sender
+              - enterprise
+        - ansible.eda.dashes_to_underscores:
+  rules:
+    - name: EE definition changed — trigger build workflow
+      condition: >-
+        event.meta.headers.X_GitHub_Event == "push" and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.commits is defined and
+        event.payload.commits is selectattr("modified", "search", "containers/ee-ansibleforge/execution-environment.yaml")
+          or
+        event.payload.commits is selectattr("added", "search", "containers/ee-ansibleforge/execution-environment.yaml")
+      action:
+        run_workflow_template:
+          name: "EE - Build AnsibleForge"
+          organization: Default
+
+    - name: EE dependencies changed — trigger build workflow
+      condition: >-
+        event.meta.headers.X_GitHub_Event == "push" and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.commits is defined and
+        (
+          event.payload.commits is selectattr("modified", "search", "containers/ee-ansibleforge/requirements.yaml")
+            or
+          event.payload.commits is selectattr("modified", "search", "containers/ee-ansibleforge/requirements.txt")
+            or
+          event.payload.commits is selectattr("added", "search", "containers/ee-ansibleforge/requirements.yaml")
+            or
+          event.payload.commits is selectattr("added", "search", "containers/ee-ansibleforge/requirements.txt")
+        )
+      action:
+        run_workflow_template:
+          name: "EE - Build AnsibleForge"
+          organization: Default
