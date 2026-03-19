@@ -5,6 +5,7 @@
   gather_facts: false
   vars:
     controller_hostname: "https://aap-aap.{{ cluster_domain }}"
+    controller_username: admin
     controller_validate_certs: false
     controller_configuration_dir: "{{ playbook_dir }}"
   pre_tasks:
@@ -14,7 +15,9 @@
           - cluster_domain is defined
           - controller_username is defined
           - controller_password is defined
-        fail_msg: "cluster_domain, controller_username, and controller_password must be set"
+        fail_msg: >-
+          cluster_domain, controller_username, and controller_password must be set.
+          Pass controller_password as an extra var or attach an AAP credential.
   roles:
     - infra.controller_configuration.filetree_read
     - infra.controller_configuration.dispatch

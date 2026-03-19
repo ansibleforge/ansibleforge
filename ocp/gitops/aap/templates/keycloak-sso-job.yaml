@@ -217,6 +217,101 @@ spec:
                 echo "WARNING: HashiCorp Vault Secret Lookup credential type not found"
               fi
 
+              echo "=== AnsibleForge project ==="
+
+              # Helper: idempotent create-or-get for API resources
+              ensure_resource() {
+                local endpoint="$1" name="$2" payload="$3"
+                local id
+                id=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/controller/v2/${endpoint}/?name=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${name}'))")" \
+                  | python3 -c "
+              import json,sys
+              data = json.load(sys.stdin)
+              if data['count'] > 0: print(data['results'][0]['id'])
+              " 2>/dev/null || echo "")
+
+                if [ -n "$id" ]; then
+                  echo "$name already exists (id=$id)"
+                else
+                  id=$(curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                    "$AAP_URL/api/controller/v2/${endpoint}/" \
+                    -H "Content-Type: application/json" \
+                    -d "$payload" \
+                    | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['id'])")
+                  echo "Created $name (id=$id)"
+                fi
+                echo "$id"
+              }
+
+              # Create the AnsibleForge project
+              PROJECT_PAYLOAD=$(python3 -c "
+              import json
+              print(json.dumps({
+                  'name': 'AnsibleForge',
+                  'organization': 1,
+                  'scm_type': 'git',
+                  'scm_url': 'https://github.com/hfenner/ansibleforge.git',
+                  'scm_branch': 'main',
+                  'scm_clean': True,
+                  'scm_update_on_launch': True
+              }))
+              ")
+              PROJECT_ID=$(ensure_resource "projects" "AnsibleForge" "$PROJECT_PAYLOAD" | tail -1)
+
+              # Create localhost inventory
+              INV_PAYLOAD=$(python3 -c "
+              import json
+              print(json.dumps({
+                  'name': 'Localhost',
+                  'organization': 1
+              }))
+              ")
+              INV_ID=$(ensure_resource "inventories" "Localhost" "$INV_PAYLOAD" | tail -1)
+
+              # Add localhost host to the inventory (idempotent)
+              HOST_EXISTS=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                "$AAP_URL/api/controller/v2/inventories/$INV_ID/hosts/?name=localhost" \
+                | python3 -c "import json,sys; print(json.load(sys.stdin)['count'])" 2>/dev/null || echo "0")
+              if [ "$HOST_EXISTS" = "0" ]; then
+                curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/controller/v2/hosts/" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"name\":\"localhost\",\"inventory\":$INV_ID,\"variables\":\"{\\\"ansible_connection\\\": \\\"local\\\", \\\"ansible_python_interpreter\\\": \\\"{{ '{{' }} ansible_playbook_python {{ '}}' }}\\\"}\"}" > /dev/null
+                echo "Created localhost host in inventory"
+              fi
+
+              echo "=== CaC Dispatch job template ==="
+
+              # Create the dispatch job template
+              JT_PAYLOAD=$(python3 -c "
+              import json
+              print(json.dumps({
+                  'name': 'CaC - Apply Controller Configuration',
+                  'job_type': 'run',
+                  'organization': 1,
+                  'project': $PROJECT_ID,
+                  'playbook': 'controller_config/dispatch.yml',
+                  'inventory': $INV_ID,
+                  'ask_variables_on_launch': True,
+                  'extra_vars': json.dumps({
+                      'cluster_domain': '{{ $clusterDomain }}',
+                      'controller_username': 'admin'
+                  })
+              }))
+              ")
+              JT_ID=$(ensure_resource "job_templates" "CaC - Apply Controller Configuration" "$JT_PAYLOAD" | tail -1)
+
+              # Attach Vault Lookup credential to the dispatch job template so
+              # controller_password can be sourced from Vault if configured
+              if [ -n "$VAULT_CRED_EXISTS" ]; then
+                curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/controller/v2/job_templates/$JT_ID/credentials/" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"id\": $VAULT_CRED_EXISTS}" > /dev/null 2>&1 || true
+                echo "Attached Vault Lookup credential to dispatch job template"
+              fi
+
               echo "=== AAP post-deploy configuration complete ==="
 ---
 apiVersion: v1
