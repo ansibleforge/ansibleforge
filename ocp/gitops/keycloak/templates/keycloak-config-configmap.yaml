@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-config-playbook
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+data:
+  configure-realm.yml: |
+{{ .Files.Get "playbooks/configure-realm.yml" | indent 4 }}
+  client_scopes.yml: |
+{{ .Files.Get "playbooks/vars/client_scopes.yml" | indent 4 }}
+  clients.yml: |
+{{ .Files.Get "playbooks/vars/clients.yml" | indent 4 }}

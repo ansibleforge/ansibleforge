@@ -1,0 +1,130 @@
+{{- $clusterDomain := .Values.clusterDomain }}
+{{- if not $clusterDomain }}
+{{- $ingressConfig := lookup "config.openshift.io/v1" "Ingress" "" "cluster" }}
+{{- if and $ingressConfig $ingressConfig.spec }}
+{{- $clusterDomain = $ingressConfig.spec.domain }}
+{{- end }}
+{{- end }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-ansible-config
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: keycloak-config
+      containers:
+        - name: configure-keycloak
+          image: image-registry.openshift-image-registry.svc:5000/shared-builds/ee-ansibleforge:latest
+          command:
+            - ansible-playbook
+            - /playbooks/configure-realm.yml
+            - --extra-vars
+            - |
+              {
+                "cluster_domain": "{{ $clusterDomain }}",
+                "github_broker": {{ .Values.github.broker }},
+                "github_mapper": {{ .Values.github.mapper }},
+                "github_org": {{ .Values.github.org | quote }},
+                "github_team": {{ .Values.github.team | default "" | quote }},
+                "gitlab_broker": {{ .Values.gitlab.broker }},
+                "aws_saml": {{ .Values.aws.saml }},
+                "aws_account_id": {{ .Values.aws.accountId | default "" | quote }}
+              }
+          env:
+            - name: KC_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-initial-admin
+                  key: username
+            - name: KC_ADMIN_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-initial-admin
+                  key: password
+            - name: SYSADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-sysadmin-password
+                  key: password
+            - name: OCP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-ocp-client-secret
+                  key: client-secret
+            - name: GITLAB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-gitlab-client-secret
+                  key: client-secret
+            - name: AAP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-aap-client-secret
+                  key: client-secret
+            - name: SSO_MONITOR_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-sso-monitor-client-secret
+                  key: client-secret
+            - name: VAULT_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-vault-client-secret
+                  key: client-secret
+            - name: RHDH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-rhdh-client-secret
+                  key: client-secret
+            {{- if .Values.github.broker }}
+            - name: GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: github-app-credentials
+                  key: client-id
+            - name: GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: github-app-credentials
+                  key: client-secret
+            {{- end }}
+            {{- if .Values.gitlab.broker }}
+            - name: GITLAB_BROKER_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: gitlab-broker-credentials
+                  key: clientId
+            - name: GITLAB_BROKER_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gitlab-broker-credentials
+                  key: clientSecret
+            {{- end }}
+          volumeMounts:
+            - name: playbooks
+              mountPath: /playbooks
+            - name: vars
+              mountPath: /playbooks/vars
+      volumes:
+        - name: playbooks
+          configMap:
+            name: keycloak-config-playbook
+            items:
+              - key: configure-realm.yml
+                path: configure-realm.yml
+        - name: vars
+          configMap:
+            name: keycloak-config-playbook
+            items:
+              - key: client_scopes.yml
+                path: client_scopes.yml
+              - key: clients.yml
+                path: clients.yml

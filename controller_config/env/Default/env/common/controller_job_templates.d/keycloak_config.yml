@@ -1,0 +1,37 @@
+---
+controller_templates:
+  - name: "Keycloak - Configure Realm"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: ocp/gitops/keycloak/playbooks/configure-realm.yml
+    inventory: Localhost
+    execution_environment: "EE AnsibleForge"
+    credentials:
+      - "OpenShift - Shared Builds"
+    survey_enabled: true
+    survey_spec:
+      name: Keycloak Config Survey
+      description: Parameters for Keycloak realm configuration
+      spec:
+        - question_name: Cluster Domain
+          variable: cluster_domain
+          type: text
+          required: true
+          default: ""
+        - question_name: Keycloak Admin Password
+          variable: keycloak_admin_pass
+          type: password
+          required: true
+        - question_name: Enable GitHub IDP
+          variable: github_broker
+          type: multiplechoice
+          required: true
+          default: "false"
+          choices: "true\nfalse"
+        - question_name: GitHub Org
+          variable: github_org
+          type: text
+          required: false
+          default: ""
+    ask_variables_on_launch: true

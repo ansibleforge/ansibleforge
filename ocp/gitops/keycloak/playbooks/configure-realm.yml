@@ -1,0 +1,699 @@
+---
+- name: Configure Keycloak SSO Realm
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    keycloak_url: "https://keycloak.{{ cluster_domain }}"
+    keycloak_admin_user: "{{ lookup('env', 'KC_ADMIN_USER') | default('admin', true) }}"
+    keycloak_admin_pass: "{{ lookup('env', 'KC_ADMIN_PASS') }}"
+    keycloak_validate_certs: false
+    realm: sso
+
+    # Feature flags — override via extra_vars or survey
+    github_broker: false
+    github_mapper: false
+    github_org: ""
+    github_team: ""
+    gitlab_broker: false
+    aws_saml: false
+    aws_account_id: ""
+
+    # Shared auth params for all keycloak_* modules
+    _kc_auth: &kc_auth
+      auth_keycloak_url: "{{ keycloak_url }}"
+      auth_realm: master
+      auth_client_id: admin-cli
+      auth_username: "{{ keycloak_admin_user }}"
+      auth_password: "{{ keycloak_admin_pass }}"
+      validate_certs: "{{ keycloak_validate_certs }}"
+
+  vars_files:
+    - vars/client_scopes.yml
+    - vars/clients.yml
+
+  pre_tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - cluster_domain is defined and cluster_domain | length > 0
+          - keycloak_admin_pass | length > 0
+        fail_msg: "cluster_domain and keycloak_admin_pass are required"
+
+    - name: Wait for Keycloak to be ready
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/realms/master/.well-known/openid-configuration"
+        validate_certs: "{{ keycloak_validate_certs }}"
+        status_code: 200
+      register: _kc_ready
+      until: _kc_ready.status == 200
+      retries: 30
+      delay: 10
+
+  tasks:
+    # ── Realm ──────────────────────────────────────────────────────
+    - name: Ensure SSO realm exists
+      community.general.keycloak_realm:
+        <<: *kc_auth
+        id: "{{ realm }}"
+        realm: "{{ realm }}"
+        enabled: true
+        state: present
+
+    # ── Client Scopes ──────────────────────────────────────────────
+    - name: Ensure client scopes
+      community.general.keycloak_clientscope:
+        <<: *kc_auth
+        realm: "{{ realm }}"
+        name: "{{ item.name }}"
+        protocol: "{{ item.protocol }}"
+        attributes: "{{ item.attributes | default(omit) }}"
+        protocol_mappers: "{{ item.protocolMappers | default(omit) }}"
+        state: present
+      loop: "{{ keycloak_client_scopes }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # ── Realm Roles ────────────────────────────────────────────────
+    - name: Ensure realm roles
+      community.general.keycloak_role:
+        <<: *kc_auth
+        realm: "{{ realm }}"
+        name: "{{ item.name }}"
+        description: "{{ item.description }}"
+        state: present
+      loop:
+        - name: admins
+          description: SSO administrators
+        - name: org-members
+          description: Members of the GitHub organization
+      loop_control:
+        label: "{{ item.name }}"
+      when: item.name == 'admins' or (github_broker and github_mapper)
+
+    # ── Groups ─────────────────────────────────────────────────────
+    - name: Ensure groups
+      community.general.keycloak_group:
+        <<: *kc_auth
+        realm: "{{ realm }}"
+        name: "{{ item }}"
+        state: present
+      loop: "{{ ['admins'] + (['org-members'] if (github_broker and github_mapper) else []) }}"
+      register: _groups
+
+    # ── Group-Role Mappings (no module — use API) ──────────────────
+    - name: Get admin token for API calls
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/realms/master/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          client_id: admin-cli
+          username: "{{ keycloak_admin_user }}"
+          password: "{{ keycloak_admin_pass }}"
+          grant_type: password
+        validate_certs: "{{ keycloak_validate_certs }}"
+        status_code: 200
+      register: _kc_token
+      no_log: true
+
+    - name: Map realm roles to groups
+      block:
+        - name: Get group IDs
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ realm }}/groups?search={{ item }}"
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+            validate_certs: "{{ keycloak_validate_certs }}"
+          register: _group_info
+          loop: "{{ ['admins'] + (['org-members'] if (github_broker and github_mapper) else []) }}"
+          loop_control:
+            label: "{{ item }}"
+
+        - name: Get realm role definitions
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ realm }}/roles/{{ item }}"
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+            validate_certs: "{{ keycloak_validate_certs }}"
+          register: _role_info
+          loop: "{{ ['admins'] + (['org-members'] if (github_broker and github_mapper) else []) }}"
+          loop_control:
+            label: "{{ item }}"
+
+        - name: Assign realm roles to groups
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ realm }}/groups/{{ _gid }}/role-mappings/realm"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+              Content-Type: application/json
+            body_format: json
+            body: "[{{ _role | to_json }}]"
+            validate_certs: "{{ keycloak_validate_certs }}"
+            status_code: [204, 409]
+          vars:
+            _gid: "{{ (_group_info.results[idx].json | selectattr('name', 'eq', item) | first).id }}"
+            _role: "{{ _role_info.results[idx].json }}"
+          loop: "{{ ['admins'] + (['org-members'] if (github_broker and github_mapper) else []) }}"
+          loop_control:
+            label: "{{ item }}"
+            index_var: idx
+
+    # ── Clients ────────────────────────────────────────────────────
+    - name: Ensure OIDC clients
+      community.general.keycloak_client:
+        <<: *kc_auth
+        realm: "{{ realm }}"
+        client_id: "{{ item.client_id }}"
+        enabled: "{{ item.enabled }}"
+        protocol: "{{ item.protocol }}"
+        public_client: "{{ item.public_client | default(false) }}"
+        standard_flow_enabled: "{{ item.standard_flow_enabled | default(true) }}"
+        direct_access_grants_enabled: "{{ item.direct_access_grants_enabled | default(false) }}"
+        service_accounts_enabled: "{{ item.service_accounts_enabled | default(false) }}"
+        client_authenticator_type: client-secret
+        secret: "{{ item.secret | default(omit) }}"
+        redirect_uris: "{{ item.redirect_uris | default([]) }}"
+        web_origins: "{{ item.web_origins | default([]) }}"
+        default_client_scopes: "{{ item.default_client_scopes | default(omit) }}"
+        optional_client_scopes: "{{ item.optional_client_scopes | default(omit) }}"
+        attributes: "{{ item.attributes | default({}) }}"
+        protocol_mappers: "{{ item.protocol_mappers | default(omit) }}"
+        state: present
+      loop: "{{ keycloak_clients }}"
+      loop_control:
+        label: "{{ item.client_id }}"
+      no_log: true
+
+    # ── Default Scopes on Built-in Clients ─────────────────────────
+    - name: Get all OIDC clients
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm }}/clients"
+        headers:
+          Authorization: "Bearer {{ _kc_token.json.access_token }}"
+        validate_certs: "{{ keycloak_validate_certs }}"
+      register: _all_clients
+
+    - name: Get all client scopes
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm }}/client-scopes"
+        headers:
+          Authorization: "Bearer {{ _kc_token.json.access_token }}"
+        validate_certs: "{{ keycloak_validate_certs }}"
+      register: _all_scopes
+
+    - name: Assign default scopes to all OIDC clients
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm }}/clients/{{ _client_uuid }}/default-client-scopes/{{ _scope_uuid }}"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ _kc_token.json.access_token }}"
+        validate_certs: "{{ keycloak_validate_certs }}"
+        status_code: [204]
+      vars:
+        _client_uuid: "{{ item.0.id }}"
+        _scope_uuid: "{{ (_all_scopes.json | selectattr('name', 'eq', item.1) | first).id }}"
+      loop: "{{ _oidc_clients | product(keycloak_default_scopes) | list }}"
+      loop_control:
+        label: "{{ item.0.clientId }} <- {{ item.1 }}"
+      vars:
+        _oidc_clients: "{{ _all_clients.json | selectattr('protocol', 'eq', 'openid-connect') | list }}"
+      failed_when: false
+
+    # ── RHDH Service Account Roles ─────────────────────────────────
+    - name: Configure RHDH service account roles
+      block:
+        - name: Get RHDH client UUID
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ realm }}/clients?clientId=rhdh"
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+            validate_certs: "{{ keycloak_validate_certs }}"
+          register: _rhdh_client
+
+        - name: Get RHDH service account user
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ realm }}/clients/{{ _rhdh_client.json[0].id }}/service-account-user"
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+            validate_certs: "{{ keycloak_validate_certs }}"
+          register: _rhdh_sa
+
+        - name: Get realm-management client UUID
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ realm }}/clients?clientId=realm-management"
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+            validate_certs: "{{ keycloak_validate_certs }}"
+          register: _realm_mgmt
+
+        - name: Get realm-management roles
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ realm }}/clients/{{ _realm_mgmt.json[0].id }}/roles"
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+            validate_certs: "{{ keycloak_validate_certs }}"
+          register: _rm_roles
+
+        - name: Assign realm-management roles to RHDH service account
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ realm }}/users/{{ _rhdh_sa.json.id }}/role-mappings/clients/{{ _realm_mgmt.json[0].id }}"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+              Content-Type: application/json
+            body_format: json
+            body: "{{ _rm_roles.json | selectattr('name', 'in', ['view-users', 'query-users', 'query-groups', 'view-realm']) | list }}"
+            validate_certs: "{{ keycloak_validate_certs }}"
+            status_code: [204, 409]
+          failed_when: false
+
+    # ── Users ──────────────────────────────────────────────────────
+    - name: Ensure sysadmin user
+      community.general.keycloak_user:
+        <<: *kc_auth
+        realm: "{{ realm }}"
+        username: sysadmin
+        enabled: true
+        first_name: System
+        last_name: Administrator
+        email: sysadmin@example.com
+        credentials:
+          - type: password
+            value: "{{ lookup('env', 'SYSADMIN_PASSWORD') | default(sysadmin_password, true) }}"
+            temporary: false
+        state: present
+      no_log: true
+
+    # ── GitHub IDP (conditional) ───────────────────────────────────
+    - name: Configure GitHub IDP
+      when: github_broker
+      block:
+        - name: Ensure GitHub IDP on SSO realm
+          community.general.keycloak_identity_provider:
+            <<: *kc_auth
+            realm: "{{ item }}"
+            alias: github
+            provider_id: github
+            enabled: true
+            trust_email: true
+            store_token: true
+            first_broker_login_flow_alias: "first broker login"
+            config:
+              clientId: "{{ lookup('env', 'GITHUB_CLIENT_ID') | default(github_client_id, true) }}"
+              clientSecret: "{{ lookup('env', 'GITHUB_CLIENT_SECRET') | default(github_client_secret, true) }}"
+              defaultScope: "user:email read:org"
+              syncMode: FORCE
+            state: present
+          loop:
+            - sso
+            - master
+          loop_control:
+            label: "{{ item }}"
+          no_log: true
+
+        - name: Ensure GitHub username mapper
+          community.general.keycloak_identity_provider_mapper:
+            <<: *kc_auth
+            realm: "{{ item }}"
+            idp_alias: github
+            name: github-username
+            mapper_type: oidc-username-idp-mapper
+            config:
+              syncMode: INHERIT
+              template: "${CLAIM.login}"
+            state: present
+          loop:
+            - sso
+            - master
+          loop_control:
+            label: "{{ item }}"
+
+    - name: Configure GitHub org mappers
+      when: github_broker and github_mapper and github_org | length > 0
+      block:
+        - name: Ensure GitHub org-to-admins mapper
+          community.general.keycloak_identity_provider_mapper:
+            <<: *kc_auth
+            realm: "{{ item }}"
+            idp_alias: github
+            name: github-org-admins
+            mapper_type: github-org-to-group-mapper
+            config: "{{ _base_config | combine(_team_config if github_team else {}) }}"
+            state: present
+          vars:
+            _base_config:
+              syncMode: FORCE
+              github.org: "{{ github_org }}"
+              keycloak.group: admins
+            _team_config:
+              github.team: "{{ github_team }}"
+          loop:
+            - sso
+            - master
+          loop_control:
+            label: "{{ item }}"
+
+        - name: Ensure GitHub org-to-members mapper
+          community.general.keycloak_identity_provider_mapper:
+            <<: *kc_auth
+            realm: "{{ item }}"
+            idp_alias: github
+            name: github-org-members
+            mapper_type: github-org-to-group-mapper
+            config:
+              syncMode: FORCE
+              github.org: "{{ github_org }}"
+              keycloak.group: org-members
+            state: present
+          loop:
+            - sso
+            - master
+          loop_control:
+            label: "{{ item }}"
+
+    # ── GitLab IDP (conditional) ───────────────────────────────────
+    - name: Configure GitLab broker IDP
+      when: gitlab_broker
+      block:
+        - name: Ensure GitLab IDP
+          community.general.keycloak_identity_provider:
+            <<: *kc_auth
+            realm: "{{ realm }}"
+            alias: gitlab
+            provider_id: oidc
+            enabled: true
+            trust_email: true
+            first_broker_login_flow_alias: "first broker login"
+            config:
+              clientId: "{{ lookup('env', 'GITLAB_BROKER_CLIENT_ID') | default(gitlab_broker_client_id, true) }}"
+              clientSecret: "{{ lookup('env', 'GITLAB_BROKER_CLIENT_SECRET') | default(gitlab_broker_client_secret, true) }}"
+              authorizationUrl: "https://gitlab.{{ cluster_domain }}/oauth/authorize"
+              tokenUrl: "https://gitlab.{{ cluster_domain }}/oauth/token"
+              userInfoUrl: "https://gitlab.{{ cluster_domain }}/oauth/userinfo"
+              issuer: "https://gitlab.{{ cluster_domain }}"
+              defaultScope: "openid profile email"
+              syncMode: FORCE
+              pkceEnabled: "true"
+              pkceMethod: S256
+            state: present
+          no_log: true
+
+        - name: Ensure GitLab username mapper
+          community.general.keycloak_identity_provider_mapper:
+            <<: *kc_auth
+            realm: "{{ realm }}"
+            idp_alias: gitlab
+            name: gitlab-username
+            mapper_type: oidc-username-idp-mapper
+            config:
+              syncMode: INHERIT
+              template: "${CLAIM.preferred_username}"
+            state: present
+
+    # ── Master Realm Config ────────────────────────────────────────
+    - name: Ensure admins group in master realm
+      community.general.keycloak_group:
+        <<: *kc_auth
+        realm: master
+        name: admins
+        state: present
+
+    - name: Ensure admins role in master realm
+      community.general.keycloak_role:
+        <<: *kc_auth
+        realm: master
+        name: admins
+        description: SSO administrators
+        state: present
+
+    - name: Get master realm groups
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/admin/realms/master/groups?search=admins"
+        headers:
+          Authorization: "Bearer {{ _kc_token.json.access_token }}"
+        validate_certs: "{{ keycloak_validate_certs }}"
+      register: _master_groups
+
+    - name: Get master admin role
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/admin/realms/master/roles/admin"
+        headers:
+          Authorization: "Bearer {{ _kc_token.json.access_token }}"
+        validate_certs: "{{ keycloak_validate_certs }}"
+      register: _master_role
+
+    - name: Assign built-in admin role to admins group in master
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/admin/realms/master/groups/{{ (_master_groups.json | selectattr('name', 'eq', 'admins') | first).id }}/role-mappings/realm"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ _kc_token.json.access_token }}"
+          Content-Type: application/json
+        body_format: json
+        body: "[{{ _master_role.json | to_json }}]"
+        validate_certs: "{{ keycloak_validate_certs }}"
+        status_code: [204, 409]
+      failed_when: false
+
+    # ── AWS SAML (conditional) ─────────────────────────────────────
+    - name: Configure AWS SAML federation
+      when: aws_saml and aws_account_id | length > 0
+      block:
+        - name: Check if aws-admin-browser flow exists
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/flows"
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+            validate_certs: "{{ keycloak_validate_certs }}"
+          register: _auth_flows
+
+        - name: Create aws-admin-browser flow
+          when: _auth_flows.json | selectattr('alias', 'eq', 'aws-admin-browser') | list | length == 0
+          block:
+            - name: Copy browser flow
+              ansible.builtin.uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/flows/browser/copy"
+                method: POST
+                headers:
+                  Authorization: "Bearer {{ _kc_token.json.access_token }}"
+                  Content-Type: application/json
+                body_format: json
+                body:
+                  newName: aws-admin-browser
+                validate_certs: "{{ keycloak_validate_certs }}"
+                status_code: [201]
+
+            - name: Get flow executions
+              ansible.builtin.uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/flows/aws-admin-browser/executions"
+                headers:
+                  Authorization: "Bearer {{ _kc_token.json.access_token }}"
+                validate_certs: "{{ keycloak_validate_certs }}"
+              register: _flow_execs
+
+            - name: Find forms subflow alias
+              ansible.builtin.set_fact:
+                _forms_alias: "{{ (_flow_execs.json | selectattr('level', 'eq', 0) | selectattr('displayName', 'search', 'forms') | first).displayName }}"
+
+            - name: Add admin gate subflow
+              ansible.builtin.uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/flows/{{ _forms_alias | urlencode }}/executions/flow"
+                method: POST
+                headers:
+                  Authorization: "Bearer {{ _kc_token.json.access_token }}"
+                  Content-Type: application/json
+                body_format: json
+                body:
+                  alias: AWS admin gate
+                  type: basic-flow
+                  provider: registration-page-form
+                validate_certs: "{{ keycloak_validate_certs }}"
+                status_code: [201]
+
+            - name: Get updated form executions
+              ansible.builtin.uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/flows/{{ _forms_alias | urlencode }}/executions"
+                headers:
+                  Authorization: "Bearer {{ _kc_token.json.access_token }}"
+                validate_certs: "{{ keycloak_validate_certs }}"
+              register: _form_execs
+
+            - name: Set gate to CONDITIONAL and move down
+              ansible.builtin.uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/flows/{{ _forms_alias | urlencode }}/executions"
+                method: PUT
+                headers:
+                  Authorization: "Bearer {{ _kc_token.json.access_token }}"
+                  Content-Type: application/json
+                body_format: json
+                body:
+                  id: "{{ _gate_id }}"
+                  requirement: CONDITIONAL
+                  displayName: AWS admin gate
+                validate_certs: "{{ keycloak_validate_certs }}"
+                status_code: [202, 204]
+              vars:
+                _gate_id: "{{ (_form_execs.json | selectattr('displayName', 'eq', 'AWS admin gate') | first).id }}"
+
+            - name: Move gate after password form
+              ansible.builtin.uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/executions/{{ _gate_id }}/lower-priority"
+                method: POST
+                headers:
+                  Authorization: "Bearer {{ _kc_token.json.access_token }}"
+                  Content-Type: application/json
+                validate_certs: "{{ keycloak_validate_certs }}"
+                status_code: [200, 204]
+              vars:
+                _gate_id: "{{ (_form_execs.json | selectattr('displayName', 'eq', 'AWS admin gate') | first).id }}"
+
+            - name: Add condition and deny executions
+              ansible.builtin.uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/flows/AWS%20admin%20gate/executions/execution"
+                method: POST
+                headers:
+                  Authorization: "Bearer {{ _kc_token.json.access_token }}"
+                  Content-Type: application/json
+                body_format: json
+                body:
+                  provider: "{{ item }}"
+                validate_certs: "{{ keycloak_validate_certs }}"
+                status_code: [201]
+              loop:
+                - conditional-user-role
+                - deny-access-authenticator
+
+            - name: Get gate executions
+              ansible.builtin.uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/flows/AWS%20admin%20gate/executions"
+                headers:
+                  Authorization: "Bearer {{ _kc_token.json.access_token }}"
+                validate_certs: "{{ keycloak_validate_certs }}"
+              register: _gate_execs
+
+            - name: Set condition and deny to REQUIRED
+              ansible.builtin.uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/flows/AWS%20admin%20gate/executions"
+                method: PUT
+                headers:
+                  Authorization: "Bearer {{ _kc_token.json.access_token }}"
+                  Content-Type: application/json
+                body_format: json
+                body:
+                  id: "{{ (_gate_execs.json | selectattr('providerId', 'eq', item) | first).id }}"
+                  requirement: REQUIRED
+                  providerId: "{{ item }}"
+                validate_certs: "{{ keycloak_validate_certs }}"
+                status_code: [202, 204]
+              loop:
+                - conditional-user-role
+                - deny-access-authenticator
+
+            - name: Configure condition (not in admins)
+              ansible.builtin.uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/executions/{{ (_gate_execs.json | selectattr('providerId', 'eq', 'conditional-user-role') | first).id }}/config"
+                method: POST
+                headers:
+                  Authorization: "Bearer {{ _kc_token.json.access_token }}"
+                  Content-Type: application/json
+                body_format: json
+                body:
+                  alias: Not in admins
+                  config:
+                    condUserRole: admins
+                    negate: "true"
+                validate_certs: "{{ keycloak_validate_certs }}"
+                status_code: [201]
+
+            - name: Configure deny message
+              ansible.builtin.uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/executions/{{ (_gate_execs.json | selectattr('providerId', 'eq', 'deny-access-authenticator') | first).id }}/config"
+                method: POST
+                headers:
+                  Authorization: "Bearer {{ _kc_token.json.access_token }}"
+                  Content-Type: application/json
+                body_format: json
+                body:
+                  alias: AWS access denied
+                  config:
+                    errorMessage: "Access denied. Only SSO admins can access the AWS Console."
+                validate_certs: "{{ keycloak_validate_certs }}"
+                status_code: [201]
+
+        - name: Get aws-admin-browser flow ID
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/flows"
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+            validate_certs: "{{ keycloak_validate_certs }}"
+          register: _flows_for_aws
+
+        - name: Ensure AWS SAML client
+          community.general.keycloak_client:
+            <<: *kc_auth
+            realm: "{{ realm }}"
+            client_id: "urn:amazon:webservices"
+            name: Amazon Web Services
+            enabled: true
+            protocol: saml
+            public_client: false
+            frontchannel_logout: true
+            standard_flow_enabled: true
+            direct_access_grants_enabled: false
+            authentication_flow_binding_overrides:
+              browser: "{{ (_flows_for_aws.json | selectattr('alias', 'eq', 'aws-admin-browser') | first).id }}"
+            attributes:
+              saml.authnstatement: "true"
+              saml.server.signature: "true"
+              saml.force.post.binding: "true"
+              saml.multivalued.roles: "false"
+              saml_assertion_consumer_url_post: "https://signin.aws.amazon.com/saml"
+              saml_single_logout_service_url_redirect: "https://signin.aws.amazon.com/saml"
+              saml_idp_initiated_sso_url_name: "urn:amazon:webservices"
+              saml_idp_initiated_sso_relay_state: "https://console.aws.amazon.com"
+            redirect_uris:
+              - "https://signin.aws.amazon.com/saml"
+            default_client_scopes: []
+            protocol_mappers:
+              - name: Session Duration
+                protocol: saml
+                protocolMapper: saml-hardcode-attribute-mapper
+                config:
+                  attribute.nameformat: Basic
+                  attribute.name: "https://aws.amazon.com/SAML/Attributes/SessionDuration"
+                  friendly.name: Session Duration
+                  attribute.value: "28800"
+              - name: Session Name
+                protocol: saml
+                protocolMapper: saml-user-property-mapper
+                config:
+                  attribute.nameformat: Basic
+                  attribute.name: "https://aws.amazon.com/SAML/Attributes/RoleSessionName"
+                  friendly.name: Session Name
+                  user.attribute: email
+              - name: AWS Role
+                protocol: saml
+                protocolMapper: saml-hardcode-attribute-mapper
+                config:
+                  attribute.nameformat: Basic
+                  attribute.name: "https://aws.amazon.com/SAML/Attributes/Role"
+                  friendly.name: AWS Role
+                  attribute.value: "arn:aws:iam::{{ aws_account_id }}:role/KeycloakAdminAccess,arn:aws:iam::{{ aws_account_id }}:saml-provider/keycloak-sso"
+            state: present
+
+    # ── Cross-Namespace Secret Copy ────────────────────────────────
+    - name: Copy RHDH client secret to rhdh namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: rhdh-keycloak-client-secret
+            namespace: rhdh
+          type: Opaque
+          stringData:
+            client-secret: "{{ lookup('env', 'RHDH_CLIENT_SECRET') | default(rhdh_client_secret, true) }}"
+      no_log: true

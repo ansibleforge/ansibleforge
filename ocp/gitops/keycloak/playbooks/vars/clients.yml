@@ -1,0 +1,165 @@
+---
+# Groups mapper shared by most OIDC clients
+_groups_mapper: &groups_mapper
+  name: groups
+  protocol: openid-connect
+  protocolMapper: oidc-group-membership-mapper
+  config:
+    claim.name: groups
+    full.path: "false"
+    id.token.claim: "true"
+    access.token.claim: "true"
+    userinfo.token.claim: "true"
+
+_audience_mapper: &audience_mapper_template
+  protocol: openid-connect
+  protocolMapper: oidc-audience-mapper
+  config:
+    id.token.claim: "true"
+    access.token.claim: "true"
+
+keycloak_clients:
+  - client_id: gitlab
+    enabled: true
+    protocol: openid-connect
+    public_client: false
+    standard_flow_enabled: true
+    direct_access_grants_enabled: false
+    secret: "{{ lookup('env', 'GITLAB_CLIENT_SECRET') | default(gitlab_client_secret, true) }}"
+    redirect_uris:
+      - "https://gitlab.{{ cluster_domain }}/users/auth/openid_connect/callback"
+    web_origins:
+      - "https://gitlab.{{ cluster_domain }}"
+    default_client_scopes:
+      - profile
+      - email
+      - roles
+      - web-origins
+    optional_client_scopes:
+      - groups
+    attributes:
+      pkce.code.challenge.method: S256
+    protocol_mappers:
+      - *groups_mapper
+
+  - client_id: idp-4-ocp
+    enabled: true
+    protocol: openid-connect
+    public_client: false
+    standard_flow_enabled: true
+    direct_access_grants_enabled: false
+    secret: "{{ lookup('env', 'OCP_CLIENT_SECRET') | default(ocp_client_secret, true) }}"
+    redirect_uris:
+      - "https://oauth-openshift.{{ cluster_domain }}/*"
+    web_origins:
+      - "https://oauth-openshift.{{ cluster_domain }}"
+    default_client_scopes:
+      - profile
+      - email
+      - roles
+      - web-origins
+    protocol_mappers:
+      - *groups_mapper
+
+  - client_id: aap
+    enabled: true
+    protocol: openid-connect
+    public_client: false
+    standard_flow_enabled: true
+    direct_access_grants_enabled: false
+    secret: "{{ lookup('env', 'AAP_CLIENT_SECRET') | default(aap_client_secret, true) }}"
+    redirect_uris:
+      - "https://aap-aap.{{ cluster_domain }}/*"
+    web_origins:
+      - "https://aap-aap.{{ cluster_domain }}"
+    default_client_scopes:
+      - profile
+      - email
+      - roles
+      - web-origins
+    optional_client_scopes:
+      - groups
+    protocol_mappers:
+      - *groups_mapper
+      - <<: *audience_mapper_template
+        name: audience
+        config:
+          included.client.audience: aap
+          id.token.claim: "true"
+          access.token.claim: "true"
+
+  - client_id: sso-monitor
+    enabled: true
+    protocol: openid-connect
+    public_client: false
+    standard_flow_enabled: false
+    direct_access_grants_enabled: true
+    service_accounts_enabled: false
+    secret: "{{ lookup('env', 'SSO_MONITOR_CLIENT_SECRET') | default(sso_monitor_client_secret, true) }}"
+    default_client_scopes:
+      - profile
+      - email
+      - roles
+      - web-origins
+    optional_client_scopes:
+      - groups
+
+  - client_id: vault
+    enabled: true
+    protocol: openid-connect
+    public_client: false
+    standard_flow_enabled: true
+    direct_access_grants_enabled: false
+    secret: "{{ lookup('env', 'VAULT_CLIENT_SECRET') | default(vault_client_secret, true) }}"
+    redirect_uris:
+      - "https://vault.{{ cluster_domain }}/ui/vault/auth/oidc/oidc/callback"
+      - "http://localhost:8250/oidc/callback"
+    web_origins:
+      - "https://vault.{{ cluster_domain }}"
+    default_client_scopes:
+      - profile
+      - email
+      - roles
+      - web-origins
+    optional_client_scopes:
+      - groups
+    protocol_mappers:
+      - *groups_mapper
+      - <<: *audience_mapper_template
+        name: audience
+        config:
+          included.client.audience: vault
+          id.token.claim: "true"
+          access.token.claim: "true"
+
+  - client_id: rhdh
+    enabled: true
+    protocol: openid-connect
+    public_client: false
+    standard_flow_enabled: true
+    direct_access_grants_enabled: false
+    service_accounts_enabled: true
+    secret: "{{ lookup('env', 'RHDH_CLIENT_SECRET') | default(rhdh_client_secret, true) }}"
+    redirect_uris:
+      - "https://rhdh-developer-hub-rhdh.{{ cluster_domain }}/api/auth/oidc/handler/frame"
+    web_origins:
+      - "https://rhdh-developer-hub-rhdh.{{ cluster_domain }}"
+    default_client_scopes: []
+    optional_client_scopes:
+      - groups
+    protocol_mappers:
+      - *groups_mapper
+      - <<: *audience_mapper_template
+        name: audience
+        config:
+          included.client.audience: rhdh
+          id.token.claim: "true"
+          access.token.claim: "true"
+    # RHDH service account needs realm-management roles for user/group queries
+    service_account_roles:
+      - client: realm-management
+        roles:
+          - view-users
+          - query-users
+          - query-groups
+          - view-realm
