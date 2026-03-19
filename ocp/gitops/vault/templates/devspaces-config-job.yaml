@@ -138,6 +138,7 @@ spec:
               init_secret "quay"    '{"username":"test","password":"test"}'
               init_secret "pah"     '{"registry_url":"aap-hub-aap.{{ .Values.clusterDomain }}","username":"admin","password":"test"}'
               init_secret "ocp"     '{"bearer_token":"test"}'
+              init_secret "aap"     '{"admin_password":"test"}'
 
               echo "=== AAP Controller policy and role ==="
 
@@ -147,6 +148,9 @@ spec:
               }
               path "secret/metadata/*" {
                 capabilities = ["read", "list"]
+              }
+              path "secret/data/aap" {
+                capabilities = ["create", "update", "read"]
               }
               POLICY
 

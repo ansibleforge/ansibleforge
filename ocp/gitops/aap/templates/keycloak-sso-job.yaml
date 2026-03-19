@@ -48,6 +48,23 @@ spec:
                 | python3 -c 'import json,sys,base64; d=json.load(sys.stdin); print(base64.b64decode(d["data"]["client-secret"]).decode())')
               echo "Retrieved AAP client secret from keycloak namespace"
 
+              echo "=== Sync AAP admin password to Vault ==="
+              VAULT_ADDR="http://vault.vault.svc:8200"
+
+              # Authenticate to Vault via Kubernetes auth
+              VAULT_TOKEN=$(curl -sf -X POST \
+                "${VAULT_ADDR}/v1/auth/kubernetes/login" \
+                -d "{\"role\":\"aap-controller\",\"jwt\":\"${SA_TOKEN}\"}" \
+                | python3 -c "import json,sys; print(json.load(sys.stdin)['auth']['client_token'])")
+
+              # Write AAP admin password to Vault (always update — password may rotate)
+              curl -sf -X POST \
+                -H "X-Vault-Token: ${VAULT_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "{\"data\":{\"admin_password\":\"${AAP_ADMIN_PASSWORD}\"}}" \
+                "${VAULT_ADDR}/v1/secret/data/aap" > /dev/null
+              echo "AAP admin password synced to Vault at secret/data/aap"
+
               echo "Waiting for AAP Gateway..."
               for i in $(seq 1 60); do
                 if curl -skf -u "admin:$AAP_ADMIN_PASSWORD" \
@@ -281,6 +298,55 @@ spec:
                 echo "Created localhost host in inventory"
               fi
 
+              echo "=== AAP Controller Admin credential ==="
+
+              # Create an AAP credential with password sourced from Vault
+              AAP_CRED_TYPE=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                "$AAP_URL/api/controller/v2/credential_types/?name=Red+Hat+Ansible+Automation+Platform" \
+                | python3 -c "import json,sys; print(json.load(sys.stdin)['results'][0]['id'])" 2>/dev/null || echo "")
+
+              if [ -n "$AAP_CRED_TYPE" ] && [ -n "$VAULT_CRED_EXISTS" ]; then
+                AAP_CRED_PAYLOAD=$(python3 -c "
+              import json
+              print(json.dumps({
+                  'name': 'AAP Controller Admin',
+                  'credential_type': $AAP_CRED_TYPE,
+                  'organization': 1,
+                  'inputs': {
+                      'host': '$AAP_URL',
+                      'username': 'admin',
+                      'verify_ssl': False
+                  }
+              }))
+              ")
+                AAP_CRED_ID=$(ensure_resource "credentials" "AAP Controller Admin" "$AAP_CRED_PAYLOAD" | tail -1)
+
+                # Add Vault input_source for the password field
+                SOURCE_EXISTS=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/controller/v2/credentials/$AAP_CRED_ID/input_sources/" \
+                  | python3 -c "import json,sys; print(json.load(sys.stdin)['count'])" 2>/dev/null || echo "0")
+
+                if [ "$SOURCE_EXISTS" = "0" ]; then
+                  curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                    "$AAP_URL/api/controller/v2/credentials/$AAP_CRED_ID/input_sources/" \
+                    -H "Content-Type: application/json" \
+                    -d "{
+                      \"input_field_name\": \"password\",
+                      \"source_credential\": $VAULT_CRED_EXISTS,
+                      \"metadata\": {
+                        \"secret_path\": \"secret/data/aap\",
+                        \"secret_key\": \"admin_password\",
+                        \"secret_version\": \"\"
+                      }
+                    }" > /dev/null
+                  echo "Linked password field to Vault Lookup (secret/data/aap -> admin_password)"
+                else
+                  echo "Vault input_source already configured"
+                fi
+              else
+                echo "WARNING: Could not create AAP Controller Admin credential (missing cred type or Vault Lookup)"
+              fi
+
               echo "=== CaC Dispatch job template ==="
 
               # Create the dispatch job template
@@ -295,21 +361,19 @@ spec:
                   'inventory': $INV_ID,
                   'ask_variables_on_launch': True,
                   'extra_vars': json.dumps({
-                      'cluster_domain': '{{ $clusterDomain }}',
-                      'controller_username': 'admin'
+                      'cluster_domain': '{{ $clusterDomain }}'
                   })
               }))
               ")
               JT_ID=$(ensure_resource "job_templates" "CaC - Apply Controller Configuration" "$JT_PAYLOAD" | tail -1)
 
-              # Attach Vault Lookup credential to the dispatch job template so
-              # controller_password can be sourced from Vault if configured
-              if [ -n "$VAULT_CRED_EXISTS" ]; then
+              # Attach AAP Controller Admin credential to the dispatch job template
+              if [ -n "$AAP_CRED_ID" ]; then
                 curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
                   "$AAP_URL/api/controller/v2/job_templates/$JT_ID/credentials/" \
                   -H "Content-Type: application/json" \
-                  -d "{\"id\": $VAULT_CRED_EXISTS}" > /dev/null 2>&1 || true
-                echo "Attached Vault Lookup credential to dispatch job template"
+                  -d "{\"id\": $AAP_CRED_ID}" > /dev/null 2>&1 || true
+                echo "Attached AAP Controller Admin credential to dispatch job template"
               fi
 
               echo "=== AAP post-deploy configuration complete ==="
