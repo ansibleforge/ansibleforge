@@ -172,6 +172,52 @@ spec:
               fi
 
               echo "=== AAP Keycloak SSO configured ==="
+
+              echo "=== Vault Lookup credential ==="
+
+              # Get the HashiCorp Vault Secret Lookup credential type ID
+              VAULT_CRED_TYPE=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                "$AAP_URL/api/controller/v2/credential_types/?name=HashiCorp+Vault+Secret+Lookup" \
+                | python3 -c "import json,sys; print(json.load(sys.stdin)['results'][0]['id'])" 2>/dev/null || echo "")
+
+              if [ -n "$VAULT_CRED_TYPE" ]; then
+                VAULT_CRED_EXISTS=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/controller/v2/credentials/?name=Vault+Lookup" \
+                  | python3 -c "
+              import json,sys
+              data = json.load(sys.stdin)
+              if data['count'] > 0: print(data['results'][0]['id'])
+              " 2>/dev/null || echo "")
+
+                VAULT_PAYLOAD=$(python3 -c "
+              import json
+              print(json.dumps({
+                  'name': 'Vault Lookup',
+                  'credential_type': $VAULT_CRED_TYPE,
+                  'organization': 1,
+                  'inputs': {
+                      'url': 'http://vault.vault.svc:8200',
+                      'default_auth_path': 'kubernetes',
+                      'kubernetes_role': 'aap-controller',
+                      'api_version': 'v2'
+                  }
+              }))
+              ")
+
+                if [ -n "$VAULT_CRED_EXISTS" ]; then
+                  echo "Vault Lookup credential already exists (id=$VAULT_CRED_EXISTS)"
+                else
+                  echo "Creating Vault Lookup credential..."
+                  curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                    "$AAP_URL/api/controller/v2/credentials/" \
+                    -H "Content-Type: application/json" \
+                    -d "$VAULT_PAYLOAD" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'Created: id={d[\"id\"]} name={d[\"name\"]}')"
+                fi
+              else
+                echo "WARNING: HashiCorp Vault Secret Lookup credential type not found"
+              fi
+
+              echo "=== AAP post-deploy configuration complete ==="
 ---
 apiVersion: v1
 kind: ServiceAccount
