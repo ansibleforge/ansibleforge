@@ -334,12 +334,12 @@ spec:
                       \"input_field_name\": \"password\",
                       \"source_credential\": $VAULT_CRED_EXISTS,
                       \"metadata\": {
-                        \"secret_path\": \"secret/data/aap\",
+                        \"secret_path\": \"secret/aap\",
                         \"secret_key\": \"admin_password\",
                         \"secret_version\": \"\"
                       }
                     }" > /dev/null
-                  echo "Linked password field to Vault Lookup (secret/data/aap -> admin_password)"
+                  echo "Linked password field to Vault Lookup (secret/aap -> admin_password)"
                 else
                   echo "Vault input_source already configured"
                 fi
