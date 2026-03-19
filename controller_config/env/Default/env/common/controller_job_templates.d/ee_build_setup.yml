@@ -8,9 +8,6 @@ controller_templates:
     inventory: Localhost
     execution_environment: "EE AnsibleForge"
     credentials:
-      - GitHub - AnsibleForge
-      - "Automation Hub - Certified"
-      - PAH Registry
       - "OpenShift - Shared Builds"
     extra_vars:
       build_namespace: shared-builds
