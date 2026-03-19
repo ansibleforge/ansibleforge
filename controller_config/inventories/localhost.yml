@@ -1,0 +1,11 @@
+---
+controller_inventories:
+  - name: Localhost
+    organization: Default
+
+controller_hosts:
+  - name: localhost
+    inventory: Localhost
+    variables:
+      ansible_connection: local
+      ansible_python_interpreter: "{{ ansible_playbook_python }}"

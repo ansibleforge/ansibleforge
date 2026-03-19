@@ -40,7 +40,7 @@ spec:
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
-  name: bc-ee-dragonslair
+  name: bc-ee-ansibleforge
   namespace: {{ .Values.namespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "3"
@@ -49,7 +49,7 @@ spec:
     git:
       uri: {{ .Values.sourceRepo }}
       ref: {{ .Values.sourceRevision }}
-    contextDir: containers/ee-dragonslair/context
+    contextDir: containers/ee-ansibleforge/context
   strategy:
     type: Docker
     dockerStrategy:
@@ -72,6 +72,6 @@ spec:
   output:
     to:
       kind: ImageStreamTag
-      name: ee-dragonslair:latest
+      name: ee-ansibleforge:latest
   triggers:
   - type: ConfigChange

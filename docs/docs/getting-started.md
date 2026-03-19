@@ -113,7 +113,7 @@ Start the shared builds to populate the internal image registry:
 
 ```bash
 oc start-build ansible-devspaces -n shared-builds --follow
-oc start-build ee-dragonslair -n shared-builds --follow
+oc start-build ee-ansibleforge -n shared-builds --follow
 ```
 
 ### 6. Access your workspace

@@ -1,12 +1,12 @@
-# ee-dragonslair
+# ee-ansibleforge
 
-**Source:** `containers/ee-dragonslair/`
+**Source:** `containers/ee-ansibleforge/`
 **Base:** `registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest`
 **Used by:** Ansible Automation Platform job execution
 
 ## Overview
 
-`ee-dragonslair` is a custom Ansible Execution Environment (EE) built on the AAP 2.6 minimal RHEL 9 base image.
+`ee-ansibleforge` is a custom Ansible Execution Environment (EE) built on the AAP 2.6 minimal RHEL 9 base image.
 It extends the base with the same collection set used in the developer workspace, plus Terraform and OpenShift client tools, so automation written in the DevSpaces workspace runs identically in AAP.
 
 ## Build process
@@ -15,11 +15,11 @@ EEs are built using `ansible-builder`. The `execution-environment.yaml` defines 
 
 ```bash
 # Generate build context (run locally or via Tekton pipeline)
-cd containers/ee-dragonslair
+cd containers/ee-ansibleforge
 ansible-builder create
 
 # Build in OpenShift (via shared-builds BuildConfig)
-oc start-build ee-dragonslair -n shared-builds --follow
+oc start-build ee-ansibleforge -n shared-builds --follow
 ```
 
 ## System dependencies

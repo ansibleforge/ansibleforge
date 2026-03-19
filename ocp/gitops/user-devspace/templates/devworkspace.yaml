@@ -30,9 +30,9 @@ spec:
           env:
             - name: VAULT_ADDR
               value: {{ .Values.vaultAddr }}
-      - name: ee-dragonslair
+      - name: ee-ansibleforge
         container:
-          image: image-registry.openshift-image-registry.svc:5000/{{ .Values.buildsNamespace }}/ee-dragonslair:latest
+          image: image-registry.openshift-image-registry.svc:5000/{{ .Values.buildsNamespace }}/ee-ansibleforge:latest
           memoryRequest: 256M
           memoryLimit: 5Gi
           cpuRequest: 250m

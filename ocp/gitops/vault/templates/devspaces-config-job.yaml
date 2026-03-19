@@ -136,6 +136,25 @@ spec:
               init_secret "github"  '{"token":"test"}'
               init_secret "ansible" '{"automationhub_token":"test"}'
               init_secret "quay"    '{"username":"test","password":"test"}'
+              init_secret "pah"     '{"registry_url":"aap-hub-aap.{{ .Values.clusterDomain }}","username":"admin","password":"test"}'
+              init_secret "ocp"     '{"bearer_token":"test"}'
+
+              echo "=== AAP Controller policy and role ==="
+
+              vault policy write aap-controller - <<'POLICY'
+              path "secret/data/*" {
+                capabilities = ["read"]
+              }
+              path "secret/metadata/*" {
+                capabilities = ["read", "list"]
+              }
+              POLICY
+
+              vault write auth/kubernetes/role/aap-controller \
+                bound_service_account_names="*" \
+                bound_service_account_namespaces="aap" \
+                policies="aap-controller" \
+                ttl="1h"
 
               echo "=== OIDC auth (Keycloak) ==="
 

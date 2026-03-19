@@ -1,0 +1,167 @@
+---
+- name: Create EE Build Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    build_namespace: shared-builds
+    buildconfig_name: bc-ee-ansibleforge
+    source_repo: https://github.com/hfenner/ansibleforge.git
+    source_revision: main
+    context_dir: containers/ee-ansibleforge/context
+    ee_image_name: ee-ansibleforge
+    image_tag: "v{{ '%Y-%m-%d' | strftime }}"
+    # PAH route — override via survey / extra vars if the cluster domain changes
+    pah_registry: "aap-hub-aap.{{ cluster_domain }}"
+    pah_image: "{{ pah_registry }}/{{ ee_image_name }}"
+    # These should come from AAP credentials or extra vars
+    # github_token:        — Git repo clone token
+    # automationhub_token: — Red Hat Automation Hub token (for galaxy content)
+    # pah_username:         — PAH admin user
+    # pah_password:         — PAH admin password
+    # cluster_domain:       — e.g. apps.cluster-mp7gr.dynamic.redhatworkshops.io
+
+  tasks:
+    # ── Secret 1: Git repo credentials ──────────────────────────────
+    - name: Create source secret for git clone
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: repo-https-secret
+            namespace: "{{ build_namespace }}"
+          type: kubernetes.io/basic-auth
+          stringData:
+            username: git
+            password: "{{ github_token }}"
+
+    # ── Secret 2: ansible.cfg for galaxy content ────────────────────
+    - name: Create ansible.cfg secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: ansible-config
+            namespace: "{{ build_namespace }}"
+          stringData:
+            ansible.cfg: |
+              [galaxy]
+              server_list = certified, validated, galaxy
+
+              [galaxy_server.certified]
+              url=https://console.redhat.com/api/automation-hub/content/published/
+              auth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+              token={{ automationhub_token }}
+
+              [galaxy_server.validated]
+              url=https://console.redhat.com/api/automation-hub/content/validated/
+              auth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+              token={{ automationhub_token }}
+
+              [galaxy_server.galaxy]
+              url=https://galaxy.ansible.com/
+
+    # ── Secret 3: PAH registry push credentials ────────────────────
+    - name: Create PAH push secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: pah-registry-secret
+            namespace: "{{ build_namespace }}"
+          type: kubernetes.io/dockerconfigjson
+          stringData:
+            .dockerconfigjson: |
+              {"auths":{"{{ pah_registry }}":{"username":"{{ pah_username }}","password":"{{ pah_password }}","auth":"{{ (pah_username ~ ':' ~ pah_password) | b64encode }}"}}}
+
+    # ── BuildConfig: build from context/ and push to PAH ────────────
+    - name: Create EE BuildConfig
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: build.openshift.io/v1
+          kind: BuildConfig
+          metadata:
+            name: "{{ buildconfig_name }}"
+            namespace: "{{ build_namespace }}"
+          spec:
+            source:
+              git:
+                uri: "{{ source_repo }}"
+                ref: "{{ source_revision }}"
+              contextDir: "{{ context_dir }}"
+              sourceSecret:
+                name: repo-https-secret
+            strategy:
+              type: Docker
+              dockerStrategy:
+                volumes:
+                  - name: etc-pki-entitlement
+                    mounts:
+                      - destinationPath: /etc/pki/entitlement
+                    source:
+                      type: Secret
+                      secret:
+                        secretName: etc-pki-entitlement
+                  - name: ansible-config
+                    mounts:
+                      - destinationPath: /etc/ansible
+                    source:
+                      type: Secret
+                      secret:
+                        secretName: ansible-config
+                dockerfilePath: Containerfile
+            output:
+              to:
+                kind: DockerImage
+                name: "{{ pah_image }}:latest"
+              pushSecret:
+                name: pah-registry-secret
+            triggers: []
+
+    # ── Trigger the build ───────────────────────────────────────────
+    - name: Start EE build
+      redhat.openshift.openshift_build:
+        namespace: "{{ build_namespace }}"
+        build_config_name: "{{ buildconfig_name }}"
+      register: build_result
+
+    - name: Wait for build to complete
+      kubernetes.core.k8s_info:
+        api_version: build.openshift.io/v1
+        kind: Build
+        namespace: "{{ build_namespace }}"
+        label_selectors:
+          - "openshift.io/build-config.name={{ buildconfig_name }}"
+      register: builds
+      until: >-
+        builds.resources | sort(attribute='metadata.creationTimestamp') | last |
+        json_query('status.phase') in ['Complete', 'Failed', 'Error', 'Cancelled']
+      retries: 60
+      delay: 30
+
+    - name: Fail if build did not complete
+      ansible.builtin.assert:
+        that:
+          - builds.resources | sort(attribute='metadata.creationTimestamp') | last |
+            json_query('status.phase') == 'Complete'
+        fail_msg: >-
+          Build finished with status:
+          {{ builds.resources | sort(attribute='metadata.creationTimestamp') | last |
+             json_query('status.phase') }}
+
+    # ── Tag the image with a dated version ──────────────────────────
+    - name: Tag image with dated version ({{ image_tag }})
+      ansible.builtin.command:
+        cmd: >-
+          oc tag
+          --source=docker {{ pah_image }}:latest
+          {{ build_namespace }}/{{ ee_image_name }}:{{ image_tag }}
+          --insecure
+      changed_when: true

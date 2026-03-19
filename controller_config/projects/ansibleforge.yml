@@ -1,0 +1,10 @@
+---
+controller_projects:
+  - name: AnsibleForge
+    organization: Default
+    scm_type: git
+    scm_url: https://github.com/hfenner/ansibleforge.git
+    scm_branch: main
+    scm_clean: true
+    scm_update_on_launch: true
+    credential: GitHub - AnsibleForge

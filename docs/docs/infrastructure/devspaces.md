@@ -6,7 +6,7 @@
 ## Overview
 
 Red Hat OpenShift DevSpaces provides browser-based development environments running directly on the cluster.
-Each user gets an isolated workspace running the `ansible-devspaces` and `ee-dragonslair` containers, with Vault secrets injected automatically and persistent storage attached.
+Each user gets an isolated workspace running the `ansible-devspaces` and `ee-ansibleforge` containers, with Vault secrets injected automatically and persistent storage attached.
 
 ## CheCluster
 
@@ -22,7 +22,7 @@ It specifies both containers, the git project to clone, and Vault agent injectio
 | Container | Image |
 |-----------|-------|
 | `development-container` | `shared-builds/ansible-devspaces:latest` |
-| `ee-dragonslair` | `shared-builds/ee-dragonslair:latest` |
+| `ee-ansibleforge` | `shared-builds/ee-ansibleforge:latest` |
 
 Both containers load the `workspace-env` ConfigMap via `envFrom`, providing `VAULT_ADDR` and any other cluster-level environment variables.
 

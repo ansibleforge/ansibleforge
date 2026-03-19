@@ -1,0 +1,35 @@
+---
+controller_templates:
+  - name: "EE - Build and Push"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: containers/ee-ansibleforge/ee-build-setup.yaml
+    inventory: Localhost
+    execution_environment: "EE AnsibleForge"
+    credentials:
+      - GitHub - AnsibleForge
+      - "Automation Hub - Certified"
+      - PAH Registry
+      - "OpenShift - Shared Builds"
+    extra_vars:
+      build_namespace: shared-builds
+      source_repo: https://github.com/hfenner/ansibleforge.git
+      source_revision: main
+    survey_enabled: true
+    survey_spec:
+      name: EE Build Survey
+      description: Parameters for EE build and push
+      spec:
+        - question_name: Cluster Domain
+          variable: cluster_domain
+          type: text
+          required: true
+          default: "apps.cluster-mp7gr.dynamic.redhatworkshops.io"
+        - question_name: Image Tag
+          variable: image_tag
+          type: text
+          required: false
+          default: ""
+          question_description: "Dated tag (e.g. v2026-03-19). Leave blank to auto-generate."
+    ask_variables_on_launch: true

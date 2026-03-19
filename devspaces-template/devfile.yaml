@@ -25,9 +25,9 @@ components:
       envFrom:
         - configMapRef:
             name: workspace-env
-  - name: ee-dragonslair
+  - name: ee-ansibleforge
     container:
-      image: image-registry.openshift-image-registry.svc:5000/{{builds_namespace}}/ee-dragonslair:latest
+      image: image-registry.openshift-image-registry.svc:5000/{{builds_namespace}}/ee-ansibleforge:latest
       memoryRequest: 256M
       memoryLimit: 5Gi
       cpuRequest: 250m

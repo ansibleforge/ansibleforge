@@ -49,7 +49,7 @@ flowchart LR
     subgraph images["Container Images"]
         direction TB
         devimg["ansible-devspaces\ndev container"]
-        eeimg["ee-dragonslair\nexecution environment"]
+        eeimg["ee-ansibleforge\nexecution environment"]
     end
 
     subgraph peruser["Per-User Namespace — ApplicationSet"]
@@ -96,7 +96,7 @@ ansibleforge/
 ├── helm/                    # RHDP Field Content CI entry point (ansible-runner Job chart)
 ├── containers/
 │   ├── ansible-devspaces/   # Developer container image
-│   └── ee-dragonslair/      # Ansible Execution Environment
+│   └── ee-ansibleforge/      # Ansible Execution Environment
 ├── devspaces-template/      # DevSpaces devfile template
 └── ocp/
     ├── ansible/             # Ansible playbooks + collections requirements

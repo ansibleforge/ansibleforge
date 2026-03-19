@@ -55,7 +55,7 @@ nav:
   - Containers:
       - containers/index.md
       - ansible-devspaces: containers/ansible-devspaces.md
-      - ee-dragonslair: containers/ee-dragonslair.md
+      - ee-ansibleforge: containers/ee-ansibleforge.md
   - Infrastructure:
       - infrastructure/index.md
       - HashiCorp Vault: infrastructure/vault.md

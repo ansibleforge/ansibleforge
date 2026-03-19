@@ -12,7 +12,7 @@ The `shared-builds` namespace centralizes container image builds so all user wor
 | BuildConfig | Source | Output |
 |-------------|--------|--------|
 | `ansible-devspaces` | `containers/ansible-devspaces/` | DevSpaces workspace container |
-| `ee-dragonslair` | `containers/ee-dragonslair/context/` | Ansible Execution Environment |
+| `ee-ansibleforge` | `containers/ee-ansibleforge/context/` | Ansible Execution Environment |
 
 Both BuildConfigs pull source from this repository (`hfenner/ansibleforge`) and output to ImageStreams in the `shared-builds` namespace.
 
@@ -23,7 +23,7 @@ ImageStreams have `lookupPolicy.local: true`, enabling any pod to reference them
 Workspace containers reference images using the internal registry:
 ```
 image-registry.openshift-image-registry.svc:5000/shared-builds/ansible-devspaces:latest
-image-registry.openshift-image-registry.svc:5000/shared-builds/ee-dragonslair:latest
+image-registry.openshift-image-registry.svc:5000/shared-builds/ee-ansibleforge:latest
 ```
 
 ## RHEL entitlement sync
@@ -37,7 +37,7 @@ A CronJob copies RHEL entitlement certificates from `openshift-config-managed` i
 oc start-build ansible-devspaces -n shared-builds --follow
 
 # Build the execution environment
-oc start-build ee-dragonslair -n shared-builds --follow
+oc start-build ee-ansibleforge -n shared-builds --follow
 
 # Watch all builds
 oc get builds -n shared-builds -w

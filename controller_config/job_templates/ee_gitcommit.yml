@@ -1,0 +1,16 @@
+---
+controller_templates:
+  - name: "EE - Generate Build Context"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: containers/ee-ansibleforge/gitcommit.yaml
+    inventory: Localhost
+    execution_environment: "EE AnsibleForge"
+    credentials:
+      - GitHub - AnsibleForge
+    extra_vars:
+      git_dir: /tmp/ansibleforge
+      buildconfig: bc-ee-ansibleforge
+      namespace: shared-builds
+    ask_variables_on_launch: true

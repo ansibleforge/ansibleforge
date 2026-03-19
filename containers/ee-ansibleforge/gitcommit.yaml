@@ -9,7 +9,7 @@
     git_user_email: ansible_automation_platform@dragonslair.dev
     commit_message: "Create context dir for execution environment"
     git_dir: /tmp/ansible-devspaces
-    buildconfig: bc-ee-dragonslair
+    buildconfig: bc-ee-ansibleforge
     namespace: hfenner-devspaces
 
   tasks:
@@ -23,7 +23,7 @@
       ansible.builtin.command:
       args:
         cmd: "ansible-builder create"
-        chdir: "{{ git_dir }}/ee-dragonslair"
+        chdir: "{{ git_dir }}/ee-ansibleforge"
       register: ansible_builder_output
       changed_when: ansible_builder_output.rc != 0
 
@@ -31,14 +31,14 @@
       ansible.builtin.command: # noqa: command-instead-of-module
       args:
         cmd: "git add -f context/"
-        chdir: "{{ git_dir }}/ee-dragonslair"
+        chdir: "{{ git_dir }}/ee-ansibleforge"
       register: git_add_output
       changed_when: git_add_output.rc != 0
 
     - name: Detect if staging area has changes
       ansible.builtin.command: # noqa: command-instead-of-module
         cmd: git diff --cached
-        chdir: "{{ git_dir }}/ee-dragonslair"
+        chdir: "{{ git_dir }}/ee-ansibleforge"
       register: git_diff_output
       changed_when: git_diff_output.stdout | length > 0
 

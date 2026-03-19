@@ -1,0 +1,35 @@
+---
+controller_workflows:
+  - name: "EE - Build AnsibleForge"
+    description: "Generate EE build context, commit to git, build on OCP, and push to PAH"
+    organization: Default
+    inventory: Localhost
+    survey_enabled: true
+    survey_spec:
+      name: EE Build Workflow Survey
+      description: Parameters for the full EE build pipeline
+      spec:
+        - question_name: Cluster Domain
+          variable: cluster_domain
+          type: text
+          required: true
+          default: "apps.cluster-mp7gr.dynamic.redhatworkshops.io"
+        - question_name: Image Tag
+          variable: image_tag
+          type: text
+          required: false
+          default: ""
+          question_description: "Dated tag (e.g. v2026-03-19). Leave blank to auto-generate."
+    ask_variables_on_launch: true
+    simplified_workflow_nodes:
+      - identifier: generate_context
+        unified_job_template:
+          name: "EE - Generate Build Context"
+          type: job_template
+        success_nodes:
+          - build_and_push
+
+      - identifier: build_and_push
+        unified_job_template:
+          name: "EE - Build and Push"
+          type: job_template

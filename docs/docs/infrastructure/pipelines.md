@@ -24,13 +24,13 @@ spec:
   installPlanApproval: Automatic
 ```
 
-## Planned: ee-dragonslair build pipeline
+## Planned: ee-ansibleforge build pipeline
 
-The `ee-dragonslair` EE requires `ansible-builder create` to generate a build context before the image can be built. A Tekton Pipeline will automate this:
+The `ee-ansibleforge` EE requires `ansible-builder create` to generate a build context before the image can be built. A Tekton Pipeline will automate this:
 
 1. Clone the `ansibleforge` repository
-2. Run `ansible-builder create` to generate `containers/ee-dragonslair/context/`
-3. Trigger the `ee-dragonslair` BuildConfig in `shared-builds`
+2. Run `ansible-builder create` to generate `containers/ee-ansibleforge/context/`
+3. Trigger the `ee-ansibleforge` BuildConfig in `shared-builds`
 4. Tag the resulting ImageStream on success
 
 ## Verify installation
