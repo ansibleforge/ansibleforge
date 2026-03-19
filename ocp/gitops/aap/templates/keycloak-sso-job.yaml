@@ -144,6 +144,33 @@ spec:
                 echo "Admins -> superuser map already exists (id=$MAP_EXISTS)"
               fi
 
+              # Ensure allow map exists (without this, all SSO logins get AuthForbidden)
+              ALLOW_EXISTS=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                "$AAP_URL/api/gateway/v1/authenticators/$AUTH_ID/authenticator_maps/" \
+                | python3 -c "
+              import json,sys
+              for m in json.load(sys.stdin).get('results',[]):
+                  if m.get('map_type') == 'allow':
+                      print(m['id']); break
+              " 2>/dev/null || echo "")
+
+              if [ -z "$ALLOW_EXISTS" ]; then
+                echo "Creating allow map for SSO users..."
+                curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/gateway/v1/authenticator_maps/" \
+                  -H "Content-Type: application/json" \
+                  -d "{
+                    \"name\": \"Allow all SSO users\",
+                    \"authenticator\": $AUTH_ID,
+                    \"map_type\": \"allow\",
+                    \"triggers\": {\"always\": {}},
+                    \"order\": 1,
+                    \"revoke\": false
+                  }" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'Created map: {d[\"name\"]}')"
+              else
+                echo "Allow map already exists (id=$ALLOW_EXISTS)"
+              fi
+
               echo "=== AAP Keycloak SSO configured ==="
 ---
 apiVersion: v1
