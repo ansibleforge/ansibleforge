@@ -25,3 +25,5 @@ collections:
   - name: ansible.utils
   - name: https://github.com/ansible/ansible.platform.git
     type: git
+  - name: https://github.com/ansible-collections/ansible_hub.git
+    type: git
