@@ -1,0 +1,41 @@
+ARG EE_BASE_IMAGE="quay.io/ansible/awx-ee:latest"
+
+FROM $EE_BASE_IMAGE
+
+USER root
+
+# System packages
+RUN dnf install -y --nodocs --setopt=install_weak_deps=0 \
+    python3-pip \
+    python3-setuptools \
+    python3-devel \
+    systemd-devel \
+    openldap-devel \
+    gcc \
+    gcc-c++ \
+    && dnf clean all
+
+# Terraform
+COPY hashicorp.repo /etc/yum.repos.d/hashicorp.repo
+RUN dnf install -y --nodocs terraform && dnf clean all
+
+# Python dependencies
+COPY requirements.txt /tmp/requirements.txt
+RUN pip3 install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.txt
+
+# Ansible collections
+COPY requirements.yml /tmp/requirements.yml
+RUN ansible-galaxy collection install -r /tmp/requirements.yml \
+    --collections-path /usr/share/ansible/collections \
+    && rm /tmp/requirements.yml
+
+# Clean up build deps
+RUN dnf remove -y gcc gcc-c++ python3-devel openldap-devel systemd-devel \
+    && dnf clean all
+
+RUN mkdir -p /runner && chgrp 0 /runner && chmod -R ug+rwx /runner
+WORKDIR /runner
+
+LABEL ansible-execution-environment=true
+
+USER 1000

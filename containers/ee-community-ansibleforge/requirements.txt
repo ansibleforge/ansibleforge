@@ -1,0 +1,7 @@
+pywinrm
+pywinrm[credssp]
+botocore
+boto3
+python-ldap
+kubernetes
+ansible-builder
