@@ -212,13 +212,12 @@
         validate_certs: "{{ keycloak_validate_certs }}"
         status_code: [204]
       vars:
+        _oidc_clients: "{{ _all_clients.json | selectattr('protocol', 'eq', 'openid-connect') | list }}"
         _client_uuid: "{{ item.0.id }}"
         _scope_uuid: "{{ (_all_scopes.json | selectattr('name', 'eq', item.1) | first).id }}"
       loop: "{{ _oidc_clients | product(keycloak_default_scopes) | list }}"
       loop_control:
         label: "{{ item.0.clientId }} <- {{ item.1 }}"
-      vars:
-        _oidc_clients: "{{ _all_clients.json | selectattr('protocol', 'eq', 'openid-connect') | list }}"
       failed_when: false
 
     # ── RHDH Service Account Roles ─────────────────────────────────
