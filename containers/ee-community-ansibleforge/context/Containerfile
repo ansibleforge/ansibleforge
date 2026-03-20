@@ -33,6 +33,7 @@ ARG ANSIBLE_GALAXY_CLI_ROLE_OPTS
 ARG ANSIBLE_INSTALL_REFS
 ARG PKGMGR
 
+RUN dnf install -y git && dnf clean all
 RUN /output/scripts/check_galaxy
 COPY _build /build
 WORKDIR /build
