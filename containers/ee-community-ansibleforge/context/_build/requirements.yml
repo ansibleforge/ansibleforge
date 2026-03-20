@@ -21,7 +21,8 @@ collections:
   - name: community.okd
   - name: ansible.posix
   - name: cloud.terraform
-  - name: cloud.terraform_ops
+  - name: https://github.com/redhat-cop/cloud.terraform_ops.git
+    type: git
   - name: ansible.utils
   - name: https://github.com/ansible/ansible.platform.git
     type: git
