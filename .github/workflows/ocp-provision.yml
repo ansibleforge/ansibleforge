@@ -67,15 +67,10 @@ jobs:
           tar -xzf oc.tgz
           sudo mv oc kubectl /usr/local/bin/
 
-      - name: Fetch pull secret from Secrets Manager
-        run: |
-          PULL_SECRET=$(aws secretsmanager get-secret-value --secret-id ocp-pull-secret --query SecretString --output text)
-          echo "::add-mask::$PULL_SECRET"
-          echo "PULL_SECRET=$PULL_SECRET" >> "$GITHUB_ENV"
-
       - name: Generate install-config.yaml
         env:
           SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+          PULL_SECRET: ${{ secrets.OCP_PULL_SECRET }}
         run: |
           mkdir -p install-dir
           cat > install-dir/install-config.yaml <<EOF
