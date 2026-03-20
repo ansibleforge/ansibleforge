@@ -72,28 +72,22 @@ jobs:
   provision:
     runs-on: ubuntu-latest
 
-    env:
-      CCOCTL_NAME: ocp-${{ inputs.cluster_name }}
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActions-${{ github.repository_owner }}-${{ github.event.repository.name }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ inputs.aws_region }}
 
-      - name: Download openshift-install + oc + ccoctl
+      - name: Download openshift-install + oc
         run: |
           OCP_MIRROR="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-${{ inputs.ocp_version }}"
-
           curl -sL "${OCP_MIRROR}/openshift-install-linux.tar.gz" | tar -xz -C /usr/local/bin openshift-install
           curl -sL "${OCP_MIRROR}/openshift-client-linux.tar.gz" | tar -xz -C /usr/local/bin oc kubectl
-          curl -sL "${OCP_MIRROR}/ccoctl-linux.tar.gz" | tar -xz -C /usr/local/bin ccoctl
-
           openshift-install version
-          ccoctl --help | head -1
 
       - name: Verify Route 53 zone exists
         run: |
@@ -119,7 +113,6 @@ jobs:
           WORKER_TYPE: ${{ inputs.worker_type }}
           WORKER_COUNT: ${{ inputs.worker_count }}
         run: |
-          # Set replicas based on topology
           case "$TOPOLOGY" in
             sno)     CP_REPLICAS=1; WORKER_REPLICAS=0 ;;
             compact) CP_REPLICAS=3; WORKER_REPLICAS=0 ;;
@@ -156,33 +149,13 @@ jobs:
           pullSecret: '${PULL_SECRET}'
           sshKey: |
             ${SSH_PUBLIC_KEY}
-          credentialsMode: Manual
+          credentialsMode: Mint
           EOF
           sed -i 's/^          //' install-dir/install-config.yaml
 
       - name: Show install-config.yaml
         if: inputs.debug_install_config
         run: cat install-dir/install-config.yaml
-
-      - name: Generate manifests
-        run: openshift-install create manifests --dir=install-dir
-
-      - name: Create STS credentials with ccoctl
-        run: |
-          # Extract credential requests from manifests
-          oc adm release extract \
-            --credentials-requests \
-            --cloud=aws \
-            --to=credreqs \
-            "$(openshift-install version | grep 'release image' | awk '{print $3}')"
-
-          # Create IAM roles + OIDC provider
-          ccoctl aws create-all \
-            --name="${CCOCTL_NAME}" \
-            --region=${{ inputs.aws_region }} \
-            --credentials-requests-dir=credreqs \
-            --output-dir=install-dir \
-            --create-private-s3-bucket
 
       - name: Provision cluster
         run: openshift-install create cluster --dir=install-dir --log-level=info 2>&1
@@ -218,8 +191,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: install-dir
-          path: |
-            install-dir/metadata.json
+          path: install-dir/metadata.json
           retention-days: 7
 
       - name: Upload bootstrap log bundle on failure
@@ -250,7 +222,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActions-${{ github.repository_owner }}-${{ github.event.repository.name }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ inputs.aws_region }}
 
       - name: Download openshift-install
