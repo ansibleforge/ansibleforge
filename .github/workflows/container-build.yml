@@ -46,10 +46,12 @@ jobs:
 
   build-ee-community-ansibleforge:
     runs-on: ubuntu-latest
+    needs: detect-changes
     if: >-
-      github.event_name == 'workflow_dispatch' && (inputs.image == 'ee-community-ansibleforge' || inputs.image == 'all') ||
-      github.event_name == 'push' && needs.detect-changes.outputs.ee-community-ansibleforge == 'true'
-    needs: [detect-changes]
+      always() && !failure() && (
+        github.event_name == 'workflow_dispatch' && (inputs.image == 'ee-community-ansibleforge' || inputs.image == 'all') ||
+        github.event_name == 'push' && needs.detect-changes.outputs.ee-community-ansibleforge == 'true'
+      )
     steps:
       - uses: actions/checkout@v4
 
@@ -72,10 +74,12 @@ jobs:
 
   build-tools-ansibleforge:
     runs-on: ubuntu-latest
+    needs: detect-changes
     if: >-
-      github.event_name == 'workflow_dispatch' && (inputs.image == 'tools-ansibleforge' || inputs.image == 'all') ||
-      github.event_name == 'push' && needs.detect-changes.outputs.tools-ansibleforge == 'true'
-    needs: [detect-changes]
+      always() && !failure() && (
+        github.event_name == 'workflow_dispatch' && (inputs.image == 'tools-ansibleforge' || inputs.image == 'all') ||
+        github.event_name == 'push' && needs.detect-changes.outputs.tools-ansibleforge == 'true'
+      )
     steps:
       - uses: actions/checkout@v4
 
