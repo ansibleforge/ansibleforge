@@ -4,24 +4,44 @@
   connection: local
   gather_facts: false
   vars:
-    build_namespace: shared-builds
+    ansible_python_interpreter: /usr/bin/python3.9
+    build_namespace: aap-shared-builds
     buildconfig_name: bc-ee-ansibleforge
     source_repo: https://github.com/hfenner/ansibleforge.git
     source_revision: main
     context_dir: containers/ee-ansibleforge/context
     ee_image_name: ee-ansibleforge
     image_tag: "v{{ '%Y-%m-%d' | strftime }}"
-    # PAH route — override via survey / extra vars if the cluster domain changes
     pah_registry: "aap-hub-aap.{{ cluster_domain }}"
     pah_image: "{{ pah_registry }}/{{ ee_image_name }}"
-    # These should come from AAP credentials or extra vars
-    # github_token:        — Git repo clone token
-    # automationhub_token: — Red Hat Automation Hub token (for galaxy content)
-    # pah_username:         — PAH admin user
-    # pah_password:         — PAH admin password
-    # cluster_domain:       — e.g. apps.cluster-mp7gr.dynamic.redhatworkshops.io
+    # Sourced from AAP credentials via env vars
+    github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
+    automationhub_token: "{{ lookup('env', 'AUTOMATIONHUB_TOKEN') | default(lookup('env', 'AH_TOKEN'), true) }}"
+    pah_username: "{{ lookup('env', 'PAH_USERNAME') | default('admin', true) }}"
+    pah_password: "{{ lookup('env', 'PAH_PASSWORD') | default('', true) }}"
+
+  pre_tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - cluster_domain is defined and cluster_domain | length > 0
+          - github_token | length > 0
+          - automationhub_token | length > 0
+        fail_msg: >-
+          cluster_domain, github_token, and automationhub_token are required.
+          Attach credentials that inject GITHUB_TOKEN and AUTOMATIONHUB_TOKEN.
 
   tasks:
+    # ── Namespace ──────────────────────────────────────────────────
+    - name: Ensure build namespace exists
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ build_namespace }}"
+
     # ── Secret 1: Git repo credentials ──────────────────────────────
     - name: Create source secret for git clone
       kubernetes.core.k8s:
@@ -36,6 +56,7 @@
           stringData:
             username: git
             password: "{{ github_token }}"
+      no_log: true
 
     # ── Secret 2: ansible.cfg for galaxy content ────────────────────
     - name: Create ansible.cfg secret
@@ -64,6 +85,7 @@
 
               [galaxy_server.galaxy]
               url=https://galaxy.ansible.com/
+      no_log: true
 
     # ── Secret 3: PAH registry push credentials ────────────────────
     - name: Create PAH push secret
@@ -79,8 +101,32 @@
           stringData:
             .dockerconfigjson: |
               {"auths":{"{{ pah_registry }}":{"username":"{{ pah_username }}","password":"{{ pah_password }}","auth":"{{ (pah_username ~ ':' ~ pah_password) | b64encode }}"}}}
+      no_log: true
+      when: pah_password | length > 0
 
-    # ── BuildConfig: build from context/ and push to PAH ────────────
+    # ── Sync RHEL entitlements ─────────────────────────────────────
+    - name: Check if entitlement secret exists in source namespace
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        name: etc-pki-entitlement
+        namespace: openshift-config-managed
+      register: _entitlement_secret
+
+    - name: Copy RHEL entitlement to build namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: etc-pki-entitlement
+            namespace: "{{ build_namespace }}"
+          type: Opaque
+          data: "{{ _entitlement_secret.resources[0].data }}"
+      when: _entitlement_secret.resources | length > 0
+
+    # ── BuildConfig ────────────────────────────────────────────────
     - name: Create EE BuildConfig
       kubernetes.core.k8s:
         state: present

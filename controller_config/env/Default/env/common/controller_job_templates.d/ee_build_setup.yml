@@ -9,8 +9,10 @@ controller_templates:
     execution_environment: "EE AnsibleForge"
     credentials:
       - "OpenShift - Shared Builds"
+      - GitHub PAT
+      - Automation Hub Token
     extra_vars:
-      build_namespace: shared-builds
+      build_namespace: aap-shared-builds
       source_repo: https://github.com/hfenner/ansibleforge.git
       source_revision: main
     survey_enabled: true

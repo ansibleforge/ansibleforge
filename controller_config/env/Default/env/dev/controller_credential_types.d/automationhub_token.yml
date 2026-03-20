@@ -1,0 +1,15 @@
+---
+controller_credential_types:
+  - name: Automation Hub Token (env inject)
+    kind: cloud
+    inputs:
+      fields:
+        - id: token
+          label: Automation Hub Token
+          type: string
+          secret: true
+      required:
+        - token
+    injectors:
+      env:
+        AUTOMATIONHUB_TOKEN: "{{ '{{' }} token {{ '}}' }}"
