@@ -1,17 +1,12 @@
 ---
 controller_templates:
-  - name: "EE - Generate Build Context"
+  - name: "Infra - Generate OCP Token"
     job_type: run
     organization: Default
     project: AnsibleForge
-    playbook: containers/ee-ansibleforge/gitcommit.yaml
+    playbook: ocp/ansible/generate-ocp-token.yml
     inventory: Localhost
     execution_environment: "EE AnsibleForge"
     credentials:
-      - GitHub PAT
       - "OpenShift - Shared Builds"
-    extra_vars:
-      git_dir: /tmp/ansibleforge
-      buildconfig: bc-ee-ansibleforge
-      build_namespace: shared-builds
     ask_variables_on_launch: true

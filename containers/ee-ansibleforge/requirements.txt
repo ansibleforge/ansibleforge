@@ -5,4 +5,3 @@ boto3
 python-ldap
 kubernetes
 ansible-builder
-hvac

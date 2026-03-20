@@ -65,6 +65,26 @@ spec:
                 "${VAULT_ADDR}/v1/secret/data/aap" > /dev/null
               echo "AAP admin password synced to Vault at secret/data/aap"
 
+              echo "=== Generate OCP cluster-admin token ==="
+              OCP_TOKEN=$(curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -X POST \
+                "https://kubernetes.default.svc/api/v1/namespaces/aap/serviceaccounts/aap-cluster-admin/token" \
+                -d '{"apiVersion":"authentication.k8s.io/v1","kind":"TokenRequest","spec":{"expirationSeconds":31536000}}' \
+                | python3 -c "import json,sys; print(json.load(sys.stdin)['status']['token'])" 2>/dev/null || echo "")
+
+              if [ -n "$OCP_TOKEN" ]; then
+                curl -sf -X POST \
+                  -H "X-Vault-Token: ${VAULT_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"data\":{\"bearer_token\":\"${OCP_TOKEN}\"}}" \
+                  "${VAULT_ADDR}/v1/secret/data/ocp" > /dev/null
+                echo "OCP cluster-admin token stored in Vault at secret/data/ocp"
+              else
+                echo "WARNING: Could not generate OCP token (aap-cluster-admin SA may not exist yet)"
+              fi
+
               echo "Waiting for AAP Gateway..."
               for i in $(seq 1 60); do
                 if curl -skf -u "admin:$AAP_ADMIN_PASSWORD" \

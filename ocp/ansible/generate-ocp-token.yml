@@ -1,0 +1,75 @@
+---
+- name: Generate OCP Cluster-Admin Token
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3.9
+    sa_name: aap-cluster-admin
+    sa_namespace: aap
+    token_duration: "8760h"
+    vault_addr: "http://vault.vault.svc:8200"
+    vault_token: "{{ lookup('env', 'VAULT_TOKEN') }}"
+    vault_secret_path: secret/data/ocp
+
+  pre_tasks:
+    - name: Validate Vault token is available
+      ansible.builtin.assert:
+        that:
+          - vault_token | length > 0
+        fail_msg: >-
+          vault_token is empty. Pass it as an extra var or set the
+          VAULT_TOKEN environment variable.
+
+  tasks:
+    - name: Ensure ServiceAccount exists
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: "{{ sa_name }}"
+            namespace: "{{ sa_namespace }}"
+
+    - name: Ensure ClusterRoleBinding exists
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: "{{ sa_name }}-cluster-admin"
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: cluster-admin
+          subjects:
+            - kind: ServiceAccount
+              name: "{{ sa_name }}"
+              namespace: "{{ sa_namespace }}"
+
+    - name: Generate long-lived SA token
+      ansible.builtin.command:
+        cmd: "oc create token {{ sa_name }} -n {{ sa_namespace }} --duration={{ token_duration }}"
+      register: _token
+      changed_when: true
+      no_log: true
+
+    - name: Store token in Vault
+      ansible.builtin.uri:
+        url: "{{ vault_addr }}/v1/{{ vault_secret_path }}"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ vault_token }}"
+        body_format: json
+        body:
+          data:
+            bearer_token: "{{ _token.stdout }}"
+        validate_certs: false
+        status_code: 200
+      no_log: true
+
+    - name: Token stored successfully
+      ansible.builtin.debug:
+        msg: "OCP cluster-admin token generated and stored in Vault at {{ vault_secret_path }}"
