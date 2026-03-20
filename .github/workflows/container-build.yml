@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - "containers/ee-community-ansibleforge/**"
-      - "containers/tools-ansibleforge/**"
+      - "containers/tools-community-ansibleforge/**"
       - ".github/workflows/container-build.yml"
   workflow_dispatch:
     inputs:
@@ -15,7 +15,7 @@ on:
         type: choice
         options:
           - ee-community-ansibleforge
-          - tools-ansibleforge
+          - tools-community-ansibleforge
           - all
 
 permissions:
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       ee-community-ansibleforge: ${{ steps.changes.outputs.ee-community-ansibleforge }}
-      tools-ansibleforge: ${{ steps.changes.outputs.tools-ansibleforge }}
+      tools-community-ansibleforge: ${{ steps.changes.outputs.tools-community-ansibleforge }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -41,8 +41,8 @@ jobs:
           filters: |
             ee-community-ansibleforge:
               - 'containers/ee-community-ansibleforge/**'
-            tools-ansibleforge:
-              - 'containers/tools-ansibleforge/**'
+            tools-community-ansibleforge:
+              - 'containers/tools-community-ansibleforge/**'
 
   build-ee-community-ansibleforge:
     runs-on: ubuntu-latest
@@ -79,13 +79,13 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ee-community-ansibleforge:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ee-community-ansibleforge:${{ github.sha }}
 
-  build-tools-ansibleforge:
+  build-tools-community-ansibleforge:
     runs-on: ubuntu-latest
     needs: detect-changes
     if: >-
       always() && !failure() && (
-        github.event_name == 'workflow_dispatch' && (inputs.image == 'tools-ansibleforge' || inputs.image == 'all') ||
-        github.event_name == 'push' && needs.detect-changes.outputs.tools-ansibleforge == 'true'
+        github.event_name == 'workflow_dispatch' && (inputs.image == 'tools-community-ansibleforge' || inputs.image == 'all') ||
+        github.event_name == 'push' && needs.detect-changes.outputs.tools-community-ansibleforge == 'true'
       )
     steps:
       - uses: actions/checkout@v4
@@ -97,12 +97,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push tools-ansibleforge
+      - name: Build and push tools-community-ansibleforge
         uses: docker/build-push-action@v5
         with:
-          context: containers/tools-ansibleforge
-          file: containers/tools-ansibleforge/Containerfile
+          context: containers/tools-community-ansibleforge
+          file: containers/tools-community-ansibleforge/Containerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/tools-ansibleforge:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/tools-ansibleforge:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/tools-community-ansibleforge:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/tools-community-ansibleforge:${{ github.sha }}
