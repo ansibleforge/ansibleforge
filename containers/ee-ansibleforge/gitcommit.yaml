@@ -26,41 +26,15 @@
           GITHUB_TOKEN is empty. Attach a credential that injects
           GITHUB_TOKEN or pass github_token as an extra var.
 
-    - name: Read pod service account JWT
-      ansible.builtin.slurp:
-        src: /var/run/secrets/kubernetes.io/serviceaccount/token
-      register: _sa_jwt
-
-    - name: Authenticate to Vault via Kubernetes auth
-      ansible.builtin.uri:
-        url: "{{ vault_addr }}/v1/auth/kubernetes/login"
-        method: POST
-        body_format: json
-        body:
-          role: "{{ vault_k8s_role }}"
-          jwt: "{{ _sa_jwt.content | b64decode }}"
-        validate_certs: false
-        status_code: 200
-      register: _vault_login
-      no_log: true
-
     - name: Get dynamic OCP token from Vault Kubernetes secrets engine
-      ansible.builtin.uri:
-        url: "{{ vault_addr }}/v1/kubernetes/creds/aap-build-manager"
-        method: POST
-        headers:
-          X-Vault-Token: "{{ _vault_login.json.auth.client_token }}"
-        body_format: json
-        body:
-          kubernetes_namespace: "{{ build_namespace }}"
-        validate_certs: false
-        status_code: 200
-      register: _vault_k8s_result
-      no_log: true
-
-    - name: Set OCP token fact
       ansible.builtin.set_fact:
-        _ocp_token: "{{ _vault_k8s_result.json.data.service_account_token }}"
+        _ocp_token: "{{ lookup('community.hashi_vault.vault_write',
+          'kubernetes/creds/aap-build-manager',
+          data={'kubernetes_namespace': build_namespace},
+          url=vault_addr,
+          auth_method='kubernetes',
+          role_id=vault_k8s_role
+        ).data.service_account_token }}"
       no_log: true
 
   tasks:
