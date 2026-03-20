@@ -4,6 +4,7 @@
   connection: local
   gather_facts: false
   vars:
+    ansible_python_interpreter: /usr/bin/python3.9
     github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
     git_user: ansible_automation_platform
     git_user_email: ansible_automation_platform@ansibleforge.dev
