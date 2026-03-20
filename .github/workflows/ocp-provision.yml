@@ -206,6 +206,15 @@ jobs:
           path: install-dir/log-bundle-*.tar.gz
           retention-days: 7
 
+  bootstrap-gitops:
+    needs: provision
+    if: inputs.bootstrap_mode == 'gitops'
+    uses: ./.github/workflows/ocp-bootstrap-gitops.yml
+    with:
+      cluster_name: ${{ inputs.cluster_name }}
+      base_domain: ${{ inputs.base_domain }}
+    secrets: inherit
+
   destroy-on-failure:
     runs-on: ubuntu-latest
     needs: provision

@@ -23,6 +23,20 @@ on:
         required: false
         type: string
         default: main
+  workflow_call:
+    inputs:
+      cluster_name:
+        type: string
+        required: true
+      base_domain:
+        type: string
+        default: ansibleforge.dev
+      gitops_repo_url:
+        type: string
+        default: https://github.com/hfenner/ansibleforge.git
+      gitops_repo_branch:
+        type: string
+        default: main
 
 permissions:
   id-token: write
