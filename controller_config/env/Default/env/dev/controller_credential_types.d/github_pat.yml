@@ -1,6 +1,6 @@
 ---
 controller_credential_types:
-  - name: GitHub Personal Access Token
+  - name: GitHub Token (env inject)
     kind: cloud
     inputs:
       fields:

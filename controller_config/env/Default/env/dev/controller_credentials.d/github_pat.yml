@@ -1,7 +1,7 @@
 ---
 controller_credentials:
   - name: GitHub PAT
-    credential_type: GitHub Personal Access Token
+    credential_type: GitHub Token (env inject)
     organization: Default
     inputs: {}
     input_sources:

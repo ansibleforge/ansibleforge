@@ -238,7 +238,7 @@ spec:
 
               # Create custom credential type that injects GITHUB_TOKEN as env var
               GH_CRED_TYPE_ID=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
-                "$AAP_URL/api/controller/v2/credential_types/?name=GitHub+Personal+Access+Token" \
+                "$AAP_URL/api/controller/v2/credential_types/?name=GitHub+Token+%28env+inject%29" \
                 | python3 -c "
               import json,sys
               data = json.load(sys.stdin)
@@ -250,7 +250,7 @@ spec:
                   "$AAP_URL/api/controller/v2/credential_types/" \
                   -H "Content-Type: application/json" \
                   -d '{
-                    "name": "GitHub Personal Access Token",
+                    "name": "GitHub Token (env inject)",
                     "kind": "cloud",
                     "inputs": {
                       "fields": [
