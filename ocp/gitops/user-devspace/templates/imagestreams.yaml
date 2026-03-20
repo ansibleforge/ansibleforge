@@ -1,7 +1,7 @@
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
-  name: ansible-devspaces
+  name: tools-ansibleforge
   namespace: {{ .Values.username }}-devspaces
   annotations:
     argocd.argoproj.io/sync-wave: "1"
@@ -13,7 +13,7 @@ spec:
     - name: latest
       from:
         kind: ImageStreamTag
-        name: ansible-devspaces:latest
+        name: tools-ansibleforge:latest
         namespace: shared-builds
       referencePolicy:
         type: Local

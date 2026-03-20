@@ -21,7 +21,7 @@ spec:
     components:
       - name: development-container
         container:
-          image: image-registry.openshift-image-registry.svc:5000/{{ .Values.buildsNamespace }}/ansible-devspaces:latest
+          image: image-registry.openshift-image-registry.svc:5000/{{ .Values.buildsNamespace }}/tools-ansibleforge:latest
           memoryRequest: 256M
           memoryLimit: 5Gi
           cpuRequest: 250m

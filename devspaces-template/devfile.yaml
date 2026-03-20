@@ -16,7 +16,7 @@ attributes:
 components:
   - name: development-container
     container:
-      image: image-registry.openshift-image-registry.svc:5000/{{builds_namespace}}/ansible-devspaces:latest
+      image: image-registry.openshift-image-registry.svc:5000/{{builds_namespace}}/tools-ansibleforge:latest
       memoryRequest: 256M
       memoryLimit: 5Gi
       cpuRequest: 250m

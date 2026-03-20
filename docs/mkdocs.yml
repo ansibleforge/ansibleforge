@@ -54,7 +54,7 @@ nav:
   - Getting Started: getting-started.md
   - Containers:
       - containers/index.md
-      - ansible-devspaces: containers/ansible-devspaces.md
+      - tools-ansibleforge: containers/tools-ansibleforge.md
       - ee-ansibleforge: containers/ee-ansibleforge.md
   - Infrastructure:
       - infrastructure/index.md

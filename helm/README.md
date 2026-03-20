@@ -100,5 +100,5 @@ ansibleforge/
 │   │   └── requirements.yml     ← Collections installed by the Job
 │   └── gitops/
 │       └── bootstrap/           ← ArgoCD app-of-apps bootstrapped by the playbook
-└── containers/                  ← ansible-devspaces and ee-ansibleforge images
+└── containers/                  ← tools-ansibleforge and ee-ansibleforge images
 ```

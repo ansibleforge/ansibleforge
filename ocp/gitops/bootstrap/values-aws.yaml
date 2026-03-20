@@ -1,5 +1,5 @@
 # AWS SNO component overrides
-# Default overlay for GitHub Actions deployment from ansible-devspaces
+# Default overlay for GitHub Actions deployment from tools-ansibleforge
 #
 # Usage:
 #   helm install ansibleforge-bootstrap helm/ \

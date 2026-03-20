@@ -1,7 +1,7 @@
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
-  name: bc-ansible-devspaces
+  name: bc-tools-ansibleforge
   namespace: {{ .Values.namespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "3"
@@ -10,7 +10,7 @@ spec:
     git:
       uri: {{ .Values.sourceRepo }}
       ref: {{ .Values.sourceRevision }}
-    contextDir: containers/ansible-devspaces
+    contextDir: containers/tools-ansibleforge
   strategy:
     type: Docker
     dockerStrategy:
@@ -33,7 +33,7 @@ spec:
   output:
     to:
       kind: ImageStreamTag
-      name: ansible-devspaces:latest
+      name: tools-ansibleforge:latest
   triggers:
   - type: ConfigChange
 ---

@@ -12,7 +12,7 @@ It combines purpose-built developer containers, a custom Execution Environment, 
 - A browser-based [DevSpaces](infrastructure/devspaces.md) workspace pre-loaded with every Ansible tool, cloud CLI, and IDE extension you need
 - Vault secrets automatically injected into your workspace — no manual credential setup
 - Persistent storage and per-user namespace isolation
-- The [ansible-devspaces](containers/ansible-devspaces.md) container: Ansible dev tools, Terraform, AWS CLI, OpenShift CLI, Helm, Podman, PowerShell, Claude Code, and 30 Ansible collections
+- The [tools-ansibleforge](containers/tools-ansibleforge.md) container: Ansible dev tools, Terraform, AWS CLI, OpenShift CLI, Helm, Podman, PowerShell, Claude Code, and 30 Ansible collections
 
 ### For operators
 
@@ -48,7 +48,7 @@ flowchart LR
 
     subgraph images["Container Images"]
         direction TB
-        devimg["ansible-devspaces\ndev container"]
+        devimg["tools-ansibleforge\ndev container"]
         eeimg["ee-ansibleforge\nexecution environment"]
     end
 
@@ -95,7 +95,7 @@ flowchart LR
 ansibleforge/
 ├── helm/                    # RHDP Field Content CI entry point (ansible-runner Job chart)
 ├── containers/
-│   ├── ansible-devspaces/   # Developer container image
+│   ├── tools-ansibleforge/   # Developer container image
 │   └── ee-ansibleforge/      # Ansible Execution Environment
 ├── devspaces-template/      # DevSpaces devfile template
 └── ocp/

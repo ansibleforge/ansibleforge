@@ -112,7 +112,7 @@ oc exec -it vault-0 -n vault -- \
 Start the shared builds to populate the internal image registry:
 
 ```bash
-oc start-build ansible-devspaces -n shared-builds --follow
+oc start-build tools-ansibleforge -n shared-builds --follow
 oc start-build ee-ansibleforge -n shared-builds --follow
 ```
 

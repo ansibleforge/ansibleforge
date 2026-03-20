@@ -1,12 +1,12 @@
-# ansible-devspaces
+# tools-ansibleforge
 
-**Source:** `containers/ansible-devspaces/`
+**Source:** `containers/tools-ansibleforge/`
 **Base:** `registry.redhat.io/ubi9/ubi:latest`
 **Used by:** DevSpaces workspaces (primary development container)
 
 ## Overview
 
-The `ansible-devspaces` image is a fully-loaded developer container designed to run inside an OpenShift DevSpaces workspace.
+The `tools-ansibleforge` image is a fully-loaded developer container designed to run inside an OpenShift DevSpaces workspace.
 It includes everything needed to write, test, and ship Ansible automation — without installing anything locally.
 
 ## Installed tools

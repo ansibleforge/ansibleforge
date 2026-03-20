@@ -36,8 +36,8 @@ OpenShift client tools (`oc`, `kubectl`) are enabled via the `rhocp-4.19` repo d
 
 ## Ansible collections
 
-The EE includes the same comprehensive collection set as the `ansible-devspaces` container, covering AAP management, cloud providers, OpenShift, Windows, satellite, and more. See the [ansible-devspaces collections list](ansible-devspaces.md#ansible-collections) for the full set.
+The EE includes the same comprehensive collection set as the `tools-ansibleforge` container, covering AAP management, cloud providers, OpenShift, Windows, satellite, and more. See the [tools-ansibleforge collections list](tools-ansibleforge.md#ansible-collections) for the full set.
 
-## Parity with ansible-devspaces
+## Parity with tools-ansibleforge
 
 Both images share the same `requirements.yaml` (collections) and `requirements.txt` (Python packages), ensuring that automation developed in a DevSpaces workspace behaves identically when run by AAP using this EE.

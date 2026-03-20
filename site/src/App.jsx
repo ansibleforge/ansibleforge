@@ -14,16 +14,7 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Subtle background grid */}
-      <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundImage: `
-          linear-gradient(rgba(238, 0, 0, 0.02) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(238, 0, 0, 0.02) 1px, transparent 1px)
-        `,
-        backgroundSize: '60px 60px',
-        zIndex: 0, pointerEvents: 'none',
-      }} />
+      {/* Removed background grid for solid dark aesthetic */}
 
       <Header />
 
@@ -36,84 +27,92 @@ export default function App() {
           transform: showHero ? 'translateY(0)' : 'translateY(16px)',
           transition: 'all 0.7s cubic-bezier(0.16, 1, 0.3, 1)',
         }}>
-          <div style={{
-            fontFamily: 'var(--af-font-mono)',
-            fontSize: '12px', color: 'var(--af-red)',
-            letterSpacing: '0.08em', marginBottom: '20px',
-            display: 'flex', alignItems: 'center', gap: '8px',
-          }}>
-            <span style={{
-              display: 'inline-block', width: '8px', height: '8px',
-              background: 'var(--af-green)', borderRadius: '50%',
-              boxShadow: '0 0 6px rgba(62, 134, 53, 0.4)',
-            }} />
-            GitOps-driven platform on OpenShift
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
+            <img src={`${import.meta.env.BASE_URL}red_transparent_perfect.png`} alt="Ansible Forge Hero Logo" style={{ width: '220px', height: 'auto' }} />
           </div>
 
           <h1 style={{
             fontFamily: 'var(--af-font-display)',
-            fontSize: 'clamp(36px, 5vw, 54px)',
-            fontWeight: 700, lineHeight: 1.15,
-            marginBottom: '24px', color: '#fff',
+            fontSize: 'clamp(42px, 6vw, 64px)',
+            fontWeight: 800, lineHeight: 1.1,
+            marginBottom: '32px', color: '#fff',
+            textTransform: 'uppercase',
+            textAlign: 'center',
+            letterSpacing: '0.02em',
           }}>
-            A complete Ansible development{' '}
-            <span style={{ color: 'var(--af-red)' }}>platform</span>,
-            <br />deployed from a single command
+            A COMPLETE ANSIBLE<br />DEVELOPMENT PLATFORM
           </h1>
 
-          <p style={{
-            fontFamily: 'var(--af-font-text)',
-            fontSize: '17px', color: 'var(--af-text-secondary)',
-            maxWidth: '620px', lineHeight: 1.7, marginBottom: '40px',
-          }}>
-            AnsibleForge provisions DevSpaces, Vault, AAP, Keycloak, GitLab,
-            and a full suite of GitOps-managed infrastructure — so teams can
-            start writing and running automation from a browser tab.
-          </p>
-
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '48px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '64px' }}>
             <a href="/ansibleforge/docs/getting-started/" style={{
-              background: 'var(--af-red)', border: 'none', color: '#fff',
-              padding: '14px 32px', fontFamily: 'var(--af-font-text)',
-              fontSize: '15px', fontWeight: 500, cursor: 'pointer',
+              background: 'var(--af-red)', color: '#fff',
+              padding: '14px 36px', fontFamily: 'var(--af-font-display)',
+              fontSize: '15px', fontWeight: 600, letterSpacing: '0.05em',
+              textTransform: 'uppercase', cursor: 'pointer',
               transition: 'all 0.2s', textDecoration: 'none',
+              borderRadius: '4px', border: '1px solid var(--af-red-dark)'
             }}
-              onMouseEnter={(e) => { e.target.style.background = '#c00'; e.target.style.transform = 'translateY(-1px)' }}
-              onMouseLeave={(e) => { e.target.style.background = 'var(--af-red)'; e.target.style.transform = 'translateY(0)' }}
+              onMouseEnter={(e) => { e.target.style.background = 'var(--af-red-dark)' }}
+              onMouseLeave={(e) => { e.target.style.background = 'var(--af-red)' }}
             >
-              Get started →
+              Explore Features
+            </a>
+            <a href="https://github.com/hfenner/ansibleforge" target="_blank" rel="noopener noreferrer" style={{
+              background: 'transparent', color: '#fff',
+              padding: '14px 36px', fontFamily: 'var(--af-font-display)',
+              fontSize: '15px', fontWeight: 600, letterSpacing: '0.05em',
+              textTransform: 'uppercase', cursor: 'pointer',
+              transition: 'all 0.2s', textDecoration: 'none',
+              borderBottom: '1px solid #fff'
+            }}
+              onMouseEnter={(e) => { e.target.style.color = 'var(--af-text-secondary)'; e.target.style.borderBottomColor = 'var(--af-text-secondary)'; }}
+              onMouseLeave={(e) => { e.target.style.color = '#fff'; e.target.style.borderBottomColor = '#fff'; }}
+            >
+              View Demo
             </a>
           </div>
 
-          <TerminalBlock title="quickstart">
+          <TerminalBlock title="GitOps">
             <div>
-              <span style={{ color: 'var(--af-red)' }}>$</span>{' '}
-              <span style={{ color: '#d4d4d4' }}>git clone</span>{' '}
-              <span style={{ color: 'var(--af-amber)' }}>https://github.com/hfenner/ansibleforge.git</span>
-            </div>
-            <div>
-              <span style={{ color: 'var(--af-red)' }}>$</span>{' '}
-              <span style={{ color: '#d4d4d4' }}>cd</span> ansibleforge
+              <span style={{ color: 'var(--af-blue)' }}>[ansible-forge]</span>{' '}
+              <span style={{ color: '#e0e0e0' }}>git pull -q</span>
             </div>
             <div>
-              <span style={{ color: 'var(--af-red)' }}>$</span>{' '}
-              <span style={{ color: '#d4d4d4' }}>ansible-playbook</span>{' '}
-              <span style={{ color: 'var(--af-blue)' }}>ocp/ansible/gitops_deploy.yml</span>
+              <span style={{ color: 'var(--af-blue)' }}>[ansible-forge]</span>{' '}
+              <span style={{ color: '#e0e0e0' }}>ansible-playbook site.yml -i inventory/</span>
             </div>
-            <div style={{ marginTop: '12px', color: 'var(--af-text-muted)' }}>
-              ─────────────────────────────────────────────────────
+            <br/>
+            <div>
+              <span style={{ color: '#e0e0e0' }}>TASK [gathering facts]</span>{' '}
+              <span style={{ color: 'var(--af-green)' }}>************* SUCCESS *************</span>
             </div>
-            <div style={{ marginTop: '4px' }}>
-              <span style={{ color: 'var(--af-green)' }}>PLAY RECAP</span>
+            <br/>
+            <div>
+              <span style={{ color: '#e0e0e0' }}>TASK [deploy app]</span>{' '}
+              <span style={{ color: 'var(--af-green)' }}>**************** SUCCESS *************</span>
+            </div>
+            <br/>
+            <div>
+              <span style={{ color: '#e0e0e0' }}>RECAP</span>{' '}
+              <span style={{ color: 'var(--af-text-secondary)' }}>************************************************</span>
             </div>
             <div>
-              <span style={{ color: '#d4d4d4' }}>localhost</span>
-              <span style={{ color: 'var(--af-text-muted)' }}> : </span>
-              <span style={{ color: 'var(--af-green)' }}>ok=42</span>{'  '}
-              <span style={{ color: 'var(--af-amber)' }}>changed=18</span>{'  '}
-              <span style={{ color: 'var(--af-text-muted)' }}>unreachable=0</span>{'  '}
-              <span style={{ color: 'var(--af-green)' }}>failed=0</span>
+              <span style={{ color: 'var(--af-text-muted)' }}>{'           '}: </span>
+              <span style={{ color: 'var(--af-green)' }}>ok=15</span>{'    '}
+              <span style={{ color: 'var(--af-amber)' }}>changed=4</span>{'    '}
+              <span style={{ color: 'var(--af-text-secondary)' }}>unreachable=0</span>{'    '}
+              <span style={{ color: 'var(--af-amber)' }}>failed=0</span>
             </div>
+            <br/>
+            <div>
+              <span style={{ color: 'var(--af-blue)' }}>[ansible-forge]</span>{' '}
+              <span style={{ color: '#e0e0e0' }}>Deployment verified: v1.2.3</span>
+            </div>
+            <br/>
+            <div>
+              <span style={{ color: 'var(--af-green)' }}>GITOPS SEQUENCE COMPLETE. [status: SUCCESS]</span>
+            </div>
+            <br/>
           </TerminalBlock>
         </section>
 
@@ -171,7 +170,7 @@ export default function App() {
           <div style={{ background: 'var(--af-bg-surface)', border: '1px solid var(--af-border)', padding: '8px 28px' }}>
             <StackItem label="GitOps" color="var(--af-red)" tools={['ArgoCD', 'App-of-apps bootstrap', 'ApplicationSet']} />
             <StackItem label="Secrets" color="var(--af-amber)" tools={['HashiCorp Vault', 'External Secrets Operator', 'AWS Secrets Manager']} />
-            <StackItem label="Dev" color="var(--af-blue)" tools={['DevSpaces', 'ansible-devspaces container', 'ee-dragonslair EE']} />
+            <StackItem label="Dev" color="var(--af-blue)" tools={['DevSpaces', 'tools-ansibleforge container', 'ee-ansibleforge EE']} />
             <StackItem label="Platform" color="var(--af-green)" tools={['AAP Operator', 'Keycloak', 'GitLab', 'OpenShift Pipelines']} />
             <StackItem label="Builds" color="var(--af-text-secondary)" tools={['Shared BuildConfigs', 'ImageStreams', 'Internal registry']} />
           </div>
@@ -187,8 +186,8 @@ export default function App() {
             {[
               { text: '├── helm/', color: 'var(--af-text-muted)', comment: 'RHDP field content CI' },
               { text: '├── containers/', color: 'var(--af-blue)' },
-              { text: '│   ├── ansible-devspaces/', color: 'var(--af-blue)', comment: 'developer container' },
-              { text: '│   └── ee-dragonslair/', color: 'var(--af-blue)', comment: 'execution environment' },
+              { text: '│   ├── tools-ansibleforge/', color: 'var(--af-blue)', comment: 'developer container' },
+              { text: '│   └── ee-ansibleforge/', color: 'var(--af-blue)', comment: 'execution environment' },
               { text: '├── devspaces-template/', color: 'var(--af-amber)', comment: 'devfile template' },
               { text: '└── ocp/', color: 'var(--af-green)' },
               { text: '    ├── ansible/', color: 'var(--af-green)', comment: 'playbooks + collections' },
