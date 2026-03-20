@@ -17,15 +17,15 @@ on:
         description: "IAM Role ARN for OIDC"
         value: ${{ jobs.bootstrap.outputs.role_arn }}
 
+permissions:
+  contents: read
+
 jobs:
   bootstrap:
     name: Deploy OIDC Provider + IAM Role
     runs-on: ubuntu-latest
     outputs:
       role_arn: ${{ steps.get-role.outputs.role_arn }}
-    permissions:
-      contents: read
-      secrets: write
     steps:
       - uses: actions/checkout@v4
 
@@ -55,8 +55,11 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='RoleArn'].OutputValue" \
             --output text)
           echo "role_arn=${ROLE_ARN}" >> "$GITHUB_OUTPUT"
+          echo "Role ARN: ${ROLE_ARN}"
 
       - name: Save AWS_ROLE_ARN secret
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh secret set AWS_ROLE_ARN --body "${{ steps.get-role.outputs.role_arn }}"
+        run: |
+          gh secret set AWS_ROLE_ARN --body "${{ steps.get-role.outputs.role_arn }}" || \
+            echo "::warning::Could not set AWS_ROLE_ARN secret automatically. Set it manually to: ${{ steps.get-role.outputs.role_arn }}"
