@@ -11,7 +11,7 @@ collections:
   - name: microsoft.ad
   - name: amazon.aws
   - name: onepassword.connect
-  - name: ansible.controller
+  - name: awx.awx
   - name: ansible.eda
   - name: infra.controller_configuration
   - name: kubernetes.core
