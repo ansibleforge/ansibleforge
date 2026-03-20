@@ -14,89 +14,25 @@ permissions:
   secrets: write
 
 jobs:
-  # Step 1: Create OIDC provider + IAM role (static keys, one-time)
   oidc-bootstrap:
     name: "1. OIDC Bootstrap"
-    runs-on: ubuntu-latest
-    outputs:
-      role_arn: ${{ steps.get-role.outputs.role_arn }}
-    steps:
-      - uses: actions/checkout@v4
+    uses: ./.github/workflows/aws-oidc-bootstrap.yml
+    secrets: inherit
 
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-
-      - name: Deploy OIDC stack
-        run: |
-          aws cloudformation deploy \
-            --stack-name github-oidc-ansibleforge \
-            --template-file infra/aws/github-oidc-bootstrap.yaml \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --parameter-overrides \
-              GitHubOrg="${{ github.repository_owner }}" \
-              GitHubRepo="${{ github.event.repository.name }}" \
-            --no-fail-on-empty-changeset
-
-      - name: Get Role ARN
-        id: get-role
-        run: |
-          ROLE_ARN=$(aws cloudformation describe-stacks \
-            --stack-name github-oidc-ansibleforge \
-            --query "Stacks[0].Outputs[?OutputKey=='RoleArn'].OutputValue" \
-            --output text)
-          echo "role_arn=${ROLE_ARN}" >> "$GITHUB_OUTPUT"
-
-      - name: Save AWS_ROLE_ARN secret
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh secret set AWS_ROLE_ARN --body "${{ steps.get-role.outputs.role_arn }}"
-
-  # Step 2: Create S3 bucket + DynamoDB for Terraform state
   tfstate-backend:
     name: "2. Terraform State Backend"
     needs: oidc-bootstrap
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    uses: ./.github/workflows/tfstate-backend.yml
+    with:
+      role_arn: ${{ needs.oidc-bootstrap.outputs.role_arn }}
+    secrets: inherit
 
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ needs.oidc-bootstrap.outputs.role_arn }}
-          aws-region: us-east-2
-
-      - name: Deploy tfstate-backend stack
-        run: |
-          aws cloudformation deploy \
-            --stack-name tfstate-backend \
-            --template-file ocp/terraform/dns/tfstate-backend.cfn.yaml \
-            --no-fail-on-empty-changeset
-
-  # Step 3: Create Route 53 zone + Cloudflare NS delegation
   dns-delegation:
-    name: "3. DNS Delegation (${{ inputs.cluster_name }})"
+    name: "3. DNS Delegation"
     needs: [oidc-bootstrap, tfstate-backend]
-    runs-on: ubuntu-latest
-    env:
-      TF_DIR: ocp/terraform/dns
-      TF_VAR_cluster_name: ${{ inputs.cluster_name }}
-      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ needs.oidc-bootstrap.outputs.role_arn }}
-          aws-region: us-east-2
-
-      - uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init
-        working-directory: ${{ env.TF_DIR }}
-        run: terraform init
-
-      - name: Terraform Apply
-        working-directory: ${{ env.TF_DIR }}
-        run: terraform apply -auto-approve
+    uses: ./.github/workflows/dns-manage.yml
+    with:
+      cluster_name: ${{ inputs.cluster_name }}
+      action: apply
+      role_arn: ${{ needs.oidc-bootstrap.outputs.role_arn }}
+    secrets: inherit

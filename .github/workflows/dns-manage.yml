@@ -15,6 +15,18 @@ on:
           - plan
           - apply
           - destroy
+  workflow_call:
+    inputs:
+      cluster_name:
+        type: string
+        required: true
+      action:
+        type: string
+        default: "apply"
+      role_arn:
+        type: string
+        description: "IAM Role ARN (passed from caller; falls back to AWS_ROLE_ARN secret)"
+        required: false
 
 permissions:
   id-token: write
@@ -34,7 +46,7 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ inputs.role_arn || secrets.AWS_ROLE_ARN }}
           aws-region: us-east-2
 
       - uses: hashicorp/setup-terraform@v3
