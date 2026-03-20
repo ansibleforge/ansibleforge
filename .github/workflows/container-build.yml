@@ -55,6 +55,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install ansible-builder
+        run: pip install ansible-builder
+
+      - name: Generate build context
+        working-directory: containers/ee-community-ansibleforge
+        run: ansible-builder create --file execution-environment.yaml
+
       - name: Log in to ghcr.io
         uses: docker/login-action@v3
         with:
