@@ -1,0 +1,53 @@
+name: "DNS: Manage Cluster Delegation"
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: "Cluster name (e.g. forge)"
+        required: true
+        type: string
+      action:
+        description: "Action to perform"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_DIR: ocp/terraform/dns
+  TF_VAR_cluster_name: ${{ inputs.cluster_name }}
+  TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+jobs:
+  terraform:
+    name: "Terraform ${{ inputs.action }} (${{ inputs.cluster_name }})"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform plan ${{ inputs.action == 'destroy' && '-destroy' || '' }} -out=tfplan
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply' || inputs.action == 'destroy'
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply tfplan

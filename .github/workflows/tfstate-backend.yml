@@ -1,0 +1,27 @@
+name: "DNS: Deploy Terraform State Backend"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy CloudFormation Stack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - name: Deploy tfstate-backend stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name tfstate-backend \
+            --template-file ocp/terraform/dns/tfstate-backend.cfn.yaml \
+            --no-fail-on-empty-changeset
