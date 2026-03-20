@@ -18,7 +18,7 @@ collections:
   - name: infra.eda_configuration
   - name: infra.ee_utilities
   - name: servicenow.itsm
-  - name: redhat.openshift
+  - name: community.okd
   - name: ansible.posix
   - name: cloud.terraform
   - name: cloud.terraform_ops
