@@ -231,6 +231,23 @@ Resources:
                   - iam:TagOpenIDConnectProvider
                 Resource: !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/*"
 
+              - Sid: CloudFrontForCcoctl
+                Effect: Allow
+                Action:
+                  - cloudfront:CreateDistribution
+                  - cloudfront:DeleteDistribution
+                  - cloudfront:GetDistribution
+                  - cloudfront:ListDistributions
+                  - cloudfront:UpdateDistribution
+                  - cloudfront:TagResource
+                  - cloudfront:UntagResource
+                  - cloudfront:ListTagsForResource
+                  - cloudfront:CreateCloudFrontOriginAccessIdentity
+                  - cloudfront:DeleteCloudFrontOriginAccessIdentity
+                  - cloudfront:GetCloudFrontOriginAccessIdentity
+                  - cloudfront:ListCloudFrontOriginAccessIdentities
+                Resource: "*"
+
               - Sid: AllowServiceLinkedRoles
                 Effect: Allow
                 Action: iam:CreateServiceLinkedRole

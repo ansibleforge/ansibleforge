@@ -181,7 +181,8 @@ jobs:
             --name="${CCOCTL_NAME}" \
             --region=${{ inputs.aws_region }} \
             --credentials-requests-dir=credreqs \
-            --output-dir=install-dir
+            --output-dir=install-dir \
+            --create-private-s3-bucket
 
       - name: Provision cluster
         run: openshift-install create cluster --dir=install-dir --log-level=info 2>&1
