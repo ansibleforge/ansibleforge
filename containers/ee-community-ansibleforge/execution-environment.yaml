@@ -10,6 +10,9 @@ dependencies:
     package_pip: ansible-runner
   galaxy: requirements.yml
   python: requirements.txt
+  exclude:
+    system:
+      - openshift-clients
   system:
     - git
     - python3-pip
@@ -30,3 +33,4 @@ additional_build_steps:
     - ADD _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
   prepend_final:
     - ADD _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
+    - RUN curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz | tar -xz -C /usr/local/bin oc kubectl

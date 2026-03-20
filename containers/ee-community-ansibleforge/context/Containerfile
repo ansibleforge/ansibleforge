@@ -61,7 +61,8 @@ COPY --from=galaxy /usr/share/ansible /usr/share/ansible
 
 COPY _build/requirements.txt requirements.txt
 COPY _build/bindep.txt bindep.txt
-RUN $PYCMD /output/scripts/introspect.py introspect --user-pip=requirements.txt --user-bindep=bindep.txt --write-bindep=/tmp/src/bindep.txt --write-pip=/tmp/src/requirements.txt
+COPY _build/exclude-bindep.txt exclude-bindep.txt
+RUN $PYCMD /output/scripts/introspect.py introspect --user-pip=requirements.txt --user-bindep=bindep.txt --exclude-bindep-reqs=exclude-bindep.txt --write-bindep=/tmp/src/bindep.txt --write-pip=/tmp/src/requirements.txt
 RUN /output/scripts/assemble
 
 # Final build stage
@@ -76,6 +77,7 @@ ARG ANSIBLE_INSTALL_REFS
 ARG PKGMGR
 
 ADD _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
+RUN curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz | tar -xz -C /usr/local/bin oc kubectl
 RUN /output/scripts/check_ansible $PYCMD
 
 COPY --from=galaxy /usr/share/ansible /usr/share/ansible
