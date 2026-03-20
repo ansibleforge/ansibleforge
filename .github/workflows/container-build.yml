@@ -101,8 +101,8 @@ jobs:
       - name: Build and push ee-community-ansibleforge
         uses: docker/build-push-action@v5
         with:
-          context: containers/ee-community-ansibleforge
-          file: containers/ee-community-ansibleforge/Containerfile
+          context: containers/ee-community-ansibleforge/context
+          file: containers/ee-community-ansibleforge/context/Containerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ee-community-ansibleforge:latest

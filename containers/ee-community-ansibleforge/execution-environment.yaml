@@ -1,0 +1,25 @@
+---
+version: 3
+images:
+  base_image:
+    name: quay.io/ansible/awx-ee:latest
+dependencies:
+  galaxy: requirements.yml
+  python: requirements.txt
+  system:
+    - python3-pip
+    - python3-setuptools
+    - systemd-devel
+    - openldap-devel
+    - gcc
+    - gcc-c++
+    - python3-devel
+    - terraform
+additional_build_files:
+  - src: hashicorp.repo
+    dest: configs
+additional_build_steps:
+  prepend_builder:
+    - ADD _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
+  prepend_final:
+    - ADD _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
