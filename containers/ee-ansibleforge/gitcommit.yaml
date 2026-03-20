@@ -27,15 +27,20 @@
           GITHUB_TOKEN or pass github_token as an extra var.
 
     - name: Get dynamic OCP token from Vault Kubernetes secrets engine
+      community.hashi_vault.vault_write:
+        path: kubernetes/creds/aap-build-manager
+        data:
+          kubernetes_namespace: "{{ build_namespace }}"
+        url: "{{ vault_addr }}"
+        auth_method: kubernetes
+        role_id: "{{ vault_k8s_role }}"
+      register: _vault_k8s_result
+      no_log: true
+
+    - name: Set OCP token fact
       ansible.builtin.set_fact:
-        _ocp_token: "{{ lookup('community.hashi_vault.vault_write',
-          'kubernetes/creds/aap-build-manager',
-          data={'kubernetes_namespace': build_namespace},
-          url=vault_addr,
-          auth_method='kubernetes',
-          role_id=vault_k8s_role
-        ).service_account_token }}"
-      # no_log: true  # temporarily disabled for debugging
+        _ocp_token: "{{ _vault_k8s_result.data.service_account_token }}"
+      no_log: true
 
   tasks:
     - name: Git checkout
