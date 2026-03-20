@@ -1,0 +1,223 @@
+name: "OCP: Bootstrap GitOps"
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: "Cluster name (must match DNS delegation)"
+        required: true
+        type: string
+        default: spark
+      base_domain:
+        description: "Base DNS domain"
+        required: false
+        type: string
+        default: ansibleforge.dev
+      gitops_repo_url:
+        description: "GitOps repo URL"
+        required: false
+        type: string
+        default: https://github.com/hfenner/ansibleforge.git
+      gitops_repo_branch:
+        description: "GitOps repo branch"
+        required: false
+        type: string
+        default: main
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  CLUSTER_DOMAIN: ocp.${{ inputs.cluster_name }}.${{ inputs.base_domain }}
+  TOOLS_IMAGE: ghcr.io/hfenner/tools-community-ansibleforge:latest
+
+jobs:
+  bootstrap:
+    name: "Bootstrap GitOps (${{ inputs.cluster_name }})"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActions-${{ github.repository_owner }}-${{ github.event.repository.name }}
+          aws-region: us-east-2
+
+      - name: Fetch kubeconfig from Secrets Manager
+        run: |
+          aws secretsmanager get-secret-value \
+            --secret-id "/ocp/clusters/${{ inputs.cluster_name }}/kubeconfig" \
+            --query SecretString --output text > /tmp/kubeconfig
+          echo "::add-mask::$(cat /tmp/kubeconfig)"
+          echo "KUBECONFIG=/tmp/kubeconfig" >> "$GITHUB_ENV"
+
+      - name: Download oc
+        run: |
+          curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz | tar -xz -C /usr/local/bin oc kubectl
+
+      - name: Verify cluster access
+        run: oc cluster-info
+
+      - name: Create bootstrap Job
+        run: |
+          cat <<'EOF' | oc apply -f -
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: gitops-bootstrap
+          ---
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: gitops-bootstrap
+            namespace: gitops-bootstrap
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: gitops-bootstrap-cluster-admin
+          subjects:
+            - kind: ServiceAccount
+              name: gitops-bootstrap
+              namespace: gitops-bootstrap
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: cluster-admin
+          EOF
+
+      - name: Run bootstrap Job
+        env:
+          REPO_URL: ${{ inputs.gitops_repo_url }}
+          REPO_BRANCH: ${{ inputs.gitops_repo_branch }}
+        run: |
+          cat <<JOBEOF | oc apply -f -
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: gitops-bootstrap-$(date +%s)
+            namespace: gitops-bootstrap
+          spec:
+            backoffLimit: 2
+            ttlSecondsAfterFinished: 3600
+            template:
+              spec:
+                serviceAccountName: gitops-bootstrap
+                restartPolicy: Never
+                containers:
+                  - name: bootstrap
+                    image: ${TOOLS_IMAGE}
+                    command:
+                      - /bin/bash
+                      - -c
+                      - |
+                        set -euo pipefail
+
+                        echo "=== Installing OpenShift GitOps Operator ==="
+                        cat <<'OPEOF' | oc apply -f -
+                        apiVersion: v1
+                        kind: Namespace
+                        metadata:
+                          name: openshift-gitops-operator
+                        ---
+                        apiVersion: operators.coreos.com/v1
+                        kind: OperatorGroup
+                        metadata:
+                          name: openshift-gitops
+                          namespace: openshift-gitops-operator
+                        spec:
+                          upgradeStrategy: Default
+                        ---
+                        apiVersion: operators.coreos.com/v1alpha1
+                        kind: Subscription
+                        metadata:
+                          name: openshift-gitops-operator
+                          namespace: openshift-gitops-operator
+                        spec:
+                          channel: latest
+                          name: openshift-gitops-operator
+                          source: redhat-operators
+                          sourceNamespace: openshift-marketplace
+                          installPlanApproval: Automatic
+                        OPEOF
+
+                        echo "=== Waiting for GitOps operator ==="
+                        until oc get pods -n openshift-gitops -l app.kubernetes.io/name=openshift-gitops-server 2>/dev/null | grep -q Running; do
+                          echo "  waiting..."
+                          sleep 15
+                        done
+                        echo "GitOps operator is running"
+
+                        echo "=== Granting cluster-admin to ArgoCD ==="
+                        cat <<'RBACEOF' | oc apply -f -
+                        apiVersion: rbac.authorization.k8s.io/v1
+                        kind: ClusterRoleBinding
+                        metadata:
+                          name: openshift-gitops-controller-cluster-admin
+                        subjects:
+                          - kind: ServiceAccount
+                            name: openshift-gitops-argocd-application-controller
+                            namespace: openshift-gitops
+                        roleRef:
+                          apiGroup: rbac.authorization.k8s.io
+                          kind: ClusterRole
+                          name: cluster-admin
+                        RBACEOF
+
+                        echo "=== Configuring ArgoCD for OpenShift types ==="
+                        oc patch configmap argocd-cm -n openshift-gitops --type merge -p '{
+                          "data": {
+                            "resource.customizations.knownTypeFields.build.openshift.io_BuildConfig": "[{\"field\": \"spec\", \"type\": \"build.openshift.io/v1/BuildConfigSpec\"}]",
+                            "resource.customizations.knownTypeFields.image.openshift.io_ImageStream": "[{\"field\": \"spec\", \"type\": \"image.openshift.io/v1/ImageStreamSpec\"}]"
+                          }
+                        }'
+
+                        echo "=== Creating bootstrap Application ==="
+                        cat <<APPEOF | oc apply -f -
+                        apiVersion: argoproj.io/v1alpha1
+                        kind: Application
+                        metadata:
+                          name: cluster-bootstrap
+                          namespace: openshift-gitops
+                        spec:
+                          project: default
+                          source:
+                            repoURL: "${REPO_URL}"
+                            targetRevision: "${REPO_BRANCH}"
+                            path: ocp/gitops/bootstrap
+                          destination:
+                            server: https://kubernetes.default.svc
+                          syncPolicy:
+                            automated:
+                              prune: true
+                              selfHeal: true
+                            syncOptions:
+                              - ServerSideApply=true
+                        APPEOF
+
+                        echo "=== Bootstrap complete ==="
+                        ROUTE=\$(oc get route openshift-gitops-server -n openshift-gitops -o jsonpath='{.spec.host}' 2>/dev/null || echo "pending")
+                        echo "ArgoCD URL: https://\${ROUTE}"
+          JOBEOF
+
+      - name: Wait for bootstrap Job
+        run: |
+          JOB_NAME=$(oc get jobs -n gitops-bootstrap --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}')
+          echo "Waiting for job ${JOB_NAME}..."
+          oc wait --for=condition=complete job/${JOB_NAME} -n gitops-bootstrap --timeout=600s
+
+      - name: Show Job logs
+        if: always()
+        run: |
+          JOB_NAME=$(oc get jobs -n gitops-bootstrap --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}')
+          oc logs job/${JOB_NAME} -n gitops-bootstrap
+
+      - name: Show ArgoCD URL
+        run: |
+          echo "## GitOps Bootstrap Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          ROUTE=$(oc get route openshift-gitops-server -n openshift-gitops -o jsonpath='{.spec.host}' 2>/dev/null || echo "pending")
+          echo "ArgoCD URL: https://${ROUTE}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Cluster: ${{ inputs.cluster_name }}.${{ inputs.base_domain }}" >> "$GITHUB_STEP_SUMMARY"
