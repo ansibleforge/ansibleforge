@@ -104,7 +104,7 @@ components:
   aap:
     enabled: true
     syncWave: "1"
-    name: aap-consolelink
+    name: aap
     path: ocp/gitops/aap
     syncOptions:
       - ServerSideApply=true
