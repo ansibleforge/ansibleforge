@@ -2,19 +2,30 @@
 - name: Rebuild EE when execution-environment.yaml changes
   hosts: all
   sources:
-    - ansible.eda.url_check:
-        urls:
-          - "https://api.github.com/repos/hfenner/ansibleforge/commits?path=containers/ee-ansibleforge/execution-environment.yaml&sha=main&per_page=1"
-          - "https://api.github.com/repos/hfenner/ansibleforge/commits?path=containers/ee-ansibleforge/requirements.yaml&sha=main&per_page=1"
-          - "https://api.github.com/repos/hfenner/ansibleforge/commits?path=containers/ee-ansibleforge/requirements.txt&sha=main&per_page=1"
-        delay: 60
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+      filters:
+        - ansible.eda.json_filter:
+            exclude_keys:
+              - sender
+              - enterprise
+        - ansible.eda.dashes_to_underscores:
   rules:
     - name: EE files changed — trigger build workflow
-      condition: event.url_check.status == "up" and event.url_check.status_changed == true
+      condition: >-
+        event.meta.headers.X_GitHub_Event == "push" and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.commits is defined and
+        (
+          event.payload.commits is selectattr("modified", "search", "containers/ee-ansibleforge/")
+            or
+          event.payload.commits is selectattr("added", "search", "containers/ee-ansibleforge/")
+        )
       throttle:
         once_within: 5 minutes
         group_by_attributes:
-          - event.url_check.status
+          - event.payload.ref
       action:
         run_workflow_template:
           name: "EE - Build AnsibleForge"

@@ -1,0 +1,5 @@
+---
+eda_projects:
+  - name: AnsibleForge
+    description: AnsibleForge EDA rulebooks
+    url: https://github.com/hfenner/ansibleforge.git

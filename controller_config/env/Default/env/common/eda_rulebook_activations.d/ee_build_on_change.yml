@@ -1,0 +1,9 @@
+---
+eda_rulebook_activations:
+  - name: EE Build on Change
+    description: Triggers EE build workflow when EE container files change
+    project: AnsibleForge
+    rulebook: ee-build-on-change.yml
+    decision_environment: Default Decision Environment
+    restart_policy: always
+    enabled: true
