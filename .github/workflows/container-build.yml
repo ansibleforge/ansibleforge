@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
     paths:
-      - "containers/ee-ansibleforge/**"
       - "containers/ee-community-ansibleforge/**"
       - "containers/tools-ansibleforge/**"
       - ".github/workflows/container-build.yml"
@@ -15,7 +14,6 @@ on:
         required: true
         type: choice
         options:
-          - ee-ansibleforge
           - ee-community-ansibleforge
           - tools-ansibleforge
           - all
@@ -33,7 +31,6 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
-      ee-ansibleforge: ${{ steps.changes.outputs.ee-ansibleforge }}
       ee-community-ansibleforge: ${{ steps.changes.outputs.ee-community-ansibleforge }}
       tools-ansibleforge: ${{ steps.changes.outputs.tools-ansibleforge }}
     steps:
@@ -42,45 +39,10 @@ jobs:
         id: changes
         with:
           filters: |
-            ee-ansibleforge:
-              - 'containers/ee-ansibleforge/**'
             ee-community-ansibleforge:
               - 'containers/ee-community-ansibleforge/**'
             tools-ansibleforge:
               - 'containers/tools-ansibleforge/**'
-
-  build-ee-ansibleforge:
-    runs-on: ubuntu-latest
-    if: >-
-      github.event_name == 'workflow_dispatch' && (inputs.image == 'ee-ansibleforge' || inputs.image == 'all') ||
-      github.event_name == 'push' && needs.detect-changes.outputs.ee-ansibleforge == 'true'
-    needs: [detect-changes]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to Red Hat registry
-        uses: docker/login-action@v3
-        with:
-          registry: registry.redhat.io
-          username: ${{ secrets.REDHAT_REGISTRY_USERNAME }}
-          password: ${{ secrets.REDHAT_REGISTRY_PASSWORD }}
-
-      - name: Log in to ghcr.io
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push ee-ansibleforge
-        uses: docker/build-push-action@v5
-        with:
-          context: containers/ee-ansibleforge/context
-          file: containers/ee-ansibleforge/context/Containerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ee-ansibleforge:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ee-ansibleforge:${{ github.sha }}
 
   build-ee-community-ansibleforge:
     runs-on: ubuntu-latest
