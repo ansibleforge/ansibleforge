@@ -35,12 +35,12 @@
         auth_method: kubernetes
         role_id: "{{ vault_k8s_role }}"
       register: _vault_k8s_result
-      no_log: true
+      #no_log: true
 
     - name: Set OCP token fact
       ansible.builtin.set_fact:
         _ocp_token: "{{ _vault_k8s_result.data.service_account_token }}"
-      no_log: true
+      #no_log: true
 
   tasks:
     - name: Git checkout
