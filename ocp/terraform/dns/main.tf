@@ -3,10 +3,10 @@ terraform {
 
   backend "s3" {
     bucket         = "ansibleforge-tfstate"
-    key            = "dns/terraform.tfstate"
     region         = "us-east-2"
     dynamodb_table = "tfstate-lock"
     encrypt        = true
+    # key is set dynamically: -backend-config="key=dns/<cluster_name>/terraform.tfstate"
   }
 
   required_providers {
