@@ -23,3 +23,5 @@ collections:
   - name: cloud.terraform
   - name: cloud.terraform_ops
   - name: ansible.utils
+  - name: https://github.com/ansible/ansible.platform.git
+    type: git
