@@ -1,0 +1,195 @@
+name: "OCP: Provision Cluster"
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: "Cluster name"
+        required: true
+        type: string
+        default: fire
+      base_domain:
+        description: "Base DNS domain"
+        required: false
+        type: string
+        default: ansibleforge.dev
+      aws_region:
+        description: "AWS region"
+        required: false
+        type: string
+        default: us-east-2
+      ocp_version:
+        description: "OpenShift version"
+        required: false
+        type: choice
+        default: "4.21"
+        options:
+          - "4.21"
+          - "4.20"
+      debug_install_config:
+        description: "Print install-config.yaml to logs (secrets will be masked)"
+        required: false
+        type: boolean
+        default: false
+      bootstrap_mode:
+        description: "Post-provision bootstrap"
+        required: false
+        type: choice
+        default: gitops
+        options:
+          - gitops
+          - none
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Download openshift-install + oc
+        run: |
+          curl -L https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-${{ inputs.ocp_version }}/openshift-install-linux.tar.gz -o oi.tgz
+          tar -xzf oi.tgz
+          sudo mv openshift-install /usr/local/bin/openshift-install
+
+          curl -L https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-${{ inputs.ocp_version }}/openshift-client-linux.tar.gz -o oc.tgz
+          tar -xzf oc.tgz
+          sudo mv oc kubectl /usr/local/bin/
+
+      - name: Fetch pull secret from Secrets Manager
+        run: |
+          PULL_SECRET=$(aws secretsmanager get-secret-value --secret-id ocp-pull-secret --query SecretString --output text)
+          echo "::add-mask::$PULL_SECRET"
+          echo "PULL_SECRET=$PULL_SECRET" >> "$GITHUB_ENV"
+
+      - name: Generate install-config.yaml
+        env:
+          SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+        run: |
+          mkdir -p install-dir
+          cat > install-dir/install-config.yaml <<EOF
+          apiVersion: v1
+          baseDomain: ${{ inputs.base_domain }}
+          metadata:
+            name: ${{ inputs.cluster_name }}
+          compute:
+            - name: worker
+              architecture: amd64
+              hyperthreading: Enabled
+              replicas: 0
+              platform:
+                aws:
+                  type: m5a.4xlarge
+          controlPlane:
+            name: master
+            replicas: 1
+            architecture: amd64
+            hyperthreading: Enabled
+            platform:
+              aws:
+                type: m5a.4xlarge
+          networking:
+            networkType: OVNKubernetes
+          platform:
+            aws:
+              region: ${{ inputs.aws_region }}
+          pullSecret: '${PULL_SECRET}'
+          sshKey: |
+            ${SSH_PUBLIC_KEY}
+          credentialsMode: Mint
+          EOF
+          sed -i 's/^          //' install-dir/install-config.yaml
+
+      - name: Show install-config.yaml
+        if: inputs.debug_install_config
+        run: cat install-dir/install-config.yaml
+
+      - name: Provision cluster
+        run: openshift-install create cluster --dir=install-dir --log-level=info 2>&1
+
+      - name: Store cluster credentials in Secrets Manager
+        run: |
+          KUBECONFIG_VAL=$(cat install-dir/auth/kubeconfig)
+          KUBEADMIN_VAL=$(cat install-dir/auth/kubeadmin-password)
+          echo "::add-mask::$KUBECONFIG_VAL"
+          echo "::add-mask::$KUBEADMIN_VAL"
+          for SECRET_NAME in kubeconfig kubeadmin-password; do
+            if [ "$SECRET_NAME" = "kubeconfig" ]; then
+              VAL="$KUBECONFIG_VAL"
+            else
+              VAL="$KUBEADMIN_VAL"
+            fi
+            aws secretsmanager put-secret-value \
+              --secret-id "/ocp/clusters/${{ inputs.cluster_name }}/${SECRET_NAME}" \
+              --secret-string "$VAL" 2>/dev/null || \
+            aws secretsmanager create-secret \
+              --name "/ocp/clusters/${{ inputs.cluster_name }}/${SECRET_NAME}" \
+              --secret-string "$VAL"
+          done
+
+      - name: Upload metadata.json to S3
+        if: always()
+        run: |
+          aws s3 cp install-dir/metadata.json \
+            s3://ansibleforge-tfstate/clusters/${{ inputs.cluster_name }}/metadata.json
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-dir
+          path: |
+            install-dir/metadata.json
+            cluster-name.txt
+          retention-days: 7
+
+      - name: Upload bootstrap log bundle on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-logs
+          path: install-dir/log-bundle-*.tar.gz
+          retention-days: 7
+
+  destroy-on-failure:
+    runs-on: ubuntu-latest
+    needs: provision
+    if: ${{ always() && needs.provision.result != 'success' }}
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Download openshift-install
+        run: |
+          curl -L https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-${{ inputs.ocp_version }}/openshift-install-linux.tar.gz -o oi.tgz
+          tar -xzf oi.tgz
+          sudo mv openshift-install /usr/local/bin/openshift-install
+
+      - name: Download install-dir artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: install-dir
+          path: install-dir
+
+      - name: Destroy cluster
+        run: openshift-install destroy cluster --dir=install-dir --log-level=info 2>&1
