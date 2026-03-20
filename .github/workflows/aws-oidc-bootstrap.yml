@@ -19,7 +19,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
   bootstrap:
@@ -56,9 +55,4 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='RoleArn'].OutputValue" \
             --output text)
           echo "role_arn=${ROLE_ARN}" >> "$GITHUB_OUTPUT"
-          echo "Role ARN: ${ROLE_ARN}"
-
-      - name: Save AWS_ROLE_ARN variable
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh variable set AWS_ROLE_ARN --body "${{ steps.get-role.outputs.role_arn }}"
+          echo "::notice::Set the repo variable manually: gh variable set AWS_ROLE_ARN --body ${ROLE_ARN}"
