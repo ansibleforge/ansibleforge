@@ -1,7 +1,6 @@
 FROM registry.access.redhat.com/ubi9/ubi:latest
 
 ARG PYV=3.11
-ARG LOCAL_BUILD=false
 
 
 USER 0
@@ -33,6 +32,7 @@ RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc \
     && dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' module enable nodejs:20 -y \
     && (dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' check-update -y || true) \
     && dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' --enablerepo='epel' install -y \
+       git \
        gcc \
        gcc-c++ \
        make \
@@ -78,15 +78,7 @@ RUN curl -L -o - "https://github.com/vmware/govmomi/releases/latest/download/gov
 RUN curl -L -o - "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz" | tar -C /usr/local/bin -xvzf - oc kubectl
 RUN curl -L https://mirror.openshift.com/pub/openshift-v4/clients/helm/latest/helm-linux-amd64 -o /usr/local/bin/helm \
     && chmod +x /usr/local/bin/helm
-RUN --mount=type=secret,id=ansible_cfg \
-    if [ "$LOCAL_BUILD" = "true" ]; then \
-      cp /run/secrets/ansible_cfg /tmp/ansible.cfg \
-      && ANSIBLE_CONFIG=/tmp/ansible.cfg \
-      ansible-galaxy collection install -r requirements.yaml -p /collections; \
-    else \
-      ANSIBLE_CONFIG=/tmp/anstmp/ansible.cfg \
-      ansible-galaxy collection install -r requirements.yaml -p /collections; \
-    fi
+RUN ansible-galaxy collection install -r requirements.yaml -p /collections
 RUN mkdir -p /opt/ansible
 COPY --chmod=755 vault_env_reader.sh /opt/ansible/vault_env_reader.sh
 

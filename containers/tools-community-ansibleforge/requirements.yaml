@@ -1,3 +1,4 @@
+---
 collections:
   - name: community.general
   - name: containers.podman
@@ -10,20 +11,20 @@ collections:
   - name: microsoft.ad
   - name: amazon.aws
   - name: onepassword.connect
-  - name: ansible.controller
+  - name: awx.awx
   - name: ansible.eda
   - name: infra.controller_configuration
   - name: kubernetes.core
   - name: infra.eda_configuration
   - name: infra.ee_utilities
-  - name: ansible.hub
   - name: servicenow.itsm
-  - name: redhat.openshift
-  - name: redhat.openshift_virtualization
-  - name: ansible.platform
+  - name: community.okd
   - name: ansible.posix
-  - name: redhat.rhel_system_roles
-  - name: redhat.satellite
   - name: cloud.terraform
-  - name: cloud.terraform_ops
+  - name: https://github.com/redhat-cop/cloud.terraform_ops.git
+    type: git
   - name: ansible.utils
+  - name: https://github.com/ansible/ansible.platform.git
+    type: git
+  - name: https://github.com/ansible-collections/ansible_hub.git
+    type: git
