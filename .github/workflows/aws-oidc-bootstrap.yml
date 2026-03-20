@@ -39,4 +39,5 @@ jobs:
             --parameter-overrides \
               GitHubOrg="${{ github.repository_owner }}" \
               GitHubRepo="${{ github.event.repository.name }}" \
+              ClusterPrefix="ocp-" \
             --no-fail-on-empty-changeset
