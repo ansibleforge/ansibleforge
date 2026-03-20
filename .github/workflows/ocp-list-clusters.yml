@@ -1,0 +1,45 @@
+name: "OCP: List Clusters"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  list:
+    name: List OCP Clusters
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActions-${{ github.repository_owner }}-${{ github.event.repository.name }}
+          aws-region: us-east-2
+
+      - name: List clusters
+        run: |
+          echo "## OCP Clusters"
+          echo ""
+          aws ec2 describe-instances \
+            --filters "Name=instance-state-name,Values=running" \
+            --query 'Reservations[].Instances[].{
+              Name: Tags[?Key==`Name`].Value | [0],
+              Type: InstanceType,
+              State: State.Name,
+              AZ: Placement.AvailabilityZone,
+              LaunchTime: LaunchTime
+            }' \
+            --output table
+
+          echo ""
+          echo "## Route 53 Hosted Zones"
+          echo ""
+          aws route53 list-hosted-zones \
+            --query 'HostedZones[].{Name: Name, Id: Id, Records: ResourceRecordSetCount}' \
+            --output table
+
+          echo ""
+          echo "## Cluster Metadata in S3"
+          echo ""
+          aws s3 ls s3://ansibleforge-tfstate/clusters/ 2>/dev/null || echo "No cluster metadata found"
