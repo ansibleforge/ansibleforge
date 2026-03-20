@@ -142,6 +142,24 @@ spec:
 
               echo "=== AAP Controller policy and role ==="
 
+              # Enable Kubernetes secrets engine (for dynamic SA tokens)
+              vault secrets list -format=json | grep -q '"kubernetes/"' \
+                && echo "Kubernetes secrets engine already enabled" \
+                || vault secrets enable kubernetes
+
+              # Configure Kubernetes secrets engine
+              vault write kubernetes/config \
+                kubernetes_host="https://kubernetes.default.svc" \
+                kubernetes_ca_cert=@"${CACERT}" \
+                service_account_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+
+              # Role for generating aap-build-manager tokens
+              vault write kubernetes/roles/aap-build-manager \
+                allowed_kubernetes_namespaces="shared-builds" \
+                service_account_name="aap-build-manager" \
+                token_default_ttl="1h" \
+                token_max_ttl="24h"
+
               vault policy write aap-controller - <<'POLICY'
               path "secret/data/*" {
                 capabilities = ["read"]
@@ -151,6 +169,9 @@ spec:
               }
               path "secret/data/aap" {
                 capabilities = ["create", "update", "read"]
+              }
+              path "kubernetes/creds/*" {
+                capabilities = ["update"]
               }
               POLICY
 

@@ -14,6 +14,8 @@
     ee_subdir: containers/ee-ansibleforge
     buildconfig: bc-ee-ansibleforge
     build_namespace: shared-builds
+    vault_addr: "http://vault.vault.svc:8200"
+    vault_k8s_role: aap-controller
 
   pre_tasks:
     - name: Validate GitHub token is available
@@ -23,6 +25,17 @@
         fail_msg: >-
           GITHUB_TOKEN is empty. Attach a credential that injects
           GITHUB_TOKEN or pass github_token as an extra var.
+
+    - name: Get dynamic OCP token from Vault Kubernetes secrets engine
+      ansible.builtin.set_fact:
+        _ocp_token: "{{ lookup('community.hashi_vault.vault_write',
+          'kubernetes/creds/aap-build-manager',
+          data={'kubernetes_namespace': build_namespace},
+          url=vault_addr,
+          auth_method='kubernetes',
+          role_id=vault_k8s_role
+        ).service_account_token }}"
+      no_log: true
 
   tasks:
     - name: Git checkout
@@ -75,3 +88,6 @@
       redhat.openshift.openshift_build:
         namespace: "{{ build_namespace }}"
         build_config_name: "{{ buildconfig }}"
+        api_key: "{{ _ocp_token }}"
+        host: "https://kubernetes.default.svc"
+        validate_certs: false

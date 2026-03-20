@@ -9,7 +9,6 @@ controller_templates:
     execution_environment: "EE AnsibleForge"
     credentials:
       - GitHub PAT
-      - "OpenShift - Shared Builds"
     extra_vars:
       git_dir: /tmp/ansibleforge
       buildconfig: bc-ee-ansibleforge
