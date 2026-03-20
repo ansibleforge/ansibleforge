@@ -1,0 +1,43 @@
+name: "AWS: OIDC Bootstrap"
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack_name:
+        description: "CloudFormation stack name"
+        required: true
+        default: "github-oidc-ansibleforge"
+
+jobs:
+  bootstrap:
+    name: Deploy OIDC Provider + IAM Role
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (bootstrap)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name "${{ inputs.stack_name }}" \
+            --template-file infra/aws/github-oidc-bootstrap.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              GitHubOrg="${{ github.repository_owner }}" \
+              GitHubRepo="${{ github.event.repository.name }}" \
+            --no-fail-on-empty-changeset
+
+      - name: Show outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name "${{ inputs.stack_name }}" \
+            --query "Stacks[0].Outputs" \
+            --output table

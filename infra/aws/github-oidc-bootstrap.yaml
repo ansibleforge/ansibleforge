@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: GitHub Actions OIDC provider + IAM role for Terraform DNS and state management
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Description: GitHub org or user (e.g. hfenner)
+  GitHubRepo:
+    Type: String
+    Description: GitHub repo name (e.g. ansibleforge)
+  GitRef:
+    Type: String
+    Default: "refs/heads/main"
+    Description: Allowed ref (e.g. refs/heads/main or refs/tags/*)
+  StateBucketName:
+    Type: String
+    Default: ansibleforge-tfstate
+    Description: S3 bucket name for Terraform state
+  LockTableName:
+    Type: String
+    Default: tfstate-lock
+    Description: DynamoDB table name for Terraform state locking
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: "https://token.actions.githubusercontent.com"
+      ClientIdList:
+        - "sts.amazonaws.com"
+      ThumbprintList:
+        - "6938fd4d98bab03faadb97b34396831e3780aea1"
+
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "GitHubActions-${GitHubOrg}-${GitHubRepo}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: GitHubOIDCTrust
+            Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: "sts.amazonaws.com"
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:${GitRef}"
+
+      Policies:
+        - PolicyName: TerraformDnsAndState
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Terraform state backend
+              - Sid: TfStateS3
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::${StateBucketName}"
+                  - !Sub "arn:aws:s3:::${StateBucketName}/*"
+
+              - Sid: TfStateDynamoDB
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                Resource: !Sub "arn:aws:dynamodb:*:${AWS::AccountId}:table/${LockTableName}"
+
+              # Route 53 zone management
+              - Sid: Route53Zones
+                Effect: Allow
+                Action:
+                  - route53:CreateHostedZone
+                  - route53:DeleteHostedZone
+                  - route53:GetHostedZone
+                  - route53:ListHostedZones
+                  - route53:ListHostedZonesByName
+                  - route53:GetChange
+                  - route53:ChangeTagsForResource
+                  - route53:ListTagsForResource
+                  - route53:ListResourceRecordSets
+                  - route53:ChangeResourceRecordSets
+                Resource: "*"
+
+              # CloudFormation for tfstate-backend stack
+              - Sid: CloudFormation
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:GetTemplate
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ListChangeSets
+                Resource: "*"
+
+              # CloudFormation needs to create the S3 bucket and DynamoDB table
+              - Sid: CfnS3Create
+                Effect: Allow
+                Action:
+                  - s3:CreateBucket
+                  - s3:PutBucketVersioning
+                  - s3:PutEncryptionConfiguration
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:GetBucketVersioning
+                  - s3:GetEncryptionConfiguration
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:GetBucketPolicy
+                  - s3:GetBucketTagging
+                Resource: !Sub "arn:aws:s3:::${StateBucketName}"
+
+              - Sid: CfnDynamoDBCreate
+                Effect: Allow
+                Action:
+                  - dynamodb:CreateTable
+                  - dynamodb:DeleteTable
+                  - dynamodb:DescribeTable
+                  - dynamodb:DescribeTimeToLive
+                  - dynamodb:UpdateTimeToLive
+                  - dynamodb:ListTagsOfResource
+                  - dynamodb:TagResource
+                  - dynamodb:UntagResource
+                  - dynamodb:DescribeContinuousBackups
+                Resource: !Sub "arn:aws:dynamodb:*:${AWS::AccountId}:table/${LockTableName}"
+
+Outputs:
+  RoleArn:
+    Description: Role ARN to use in GitHub Actions (role-to-assume)
+    Value: !GetAtt GitHubActionsRole.Arn
+  OidcProviderArn:
+    Description: IAM OIDC Provider ARN
+    Value: !Ref GitHubOidcProvider
