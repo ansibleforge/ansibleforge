@@ -58,14 +58,14 @@ resource "aws_route53_zone" "cluster" {
   name = "${var.cluster_name}.${var.base_domain}"
 }
 
-# NS delegation records in Cloudflare
+# NS delegation records in Cloudflare (Route 53 always assigns 4 nameservers)
 resource "cloudflare_record" "ns" {
-  for_each = toset(aws_route53_zone.cluster.name_servers)
+  count = 4
 
   zone_id = data.cloudflare_zone.base.id
   name    = var.cluster_name
   type    = "NS"
-  content = each.value
+  content = aws_route53_zone.cluster.name_servers[count.index]
   ttl     = 300
 }
 
