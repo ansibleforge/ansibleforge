@@ -71,6 +71,9 @@ jobs:
       contents: read
       id-token: write
 
+    env:
+      CCOCTL_NAME: ocp-${{ inputs.cluster_name }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -80,15 +83,16 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActions-${{ github.repository_owner }}-${{ github.event.repository.name }}
           aws-region: ${{ inputs.aws_region }}
 
-      - name: Download openshift-install + oc
+      - name: Download openshift-install + oc + ccoctl
         run: |
-          curl -L https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-${{ inputs.ocp_version }}/openshift-install-linux.tar.gz -o oi.tgz
-          tar -xzf oi.tgz
-          sudo mv openshift-install /usr/local/bin/openshift-install
+          OCP_MIRROR="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-${{ inputs.ocp_version }}"
 
-          curl -L https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-${{ inputs.ocp_version }}/openshift-client-linux.tar.gz -o oc.tgz
-          tar -xzf oc.tgz
-          sudo mv oc kubectl /usr/local/bin/
+          curl -sL "${OCP_MIRROR}/openshift-install-linux.tar.gz" | tar -xz -C /usr/local/bin openshift-install
+          curl -sL "${OCP_MIRROR}/openshift-client-linux.tar.gz" | tar -xz -C /usr/local/bin oc kubectl
+          curl -sL "${OCP_MIRROR}/ccoctl-linux.tar.gz" | tar -xz -C /usr/local/bin ccoctl
+
+          openshift-install version
+          ccoctl --help | head -1
 
       - name: Verify Route 53 zone exists
         run: |
@@ -151,13 +155,32 @@ jobs:
           pullSecret: '${PULL_SECRET}'
           sshKey: |
             ${SSH_PUBLIC_KEY}
-          credentialsMode: Mint
+          credentialsMode: Manual
           EOF
           sed -i 's/^          //' install-dir/install-config.yaml
 
       - name: Show install-config.yaml
         if: inputs.debug_install_config
         run: cat install-dir/install-config.yaml
+
+      - name: Generate manifests
+        run: openshift-install create manifests --dir=install-dir
+
+      - name: Create STS credentials with ccoctl
+        run: |
+          # Extract credential requests from manifests
+          oc adm release extract \
+            --credentials-requests \
+            --cloud=aws \
+            --to=credreqs \
+            "$(openshift-install version | grep 'release image' | awk '{print $3}')"
+
+          # Create IAM roles + OIDC provider
+          ccoctl aws create-all \
+            --name="${CCOCTL_NAME}" \
+            --region=${{ inputs.aws_region }} \
+            --credentials-requests-dir=credreqs \
+            --output-dir=install-dir
 
       - name: Provision cluster
         run: openshift-install create cluster --dir=install-dir --log-level=info 2>&1
@@ -186,7 +209,7 @@ jobs:
         if: always()
         run: |
           aws s3 cp install-dir/metadata.json \
-            s3://ansibleforge-tfstate/clusters/${{ inputs.cluster_name }}/metadata.json
+            s3://ansibleforge-tfstate/clusters/${{ inputs.cluster_name }}/metadata.json 2>/dev/null || true
 
       - name: Upload artifacts
         if: always()
@@ -195,7 +218,6 @@ jobs:
           name: install-dir
           path: |
             install-dir/metadata.json
-            cluster-name.txt
           retention-days: 7
 
       - name: Upload bootstrap log bundle on failure
@@ -221,6 +243,7 @@ jobs:
     if: ${{ always() && needs.provision.result != 'success' }}
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -233,9 +256,7 @@ jobs:
 
       - name: Download openshift-install
         run: |
-          curl -L https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-${{ inputs.ocp_version }}/openshift-install-linux.tar.gz -o oi.tgz
-          tar -xzf oi.tgz
-          sudo mv openshift-install /usr/local/bin/openshift-install
+          curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-${{ inputs.ocp_version }}/openshift-install-linux.tar.gz | tar -xz -C /usr/local/bin openshift-install
 
       - name: Download install-dir artifact
         uses: actions/download-artifact@v4
