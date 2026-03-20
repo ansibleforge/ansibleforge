@@ -35,7 +35,7 @@
           auth_method='kubernetes',
           role_id=vault_k8s_role
         ).data.service_account_token }}"
-      no_log: true
+      # no_log: true
 
   tasks:
     - name: Git checkout
