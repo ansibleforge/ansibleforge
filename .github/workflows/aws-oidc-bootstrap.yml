@@ -57,9 +57,7 @@ jobs:
           echo "role_arn=${ROLE_ARN}" >> "$GITHUB_OUTPUT"
           echo "Role ARN: ${ROLE_ARN}"
 
-      - name: Save AWS_ROLE_ARN secret
+      - name: Save AWS_ROLE_ARN variable
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh secret set AWS_ROLE_ARN --body "${{ steps.get-role.outputs.role_arn }}" || \
-            echo "::warning::Could not set AWS_ROLE_ARN secret automatically. Set it manually to: ${{ steps.get-role.outputs.role_arn }}"
+        run: gh variable set AWS_ROLE_ARN --body "${{ steps.get-role.outputs.role_arn }}"

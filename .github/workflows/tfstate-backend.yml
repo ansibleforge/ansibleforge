@@ -22,7 +22,7 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ inputs.role_arn || secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ inputs.role_arn || vars.AWS_ROLE_ARN }}
           aws-region: us-east-2
 
       - name: Deploy tfstate-backend stack
