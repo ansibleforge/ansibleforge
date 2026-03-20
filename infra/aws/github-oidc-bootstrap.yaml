@@ -22,7 +22,7 @@ Parameters:
     Description: DynamoDB table name for Terraform state locking
   ClusterPrefix:
     Type: String
-    Default: "gh-ocp-ipi-"
+    Default: "ocp-"
     Description: Prefix for cluster-created IAM roles/policies/instance-profiles
   BootstrapBucketPrefix:
     Type: String
@@ -222,6 +222,15 @@ Resources:
                 Action: iam:PassRole
                 Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${ClusterPrefix}*"
 
+              - Sid: IamOidcProviderForCcoctl
+                Effect: Allow
+                Action:
+                  - iam:CreateOpenIDConnectProvider
+                  - iam:DeleteOpenIDConnectProvider
+                  - iam:GetOpenIDConnectProvider
+                  - iam:TagOpenIDConnectProvider
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/*"
+
               - Sid: AllowServiceLinkedRoles
                 Effect: Allow
                 Action: iam:CreateServiceLinkedRole
@@ -347,7 +356,9 @@ Resources:
                   - s3:GetBucketOwnershipControls
                   - s3:ListBucketVersions
                   - s3:ListBucketMultipartUploads
-                Resource: !Sub "arn:aws:s3:::${BootstrapBucketPrefix}*"
+                Resource:
+                  - !Sub "arn:aws:s3:::${BootstrapBucketPrefix}*"
+                  - !Sub "arn:aws:s3:::${ClusterPrefix}*-oidc"
 
               - Sid: S3BootstrapObjects
                 Effect: Allow
@@ -360,6 +371,8 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:s3:::${BootstrapBucketPrefix}*"
                   - !Sub "arn:aws:s3:::${BootstrapBucketPrefix}*/*"
+                  - !Sub "arn:aws:s3:::${ClusterPrefix}*-oidc"
+                  - !Sub "arn:aws:s3:::${ClusterPrefix}*-oidc/*"
 
         # ── Secrets Manager for cluster credentials ────────────────────
         - PolicyName: SecretsManager
