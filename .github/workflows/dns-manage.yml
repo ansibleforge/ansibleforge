@@ -4,9 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       cluster_name:
-        description: "Cluster name (e.g. forge)"
+        description: "Cluster name (e.g. fire)"
         required: true
         type: string
+        default: "fire"
       action:
         description: "Action to perform"
         required: true
