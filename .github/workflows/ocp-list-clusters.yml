@@ -19,27 +19,95 @@ jobs:
 
       - name: List clusters
         run: |
-          echo "## OCP Clusters"
-          echo ""
-          aws ec2 describe-instances \
-            --filters "Name=instance-state-name,Values=running" \
+          cat >> "$GITHUB_STEP_SUMMARY" <<'HEADER'
+          # OCP Cluster Inventory
+
+          HEADER
+          sed -i 's/^          //' "$GITHUB_STEP_SUMMARY"
+
+          # ── EC2 Instances ──
+          INSTANCES=$(aws ec2 describe-instances \
+            --filters "Name=instance-state-name,Values=running,stopped" \
             --query 'Reservations[].Instances[].{
               Name: Tags[?Key==`Name`].Value | [0],
               Type: InstanceType,
               State: State.Name,
               AZ: Placement.AvailabilityZone,
-              LaunchTime: LaunchTime
-            }' \
-            --output table
+              Launch: LaunchTime
+            }' --output json)
 
-          echo ""
-          echo "## Route 53 Hosted Zones"
-          echo ""
-          aws route53 list-hosted-zones \
-            --query 'HostedZones[].{Name: Name, Id: Id, Records: ResourceRecordSetCount}' \
-            --output table
+          echo "## Compute" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
 
-          echo ""
-          echo "## Cluster Metadata in S3"
-          echo ""
-          aws s3 ls s3://ansibleforge-tfstate/clusters/ 2>/dev/null || echo "No cluster metadata found"
+          if [ "$(echo "$INSTANCES" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')" -gt 0 ]; then
+            echo "| Name | Type | State | AZ | Launched |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|------|------|-------|----|---------|" >> "$GITHUB_STEP_SUMMARY"
+            echo "$INSTANCES" | python3 -c "
+          import json, sys
+          for i in json.load(sys.stdin):
+              name = i.get('Name') or 'unnamed'
+              launch = i.get('Launch','')[:10]
+              print(f'| {name} | {i[\"Type\"]} | {i[\"State\"]} | {i[\"AZ\"]} | {launch} |')
+          " >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "*No instances found*" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # ── Route 53 Zones ──
+          ZONES=$(aws route53 list-hosted-zones --output json)
+
+          echo "## DNS Zones" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Zone | Type | Records |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|------|---------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "$ZONES" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for z in data.get('HostedZones', []):
+              name = z['Name'].rstrip('.')
+              ztype = 'Private' if z.get('Config', {}).get('PrivateZone') else 'Public'
+              records = z.get('ResourceRecordSetCount', 0)
+              print(f'| {name} | {ztype} | {records} |')
+          " >> "$GITHUB_STEP_SUMMARY"
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # ── S3 Metadata ──
+          echo "## Cluster Metadata (S3)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          CLUSTERS=$(aws s3 ls s3://ansibleforge-tfstate/clusters/ 2>/dev/null || true)
+          if [ -n "$CLUSTERS" ]; then
+            echo "| Cluster | Metadata |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|---------|----------|" >> "$GITHUB_STEP_SUMMARY"
+            echo "$CLUSTERS" | while read -r _ _ _ name; do
+              echo "| ${name%/} | metadata.json |" >> "$GITHUB_STEP_SUMMARY"
+            done
+          else
+            echo "*No cluster metadata found*" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # ── Resource Summary ──
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Resource Usage" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          VCPUS=$(echo "$INSTANCES" | python3 -c "
+          import json, sys
+          types = {'m5a.4xlarge': 16, 'm5a.2xlarge': 8, 'm5a.xlarge': 4, 'm5.4xlarge': 16, 'm5.2xlarge': 8}
+          total = sum(types.get(i['Type'], 0) for i in json.load(sys.stdin) if i['State'] == 'running')
+          print(total)
+          ")
+
+          EIPS=$(aws ec2 describe-addresses --query 'Addresses | length(@)' --output text)
+          VPCS=$(aws ec2 describe-vpcs --query 'Vpcs | length(@)' --output text)
+          NATS=$(aws ec2 describe-nat-gateways --filter Name=state,Values=available --query 'NatGateways | length(@)' --output text)
+
+          echo "| Resource | Used | Quota |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|----------|------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| vCPUs | ${VCPUS} | 1,920 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Elastic IPs | ${EIPS} | 20 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| VPCs | ${VPCS} | 5 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| NAT Gateways | ${NATS} | 5/AZ |" >> "$GITHUB_STEP_SUMMARY"
