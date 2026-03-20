@@ -7,7 +7,7 @@ on:
         description: "Cluster name"
         required: true
         type: string
-        default: fire
+        default: spark
       base_domain:
         description: "Base DNS domain"
         required: false
@@ -22,10 +22,10 @@ on:
         description: "OpenShift version"
         required: false
         type: choice
-        default: "4.21"
+        default: "4.20"
         options:
-          - "4.21"
           - "4.20"
+          - "4.21"
       debug_install_config:
         description: "Print install-config.yaml to logs (secrets will be masked)"
         required: false
