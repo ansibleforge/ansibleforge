@@ -35,7 +35,7 @@
           auth_method='kubernetes',
           role_id=vault_k8s_role
         ).service_account_token }}"
-      no_log: true
+      # no_log: true  # temporarily disabled for debugging
 
   tasks:
     - name: Git checkout
