@@ -90,22 +90,19 @@ jobs:
           tar -xzf oc.tgz
           sudo mv oc kubectl /usr/local/bin/
 
-      - name: Lookup Route 53 hosted zone
-        id: zone
+      - name: Verify Route 53 zone exists
         run: |
           ZONE_NAME="${{ inputs.cluster_name }}.${{ inputs.base_domain }}."
           ZONE_ID=$(aws route53 list-hosted-zones-by-name \
             --dns-name "$ZONE_NAME" \
             --query "HostedZones[?Name=='${ZONE_NAME}'] | [0].Id" \
             --output text)
-          ZONE_ID="${ZONE_ID#/hostedzone/}"
 
           if [ -z "$ZONE_ID" ] || [ "$ZONE_ID" = "None" ]; then
             echo "::error::No Route 53 zone found for ${ZONE_NAME} — run the DNS delegation workflow first"
             exit 1
           fi
 
-          echo "zone_id=${ZONE_ID}" >> "$GITHUB_OUTPUT"
           echo "Found zone ${ZONE_NAME} -> ${ZONE_ID}"
 
       - name: Generate install-config.yaml
@@ -116,7 +113,6 @@ jobs:
           CONTROL_PLANE_TYPE: ${{ inputs.control_plane_type }}
           WORKER_TYPE: ${{ inputs.worker_type }}
           WORKER_COUNT: ${{ inputs.worker_count }}
-          HOSTED_ZONE_ID: ${{ steps.zone.outputs.zone_id }}
         run: |
           # Set replicas based on topology
           case "$TOPOLOGY" in
@@ -128,9 +124,9 @@ jobs:
           mkdir -p install-dir
           cat > install-dir/install-config.yaml <<EOF
           apiVersion: v1
-          baseDomain: ${{ inputs.base_domain }}
+          baseDomain: ${{ inputs.cluster_name }}.${{ inputs.base_domain }}
           metadata:
-            name: ${{ inputs.cluster_name }}
+            name: ocp
           compute:
             - name: worker
               architecture: amd64
@@ -152,7 +148,6 @@ jobs:
           platform:
             aws:
               region: ${{ inputs.aws_region }}
-              hostedZone: ${HOSTED_ZONE_ID}
           pullSecret: '${PULL_SECRET}'
           sshKey: |
             ${SSH_PUBLIC_KEY}
