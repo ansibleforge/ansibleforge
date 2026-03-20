@@ -31,6 +31,30 @@ on:
         required: false
         type: boolean
         default: false
+      topology:
+        description: "Cluster topology"
+        required: true
+        type: choice
+        default: sno
+        options:
+          - sno
+          - compact
+          - standard
+      control_plane_type:
+        description: "Control plane instance type"
+        required: false
+        type: string
+        default: m5a.4xlarge
+      worker_type:
+        description: "Worker instance type (standard topology only)"
+        required: false
+        type: string
+        default: m5a.4xlarge
+      worker_count:
+        description: "Number of workers (standard topology only)"
+        required: false
+        type: string
+        default: "3"
       bootstrap_mode:
         description: "Post-provision bootstrap"
         required: false
@@ -70,7 +94,18 @@ jobs:
         env:
           SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
           PULL_SECRET: ${{ secrets.OCP_PULL_SECRET }}
+          TOPOLOGY: ${{ inputs.topology }}
+          CONTROL_PLANE_TYPE: ${{ inputs.control_plane_type }}
+          WORKER_TYPE: ${{ inputs.worker_type }}
+          WORKER_COUNT: ${{ inputs.worker_count }}
         run: |
+          # Set replicas based on topology
+          case "$TOPOLOGY" in
+            sno)     CP_REPLICAS=1; WORKER_REPLICAS=0 ;;
+            compact) CP_REPLICAS=3; WORKER_REPLICAS=0 ;;
+            standard) CP_REPLICAS=3; WORKER_REPLICAS=${WORKER_COUNT} ;;
+          esac
+
           mkdir -p install-dir
           cat > install-dir/install-config.yaml <<EOF
           apiVersion: v1
@@ -81,18 +116,18 @@ jobs:
             - name: worker
               architecture: amd64
               hyperthreading: Enabled
-              replicas: 0
+              replicas: ${WORKER_REPLICAS}
               platform:
                 aws:
-                  type: m5a.4xlarge
+                  type: ${WORKER_TYPE}
           controlPlane:
             name: master
-            replicas: 1
+            replicas: ${CP_REPLICAS}
             architecture: amd64
             hyperthreading: Enabled
             platform:
               aws:
-                type: m5a.4xlarge
+                type: ${CONTROL_PLANE_TYPE}
           networking:
             networkType: OVNKubernetes
           platform:
