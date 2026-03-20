@@ -3,15 +3,13 @@ name: "DNS: Deploy Terraform State Backend"
 on:
   workflow_dispatch:
   workflow_call:
-    inputs:
-      role_arn:
-        type: string
-        description: "IAM Role ARN (passed from caller; falls back to AWS_ROLE_ARN secret)"
-        required: false
 
 permissions:
   id-token: write
   contents: read
+
+env:
+  AWS_ROLE_ARN: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActions-${{ github.repository_owner }}-${{ github.event.repository.name }}
 
 jobs:
   deploy:
@@ -22,7 +20,7 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ inputs.role_arn || vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: us-east-2
 
       - name: Deploy tfstate-backend stack

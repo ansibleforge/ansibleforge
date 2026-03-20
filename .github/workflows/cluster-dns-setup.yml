@@ -22,8 +22,6 @@ jobs:
     name: "2. Terraform State Backend"
     needs: oidc-bootstrap
     uses: ./.github/workflows/tfstate-backend.yml
-    with:
-      role_arn: ${{ needs.oidc-bootstrap.outputs.role_arn }}
     secrets: inherit
 
   dns-delegation:
@@ -33,5 +31,4 @@ jobs:
     with:
       cluster_name: ${{ inputs.cluster_name }}
       action: apply
-      role_arn: ${{ needs.oidc-bootstrap.outputs.role_arn }}
     secrets: inherit

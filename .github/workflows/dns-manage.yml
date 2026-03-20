@@ -23,10 +23,6 @@ on:
       action:
         type: string
         default: "apply"
-      role_arn:
-        type: string
-        description: "IAM Role ARN (passed from caller; falls back to AWS_ROLE_ARN secret)"
-        required: false
 
 permissions:
   id-token: write
@@ -36,6 +32,7 @@ env:
   TF_DIR: ocp/terraform/dns
   TF_VAR_cluster_name: ${{ inputs.cluster_name }}
   TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  AWS_ROLE_ARN: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActions-${{ github.repository_owner }}-${{ github.event.repository.name }}
 
 jobs:
   terraform:
@@ -46,7 +43,7 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ inputs.role_arn || vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: us-east-2
 
       - uses: hashicorp/setup-terraform@v3

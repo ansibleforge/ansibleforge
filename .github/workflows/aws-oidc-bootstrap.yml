@@ -12,10 +12,6 @@ on:
       stack_name:
         type: string
         default: "github-oidc-ansibleforge"
-    outputs:
-      role_arn:
-        description: "IAM Role ARN for OIDC"
-        value: ${{ jobs.bootstrap.outputs.role_arn }}
 
 permissions:
   contents: read
@@ -24,8 +20,6 @@ jobs:
   bootstrap:
     name: Deploy OIDC Provider + IAM Role
     runs-on: ubuntu-latest
-    outputs:
-      role_arn: ${{ steps.get-role.outputs.role_arn }}
     steps:
       - uses: actions/checkout@v4
 
@@ -46,13 +40,3 @@ jobs:
               GitHubOrg="${{ github.repository_owner }}" \
               GitHubRepo="${{ github.event.repository.name }}" \
             --no-fail-on-empty-changeset
-
-      - name: Get Role ARN
-        id: get-role
-        run: |
-          ROLE_ARN=$(aws cloudformation describe-stacks \
-            --stack-name "${{ inputs.stack_name }}" \
-            --query "Stacks[0].Outputs[?OutputKey=='RoleArn'].OutputValue" \
-            --output text)
-          echo "role_arn=${ROLE_ARN}" >> "$GITHUB_OUTPUT"
-          echo "::notice::Set the repo variable manually: gh variable set AWS_ROLE_ARN --body ${ROLE_ARN}"
