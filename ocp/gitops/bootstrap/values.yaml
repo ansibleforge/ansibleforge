@@ -64,7 +64,7 @@ components:
       - SkipDryRunOnMissingResource=true
 
   keycloak:
-    enabled: false
+    enabled: true
     syncWave: "1"
     path: ocp/gitops/keycloak
     retry: true
@@ -173,7 +173,7 @@ components:
           - .spec.target.deletionPolicy
 
   cluster-auth:
-    enabled: false
+    enabled: true
     syncWave: "2"
     path: ocp/gitops/auth
     syncOptions:
