@@ -223,3 +223,11 @@ components:
     path: ocp/gitops/web-terminal
     syncOptions:
       - ServerSideApply=true
+
+  ingress-certs:
+    enabled: true
+    syncWave: "3"
+    path: ocp/gitops/ingress-certs
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true

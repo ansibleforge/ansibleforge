@@ -1,8 +1,8 @@
 clusterDomain: ""
 
 acme:
-  email: user@example.com
+  email: hfenner@redhat.com
 
 route53:
-  region: us-east-1
-  hostedZoneID: PLACEHOLDER
+  region: us-east-2
+  hostedZoneID: ""

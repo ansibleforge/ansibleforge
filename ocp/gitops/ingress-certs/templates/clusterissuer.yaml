@@ -14,7 +14,9 @@ spec:
       - dns01:
           route53:
             region: {{ .Values.route53.region }}
+            {{- if .Values.route53.hostedZoneID }}
             hostedZoneID: {{ .Values.route53.hostedZoneID }}
+            {{- end }}
             accessKeyIDSecretRef:
               name: cert-manager-dns01-route53
               key: aws_access_key_id
