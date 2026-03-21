@@ -28,7 +28,8 @@ ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 echo "=== Generating OIDC signing keys ==="
 mkdir -p "${OUTPUT_DIR}/tls"
-openssl genrsa -out "${OUTPUT_DIR}/tls/bound-service-account-signing-key.key" 4096 2>/dev/null
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 \
+  -out "${OUTPUT_DIR}/tls/bound-service-account-signing-key.key" 2>/dev/null
 openssl rsa -in "${OUTPUT_DIR}/tls/bound-service-account-signing-key.key" \
   -pubout -out "${OUTPUT_DIR}/tls/bound-service-account-signing-key.pub" 2>/dev/null
 
