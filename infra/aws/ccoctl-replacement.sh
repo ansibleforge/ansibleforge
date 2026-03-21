@@ -33,35 +33,35 @@ openssl rsa -in "${OUTPUT_DIR}/tls/bound-service-account-signing-key.key" \
   -pubout -out "${OUTPUT_DIR}/tls/bound-service-account-signing-key.pub" 2>/dev/null
 
 # Generate JWKS from public key
-JWKS=$(python3 <<'PYEOF'
+PUB_KEY_FILE="${OUTPUT_DIR}/tls/bound-service-account-signing-key.pub"
+JWKS=$(python3 - "${PUB_KEY_FILE}" <<'PYEOF'
 import json, base64, struct, subprocess, sys
 
 def b64url(data):
     return base64.urlsafe_b64encode(data).rstrip(b'=').decode()
 
-# Extract modulus and exponent from public key
+pub_key_file = sys.argv[1]
+
 result = subprocess.run(
-    ['openssl', 'rsa', '-pubin', '-in', sys.argv[1] if len(sys.argv) > 1 else '/dev/stdin',
-     '-text', '-noout'],
-    capture_output=True, text=True,
-    input=open(f'{sys.argv[2]}/tls/bound-service-account-signing-key.pub').read() if len(sys.argv) > 2 else None
+    ['openssl', 'rsa', '-pubin', '-in', pub_key_file, '-text', '-noout'],
+    capture_output=True, text=True
 )
 
-# Parse modulus from openssl output
 lines = result.stdout.split('\n')
 mod_hex = ''
 capture = False
 for line in lines:
-    if 'Modulus:' in line:
-        capture = True
+    if 'Modulus:' in line or 'Public-Key:' in line:
+        if 'Modulus:' in line:
+            capture = True
         continue
     if capture:
-        if 'Exponent:' in line:
+        stripped = line.strip()
+        if not stripped or 'Exponent:' in stripped:
             break
-        mod_hex += line.strip().replace(':', '')
+        mod_hex += stripped.replace(':', '')
 
 mod_bytes = bytes.fromhex(mod_hex)
-# Ensure no leading zero issues
 if mod_bytes[0] == 0:
     mod_bytes = mod_bytes[1:]
 
