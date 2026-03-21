@@ -26,13 +26,22 @@ done
 BUCKET_NAME="${NAME}-oidc"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-echo "=== Generating OIDC signing keys ==="
+echo "=== OIDC signing keys ==="
 mkdir -p "${OUTPUT_DIR}/tls"
-# Generate RSA key and convert to PKCS8 format (required by openshift-install)
-openssl genrsa 4096 2>/dev/null | openssl pkcs8 -topk8 -nocrypt \
-  -out "${OUTPUT_DIR}/tls/bound-service-account-signing-key.key"
-openssl rsa -in "${OUTPUT_DIR}/tls/bound-service-account-signing-key.key" \
-  -pubout -out "${OUTPUT_DIR}/tls/bound-service-account-signing-key.pub" 2>/dev/null
+if [ -f "${OUTPUT_DIR}/tls/bound-service-account-signing-key.key" ]; then
+  echo "Using existing signing key"
+  # Ensure public key exists
+  if [ ! -f "${OUTPUT_DIR}/tls/bound-service-account-signing-key.pub" ]; then
+    openssl rsa -in "${OUTPUT_DIR}/tls/bound-service-account-signing-key.key" \
+      -pubout -out "${OUTPUT_DIR}/tls/bound-service-account-signing-key.pub" 2>/dev/null
+  fi
+else
+  echo "Generating new signing key"
+  openssl genrsa 4096 2>/dev/null | openssl pkcs8 -topk8 -nocrypt \
+    -out "${OUTPUT_DIR}/tls/bound-service-account-signing-key.key"
+  openssl rsa -in "${OUTPUT_DIR}/tls/bound-service-account-signing-key.key" \
+    -pubout -out "${OUTPUT_DIR}/tls/bound-service-account-signing-key.pub" 2>/dev/null
+fi
 echo "Key format: $(head -1 ${OUTPUT_DIR}/tls/bound-service-account-signing-key.key)"
 
 # Generate JWKS from public key

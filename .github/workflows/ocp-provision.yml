@@ -174,13 +174,26 @@ jobs:
         if: inputs.debug_install_config
         run: cat install-dir/install-config.yaml
 
-      - name: Generate manifests (STS only)
-        if: inputs.credentials_mode == 'sts'
-        run: openshift-install create manifests --dir=install-dir
-
       - name: Create STS credentials (STS only)
         if: inputs.credentials_mode == 'sts'
         run: |
+          # Save a copy of install-config (create manifests consumes it)
+          cp install-dir/install-config.yaml install-dir/install-config-backup.yaml
+
+          # Generate manifests first
+          openshift-install create manifests --dir=install-dir
+
+          # Convert the installer-generated signing key from PKCS1 to PKCS8
+          if [ -f install-dir/tls/bound-service-account-signing-key.key ]; then
+            echo "Converting installer-generated key to PKCS8..."
+            openssl pkcs8 -topk8 -nocrypt \
+              -in install-dir/tls/bound-service-account-signing-key.key \
+              -out install-dir/tls/bound-service-account-signing-key.key.tmp
+            mv install-dir/tls/bound-service-account-signing-key.key.tmp \
+              install-dir/tls/bound-service-account-signing-key.key
+            echo "Key format: $(head -1 install-dir/tls/bound-service-account-signing-key.key)"
+          fi
+
           # Extract credential requests from release image
           oc adm release extract \
             --credentials-requests \
@@ -190,7 +203,7 @@ jobs:
 
           pip install pyyaml
 
-          # Run our SCP-safe replacement for ccoctl
+          # Run our SCP-safe replacement for ccoctl (skip key generation, use installer's key)
           ./infra/aws/ccoctl-replacement.sh \
             --name="${CCOCTL_NAME}" \
             --region=${{ inputs.aws_region }} \
