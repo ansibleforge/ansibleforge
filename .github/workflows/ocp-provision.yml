@@ -55,6 +55,14 @@ on:
         required: false
         type: string
         default: "0"
+      credentials_mode:
+        description: "Credentials mode"
+        required: false
+        type: choice
+        default: mint
+        options:
+          - mint
+          - sts
       bootstrap_mode:
         description: "Post-provision bootstrap"
         required: false
@@ -67,6 +75,9 @@ on:
 permissions:
   id-token: write
   contents: read
+
+env:
+  CCOCTL_NAME: ocp-${{ inputs.cluster_name }}
 
 jobs:
   provision:
@@ -112,11 +123,17 @@ jobs:
           CONTROL_PLANE_TYPE: ${{ inputs.control_plane_type }}
           WORKER_TYPE: ${{ inputs.worker_type }}
           WORKER_COUNT: ${{ inputs.worker_count }}
+          CREDS_MODE: ${{ inputs.credentials_mode }}
         run: |
           case "$TOPOLOGY" in
             sno)     CP_REPLICAS=1; WORKER_REPLICAS=0 ;;
             compact) CP_REPLICAS=3; WORKER_REPLICAS=0 ;;
             standard) CP_REPLICAS=3; WORKER_REPLICAS=${WORKER_COUNT} ;;
+          esac
+
+          case "$CREDS_MODE" in
+            mint) CREDS_MODE_VALUE="Mint" ;;
+            sts)  CREDS_MODE_VALUE="Manual" ;;
           esac
 
           mkdir -p install-dir
@@ -149,13 +166,36 @@ jobs:
           pullSecret: '${PULL_SECRET}'
           sshKey: |
             ${SSH_PUBLIC_KEY}
-          credentialsMode: Mint
+          credentialsMode: ${CREDS_MODE_VALUE}
           EOF
           sed -i 's/^          //' install-dir/install-config.yaml
 
       - name: Show install-config.yaml
         if: inputs.debug_install_config
         run: cat install-dir/install-config.yaml
+
+      - name: Generate manifests (STS only)
+        if: inputs.credentials_mode == 'sts'
+        run: openshift-install create manifests --dir=install-dir
+
+      - name: Create STS credentials (STS only)
+        if: inputs.credentials_mode == 'sts'
+        run: |
+          # Extract credential requests from release image
+          oc adm release extract \
+            --credentials-requests \
+            --cloud=aws \
+            --to=credreqs \
+            "$(openshift-install version | grep 'release image' | awk '{print $3}')"
+
+          pip install pyyaml
+
+          # Run our SCP-safe replacement for ccoctl
+          ./infra/aws/ccoctl-replacement.sh \
+            --name="${CCOCTL_NAME}" \
+            --region=${{ inputs.aws_region }} \
+            --credentials-requests-dir=credreqs \
+            --output-dir=install-dir
 
       - name: Provision cluster
         run: openshift-install create cluster --dir=install-dir --log-level=info 2>&1
@@ -180,18 +220,24 @@ jobs:
               --secret-string "$VAL"
           done
 
-      - name: Upload metadata.json to S3
+      - name: Upload metadata to S3
         if: always()
         run: |
           aws s3 cp install-dir/metadata.json \
             s3://ansibleforge-tfstate/clusters/${{ inputs.cluster_name }}/metadata.json 2>/dev/null || true
+          if [ -f install-dir/oidc-metadata.json ]; then
+            aws s3 cp install-dir/oidc-metadata.json \
+              s3://ansibleforge-tfstate/clusters/${{ inputs.cluster_name }}/oidc-metadata.json
+          fi
 
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: install-dir
-          path: install-dir/metadata.json
+          path: |
+            install-dir/metadata.json
+            install-dir/oidc-metadata.json
           retention-days: 7
 
       - name: Upload bootstrap log bundle on failure
