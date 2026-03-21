@@ -153,8 +153,7 @@ CF_DIST_ID=$(aws cloudfront create-distribution \
     \"DefaultCacheBehavior\": {
       \"TargetOriginId\": \"S3-${BUCKET_NAME}\",
       \"ViewerProtocolPolicy\": \"https-only\",
-      \"AllowedMethods\": {\"Quantity\": 2, \"Items\": [\"GET\", \"HEAD\"]},
-      \"CachedMethods\": {\"Quantity\": 2, \"Items\": [\"GET\", \"HEAD\"]},
+      \"AllowedMethods\": {\"Quantity\": 2, \"Items\": [\"GET\", \"HEAD\"], \"CachedMethods\": {\"Quantity\": 2, \"Items\": [\"GET\", \"HEAD\"]}},
       \"ForwardedValues\": {
         \"QueryString\": false,
         \"Cookies\": {\"Forward\": \"none\"}
