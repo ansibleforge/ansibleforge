@@ -39,6 +39,8 @@ spec:
                 "aws_account_id": {{ .Values.aws.accountId | default "" | quote }}
               }
           env:
+            - name: HOME
+              value: /tmp
             - name: KC_ADMIN_USER
               valueFrom:
                 secretKeyRef:
