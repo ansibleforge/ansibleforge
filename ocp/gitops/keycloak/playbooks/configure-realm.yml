@@ -328,7 +328,7 @@
                 syncMode: INHERIT
                 template: "${CLAIM.login}"
             validate_certs: "{{ keycloak_validate_certs }}"
-            status_code: [201, 409]
+            status_code: [201, 400, 409]
           loop:
             - sso
             - master
@@ -348,7 +348,7 @@
             body_format: json
             body: "{{ _base_body | combine(_team_body if github_team else {}, recursive=True) }}"
             validate_certs: "{{ keycloak_validate_certs }}"
-            status_code: [201, 409]
+            status_code: [201, 400, 409]
           vars:
             _base_body:
               name: github-org-admins
@@ -384,7 +384,7 @@
                 github.org: "{{ github_org }}"
                 keycloak.group: org-members
             validate_certs: "{{ keycloak_validate_certs }}"
-            status_code: [201, 409]
+            status_code: [201, 400, 409]
           loop:
             - sso
             - master
@@ -434,7 +434,7 @@
                 syncMode: INHERIT
                 template: "${CLAIM.preferred_username}"
             validate_certs: "{{ keycloak_validate_certs }}"
-            status_code: [201, 409]
+            status_code: [201, 400, 409]
 
     # ── Master Realm Config ────────────────────────────────────────
     - name: Ensure admins group in master realm
