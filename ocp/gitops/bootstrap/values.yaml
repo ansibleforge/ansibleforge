@@ -224,10 +224,20 @@ components:
     syncOptions:
       - ServerSideApply=true
 
+  cert-manager:
+    enabled: true
+    syncWave: "1"
+    path: ocp/gitops/cert-manager
+    retry: true
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+
   ingress-certs:
     enabled: true
     syncWave: "3"
     path: ocp/gitops/ingress-certs
+    retry: true
     syncOptions:
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
