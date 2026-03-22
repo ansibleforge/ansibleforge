@@ -313,16 +313,22 @@
           no_log: true
 
         - name: Ensure GitHub username mapper
-          community.general.keycloak_identity_provider_mapper:
-            <<: *kc_auth
-            realm: "{{ item }}"
-            idp_alias: github
-            name: github-username
-            mapper_type: oidc-username-idp-mapper
-            config:
-              syncMode: INHERIT
-              template: "${CLAIM.login}"
-            state: present
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ item }}/identity-provider/instances/github/mappers"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+              Content-Type: application/json
+            body_format: json
+            body:
+              name: github-username
+              identityProviderAlias: github
+              identityProviderMapper: oidc-username-idp-mapper
+              config:
+                syncMode: INHERIT
+                template: "${CLAIM.login}"
+            validate_certs: "{{ keycloak_validate_certs }}"
+            status_code: [201, 409]
           loop:
             - sso
             - master
@@ -333,21 +339,28 @@
       when: github_broker and github_mapper and github_org | length > 0
       block:
         - name: Ensure GitHub org-to-admins mapper
-          community.general.keycloak_identity_provider_mapper:
-            <<: *kc_auth
-            realm: "{{ item }}"
-            idp_alias: github
-            name: github-org-admins
-            mapper_type: github-org-to-group-mapper
-            config: "{{ _base_config | combine(_team_config if github_team else {}) }}"
-            state: present
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ item }}/identity-provider/instances/github/mappers"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+              Content-Type: application/json
+            body_format: json
+            body: "{{ _base_body | combine(_team_body if github_team else {}, recursive=True) }}"
+            validate_certs: "{{ keycloak_validate_certs }}"
+            status_code: [201, 409]
           vars:
-            _base_config:
-              syncMode: FORCE
-              github.org: "{{ github_org }}"
-              keycloak.group: admins
-            _team_config:
-              github.team: "{{ github_team }}"
+            _base_body:
+              name: github-org-admins
+              identityProviderAlias: github
+              identityProviderMapper: github-org-to-group-mapper
+              config:
+                syncMode: FORCE
+                github.org: "{{ github_org }}"
+                keycloak.group: admins
+            _team_body:
+              config:
+                github.team: "{{ github_team }}"
           loop:
             - sso
             - master
@@ -355,17 +368,23 @@
             label: "{{ item }}"
 
         - name: Ensure GitHub org-to-members mapper
-          community.general.keycloak_identity_provider_mapper:
-            <<: *kc_auth
-            realm: "{{ item }}"
-            idp_alias: github
-            name: github-org-members
-            mapper_type: github-org-to-group-mapper
-            config:
-              syncMode: FORCE
-              github.org: "{{ github_org }}"
-              keycloak.group: org-members
-            state: present
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ item }}/identity-provider/instances/github/mappers"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+              Content-Type: application/json
+            body_format: json
+            body:
+              name: github-org-members
+              identityProviderAlias: github
+              identityProviderMapper: github-org-to-group-mapper
+              config:
+                syncMode: FORCE
+                github.org: "{{ github_org }}"
+                keycloak.group: org-members
+            validate_certs: "{{ keycloak_validate_certs }}"
+            status_code: [201, 409]
           loop:
             - sso
             - master
@@ -400,16 +419,22 @@
           no_log: true
 
         - name: Ensure GitLab username mapper
-          community.general.keycloak_identity_provider_mapper:
-            <<: *kc_auth
-            realm: "{{ realm }}"
-            idp_alias: gitlab
-            name: gitlab-username
-            mapper_type: oidc-username-idp-mapper
-            config:
-              syncMode: INHERIT
-              template: "${CLAIM.preferred_username}"
-            state: present
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ realm }}/identity-provider/instances/gitlab/mappers"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ _kc_token.json.access_token }}"
+              Content-Type: application/json
+            body_format: json
+            body:
+              name: gitlab-username
+              identityProviderAlias: gitlab
+              identityProviderMapper: oidc-username-idp-mapper
+              config:
+                syncMode: INHERIT
+                template: "${CLAIM.preferred_username}"
+            validate_certs: "{{ keycloak_validate_certs }}"
+            status_code: [201, 409]
 
     # ── Master Realm Config ────────────────────────────────────────
     - name: Ensure admins group in master realm
