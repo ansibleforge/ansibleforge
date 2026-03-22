@@ -106,6 +106,7 @@ components:
     syncWave: "1"
     name: aap
     path: ocp/gitops/aap
+    retry: true
     syncOptions:
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
