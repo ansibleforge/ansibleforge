@@ -73,6 +73,10 @@ components:
       - SkipDryRunOnMissingResource=true
       - RespectIgnoreDifferences=true
     ignoreDifferences:
+      - group: ""
+        kind: Secret
+        jqPathExpressions:
+          - .data
       - group: external-secrets.io
         kind: ExternalSecret
         jqPathExpressions:
