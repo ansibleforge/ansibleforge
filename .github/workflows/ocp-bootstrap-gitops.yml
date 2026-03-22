@@ -145,6 +145,21 @@ jobs:
             --from-literal=password="${RHSM_PASSWORD}" \
             --dry-run=client -o yaml | oc apply -f -
 
+      - name: Discover cluster domain and Route53 zone
+        run: |
+          CLUSTER_DOMAIN=$(oc get ingress.config.openshift.io cluster -o jsonpath='{.spec.domain}')
+          echo "CLUSTER_DOMAIN=${CLUSTER_DOMAIN}" >> "$GITHUB_ENV"
+
+          ZONE_NAME="${{ inputs.cluster_name }}.${{ inputs.base_domain }}."
+          HOSTED_ZONE_ID=$(aws route53 list-hosted-zones-by-name \
+            --dns-name "$ZONE_NAME" \
+            --query "HostedZones[?Name=='${ZONE_NAME}'] | [0].Id" \
+            --output text | sed 's|/hostedzone/||')
+          echo "HOSTED_ZONE_ID=${HOSTED_ZONE_ID}" >> "$GITHUB_ENV"
+
+          echo "Cluster domain: ${CLUSTER_DOMAIN}"
+          echo "Route53 zone: ${HOSTED_ZONE_ID}"
+
       - name: Create bootstrap Application
         run: |
           cat <<EOF | oc apply -f -
@@ -159,6 +174,18 @@ jobs:
               repoURL: ${{ inputs.gitops_repo_url }}
               targetRevision: ${{ inputs.gitops_repo_branch }}
               path: ocp/gitops/bootstrap
+              helm:
+                valueFiles:
+                  - values-aws.yaml
+                parameters:
+                  - name: clusterDomain
+                    value: "${CLUSTER_DOMAIN}"
+                  - name: clusterName
+                    value: "${{ inputs.cluster_name }}"
+                  - name: "components.ingress-certs.helm.parameters[0].name"
+                    value: route53.hostedZoneID
+                  - name: "components.ingress-certs.helm.parameters[0].value"
+                    value: "${HOSTED_ZONE_ID}"
             destination:
               server: https://kubernetes.default.svc
             syncPolicy:
