@@ -1,9 +1,9 @@
 git
-python3-pip
-python3-setuptools
+python3.11-pip
+python3.11-setuptools
 systemd-devel
 openldap-devel
 gcc
 gcc-c++
-python3-devel
+python3.11-devel
 terraform

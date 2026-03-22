@@ -15,18 +15,21 @@ dependencies:
       - openshift-clients
   system:
     - git
-    - python3-pip
-    - python3-setuptools
+    - python3.11-pip
+    - python3.11-setuptools
     - systemd-devel
     - openldap-devel
     - gcc
     - gcc-c++
-    - python3-devel
+    - python3.11-devel
     - terraform
 additional_build_files:
   - src: hashicorp.repo
     dest: configs
 additional_build_steps:
+  prepend_base:
+    - ARG PYCMD=/usr/bin/python3.11
+    - RUN dnf install -y python3.11 python3.11-pip python3.11-devel && ln -sf /usr/bin/python3.11 /usr/bin/python3 && dnf clean all
   prepend_galaxy:
     - RUN dnf install -y git && dnf clean all
   prepend_builder:
