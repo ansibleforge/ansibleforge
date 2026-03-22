@@ -101,6 +101,18 @@ jobs:
             name: cluster-admin
           EOF
 
+      - name: Create secrets namespace and push secrets
+        env:
+          RHSM_USERNAME: ${{ secrets.RHSM_USERNAME }}
+          RHSM_PASSWORD: ${{ secrets.RHSM_PASSWORD }}
+        run: |
+          oc create namespace secrets --dry-run=client -o yaml | oc apply -f -
+          oc create secret generic rhsm-credentials \
+            --namespace=secrets \
+            --from-literal=username="${RHSM_USERNAME}" \
+            --from-literal=password="${RHSM_PASSWORD}" \
+            --dry-run=client -o yaml | oc apply -f -
+
       - name: Run bootstrap Job
         env:
           REPO_URL: ${{ inputs.gitops_repo_url }}
