@@ -6,6 +6,7 @@ on:
     paths:
       - "containers/ee-community-ansibleforge/**"
       - "containers/tools-community-ansibleforge/**"
+      - "keycloak-extensions/github-org-mapper/**"
       - ".github/workflows/container-build.yml"
   workflow_dispatch:
     inputs:
@@ -16,6 +17,7 @@ on:
         options:
           - ee-community-ansibleforge
           - tools-community-ansibleforge
+          - keycloak-github-org-mapper
           - all
 
 permissions:
@@ -33,6 +35,7 @@ jobs:
     outputs:
       ee-community-ansibleforge: ${{ steps.changes.outputs.ee-community-ansibleforge }}
       tools-community-ansibleforge: ${{ steps.changes.outputs.tools-community-ansibleforge }}
+      keycloak-github-org-mapper: ${{ steps.changes.outputs.keycloak-github-org-mapper }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -43,6 +46,8 @@ jobs:
               - 'containers/ee-community-ansibleforge/**'
             tools-community-ansibleforge:
               - 'containers/tools-community-ansibleforge/**'
+            keycloak-github-org-mapper:
+              - 'keycloak-extensions/github-org-mapper/**'
 
   build-ee-community-ansibleforge:
     runs-on: ubuntu-latest
@@ -106,3 +111,41 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/tools-community-ansibleforge:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/tools-community-ansibleforge:${{ github.sha }}
+
+  build-keycloak-github-org-mapper:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: >-
+      always() && !failure() && (
+        github.event_name == 'workflow_dispatch' && (inputs.image == 'keycloak-github-org-mapper' || inputs.image == 'all') ||
+        github.event_name == 'push' && needs.detect-changes.outputs.keycloak-github-org-mapper == 'true'
+      )
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Maven build
+        working-directory: keycloak-extensions/github-org-mapper
+        run: mvn -B clean package -DskipTests
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push keycloak-github-org-mapper
+        uses: docker/build-push-action@v5
+        with:
+          context: keycloak-extensions/github-org-mapper
+          file: keycloak-extensions/github-org-mapper/Containerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/keycloak-github-org-mapper:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/keycloak-github-org-mapper:${{ github.sha }}

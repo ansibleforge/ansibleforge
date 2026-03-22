@@ -38,7 +38,7 @@ spec:
       spec:
         initContainers:
           - name: load-providers
-            image: image-registry.openshift-image-registry.svc:5000/{{ .Values.namespace }}/keycloak-github-org-mapper:latest
+            image: ghcr.io/hfenner/keycloak-github-org-mapper:latest
             command:
               - cp
               - /opt/keycloak-providers/keycloak-github-org-mapper.jar
