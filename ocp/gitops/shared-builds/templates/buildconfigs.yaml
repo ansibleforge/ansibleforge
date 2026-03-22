@@ -75,3 +75,51 @@ spec:
       name: ee-ansibleforge:latest
   triggers:
   - type: ConfigChange
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: bc-ee-community-ansibleforge
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  source:
+    git:
+      uri: {{ .Values.sourceRepo }}
+      ref: {{ .Values.sourceRevision }}
+    contextDir: containers/ee-community-ansibleforge/context
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: ee-community-ansibleforge:latest
+  triggers:
+  - type: ConfigChange
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: bc-tools-community-ansibleforge
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  source:
+    git:
+      uri: {{ .Values.sourceRepo }}
+      ref: {{ .Values.sourceRevision }}
+    contextDir: containers/tools-community-ansibleforge
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: tools-community-ansibleforge:latest
+  triggers:
+  - type: ConfigChange
