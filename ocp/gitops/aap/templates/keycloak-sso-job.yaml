@@ -454,6 +454,13 @@ spec:
               ")
               EE_ID=$(ensure_resource "execution_environments" "Community EE" "$EE_PAYLOAD" | tail -1)
 
+              # Ensure the EE image is up to date (patch in case it was created with a different image)
+              curl -sk -X PATCH -u "admin:$AAP_ADMIN_PASSWORD" \
+                "$AAP_URL/api/controller/v2/execution_environments/$EE_ID/" \
+                -H "Content-Type: application/json" \
+                -d '{"image":"image-registry.openshift-image-registry.svc:5000/shared-builds/ee-ansibleforge:latest"}' > /dev/null 2>&1
+              echo "Ensured EE image is ee-ansibleforge"
+
               echo "=== CaC Dispatch job template ==="
 
               # Create the dispatch job template

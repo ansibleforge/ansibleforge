@@ -3,7 +3,7 @@ samples:
   - name: ansibleforge
     displayName: AnsibleForge
     description: GitOps-driven Ansible development environment with community tooling
-    icon: https://hfenner.github.io/ansibleforge/redflame-transparent.png
+    icon: https://avatars.githubusercontent.com/u/1507452?s=200
     tags:
       - Ansible
       - OpenShift
