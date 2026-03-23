@@ -88,13 +88,6 @@ resource "aws_instance" "client" {
   key_name               = var.key_pair_name != "" ? var.key_pair_name : null
   user_data              = local.userdata
 
-  instance_market_options {
-    market_type = "spot"
-    spot_options {
-      spot_instance_type = "one-time"
-    }
-  }
-
   root_block_device {
     volume_size = 40
     volume_type = "gp3"
