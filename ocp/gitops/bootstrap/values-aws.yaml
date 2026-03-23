@@ -119,6 +119,10 @@ components:
       - ServerSideApply=true
       - RespectIgnoreDifferences=true
     ignoreDifferences:
+      - group: ""
+        kind: Secret
+        jqPathExpressions:
+          - .data
       - group: apps
         kind: StatefulSet
         jqPathExpressions:
