@@ -5,13 +5,25 @@ controller_credentials:
     credential_type: Machine
     inputs:
       username: Administrator
-      password: "{{ lookup('hashi_vault', 'secret=secret/data/sccm-lab:admin_password') }}"
+    input_sources:
+      - source_credential: Vault Lookup
+        target: password
+        metadata:
+          secret_path: "secret/sccm-lab"
+          secret_key: "admin_password"
+          secret_version: ""
     description: "Local admin for SCCM lab Windows hosts"
 
   - name: "SCCM Lab - Domain Admin"
     organization: Default
     credential_type: Machine
     inputs:
-      username: SCCMLAB\Administrator
-      password: "{{ lookup('hashi_vault', 'secret=secret/data/sccm-lab:admin_password') }}"
+      username: "SCCMLAB\\Administrator"
+    input_sources:
+      - source_credential: Vault Lookup
+        target: password
+        metadata:
+          secret_path: "secret/sccm-lab"
+          secret_key: "admin_password"
+          secret_version: ""
     description: "Domain admin for SCCM lab"
