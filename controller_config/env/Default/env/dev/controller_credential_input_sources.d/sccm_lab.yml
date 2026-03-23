@@ -1,0 +1,16 @@
+---
+controller_credential_input_sources:
+  - source_credential: Vault Lookup
+    target_credential: "SCCM Lab - Windows Admin"
+    input_field_name: password
+    metadata:
+      secret_path: "secret/sccm-lab"
+      secret_key: "admin_password"
+      secret_version: ""
+  - source_credential: Vault Lookup
+    target_credential: "SCCM Lab - Domain Admin"
+    input_field_name: password
+    metadata:
+      secret_path: "secret/sccm-lab"
+      secret_key: "admin_password"
+      secret_version: ""

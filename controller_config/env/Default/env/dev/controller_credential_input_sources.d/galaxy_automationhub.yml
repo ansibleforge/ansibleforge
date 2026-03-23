@@ -1,0 +1,16 @@
+---
+controller_credential_input_sources:
+  - source_credential: Vault Lookup
+    target_credential: "Automation Hub - Certified"
+    input_field_name: token
+    metadata:
+      secret_path: "secret/ansible"
+      secret_key: "automationhub_token"
+      secret_version: ""
+  - source_credential: Vault Lookup
+    target_credential: "Automation Hub - Validated"
+    input_field_name: token
+    metadata:
+      secret_path: "secret/ansible"
+      secret_key: "automationhub_token"
+      secret_version: ""
