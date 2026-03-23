@@ -441,6 +441,19 @@ spec:
                 echo "WARNING: Could not create AAP Controller Admin credential (missing cred type or Vault Lookup)"
               fi
 
+              echo "=== Community EE ==="
+
+              EE_PAYLOAD=$(python3 -c "
+              import json
+              print(json.dumps({
+                  'name': 'Community EE',
+                  'organization': 1,
+                  'image': 'image-registry.openshift-image-registry.svc:5000/shared-builds/ee-community-ansibleforge:latest',
+                  'pull': 'missing'
+              }))
+              ")
+              EE_ID=$(ensure_resource "execution_environments" "Community EE" "$EE_PAYLOAD" | tail -1)
+
               echo "=== CaC Dispatch job template ==="
 
               # Create the dispatch job template
@@ -453,6 +466,7 @@ spec:
                   'project': $PROJECT_ID,
                   'playbook': 'controller_config/dispatch.yml',
                   'inventory': $INV_ID,
+                  'execution_environment': $EE_ID,
                   'ask_variables_on_launch': True,
                   'extra_vars': json.dumps({
                       'cluster_domain': '{{ $clusterDomain }}'
