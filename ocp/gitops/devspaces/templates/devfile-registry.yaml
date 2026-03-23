@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devfile-registry
+  namespace: openshift-devspaces
+  labels:
+    app: devfile-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devfile-registry
+  template:
+    metadata:
+      labels:
+        app: devfile-registry
+    spec:
+      containers:
+        - name: devfile-registry
+          image: ghcr.io/hfenner/devfile-registry:latest
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devfile-registry
+  namespace: openshift-devspaces
+  labels:
+    app: devfile-registry
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: devfile-registry
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: devfile-registry
+  namespace: openshift-devspaces
+spec:
+  to:
+    kind: Service
+    name: devfile-registry
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

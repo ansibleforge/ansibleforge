@@ -1,0 +1,21 @@
+schemaVersion: 2.2.0
+samples:
+  - name: ansibleforge
+    displayName: AnsibleForge
+    description: GitOps-driven Ansible development environment with community tooling
+    icon: https://hfenner.github.io/ansibleforge/redflame-transparent.png
+    tags:
+      - Ansible
+      - OpenShift
+      - GitOps
+      - Terraform
+    projectType: ansible
+    language: YAML
+    versions:
+      - version: 1.0.0
+        schemaVersion: 2.2.2
+        default: true
+        description: AnsibleForge development workspace
+        git:
+          remotes:
+            origin: https://github.com/hfenner/ansibleforge.git
