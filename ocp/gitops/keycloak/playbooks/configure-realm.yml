@@ -285,6 +285,21 @@
         state: present
       no_log: true
 
+    - name: Refresh admin token
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/realms/master/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          client_id: admin-cli
+          username: "{{ keycloak_admin_user }}"
+          password: "{{ keycloak_admin_pass }}"
+          grant_type: password
+        validate_certs: "{{ keycloak_validate_certs }}"
+        status_code: 200
+      register: _kc_token
+      no_log: true
+
     # ── GitHub IDP (conditional) ───────────────────────────────────
     - name: Configure GitHub IDP
       when: github_broker
@@ -480,6 +495,21 @@
         validate_certs: "{{ keycloak_validate_certs }}"
         status_code: [204, 409]
       failed_when: false
+
+    - name: Refresh admin token
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/realms/master/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          client_id: admin-cli
+          username: "{{ keycloak_admin_user }}"
+          password: "{{ keycloak_admin_pass }}"
+          grant_type: password
+        validate_certs: "{{ keycloak_validate_certs }}"
+        status_code: 200
+      register: _kc_token
+      no_log: true
 
     # ── AWS SAML (conditional) ─────────────────────────────────────
     - name: Configure AWS SAML federation
