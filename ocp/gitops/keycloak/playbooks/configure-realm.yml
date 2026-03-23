@@ -767,6 +767,42 @@
             clientSecret: "{{ lookup('env', 'OCP_CLIENT_SECRET') }}"
       no_log: true
 
+    - name: Copy GitLab OIDC config to gitlab-system namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: gitlab-keycloak-oidc
+            namespace: gitlab-system
+          type: Opaque
+          stringData:
+            provider: |
+              name: openid_connect
+              label: Keycloak
+              args:
+                name: openid_connect
+                scope:
+                  - openid
+                  - profile
+                  - email
+                  - groups
+                response_type: code
+                issuer: https://keycloak.{{ cluster_domain }}/realms/sso
+                discovery: true
+                pkce: true
+                client_auth_method: basic
+                client_options:
+                  identifier: gitlab
+                  secret: {{ lookup('env', 'GITLAB_CLIENT_SECRET') }}
+                  redirect_uri: https://gitlab.{{ cluster_domain }}/users/auth/openid_connect/callback
+                  gitlab:
+                    groups_attribute: groups
+                    admin_groups:
+                      - admins
+      no_log: true
+
     - name: Copy RHDH client secret to rhdh namespace
       kubernetes.core.k8s:
         state: present
