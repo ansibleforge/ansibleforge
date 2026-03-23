@@ -707,7 +707,21 @@
                   attribute.value: "arn:aws:iam::{{ aws_account_id }}:role/KeycloakAdminAccess,arn:aws:iam::{{ aws_account_id }}:saml-provider/keycloak-sso"
             state: present
 
-    # ── Cross-Namespace Secret Copy ────────────────────────────────
+    # ── Cross-Namespace Secret Distribution ─────────────────────────
+    - name: Copy OCP client secret to openshift-config namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: keycloak-oidc-secret
+            namespace: openshift-config
+          type: Opaque
+          stringData:
+            clientSecret: "{{ lookup('env', 'OCP_CLIENT_SECRET') }}"
+      no_log: true
+
     - name: Copy RHDH client secret to rhdh namespace
       kubernetes.core.k8s:
         state: present
