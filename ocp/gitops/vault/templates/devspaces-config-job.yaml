@@ -152,7 +152,12 @@ spec:
                   local vault_data
                   vault_data=$(echo "${secret_json}" \
                     | python3 -c 'import json,sys,base64; d=json.load(sys.stdin)["data"]; print(json.dumps({k: base64.b64decode(v).decode() for k,v in d.items()}))')
-                  init_secret "${vault_path}" "${vault_data}"
+                  curl -sf -X POST \
+                    -H "X-Vault-Token: ${VAULT_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"data\":${vault_data}}" \
+                    "${VAULT_ADDR}/v1/secret/data/${vault_path}" > /dev/null
+                  echo "secret/data/${vault_path} updated from k8s secret secrets/${k8s_secret}"
                 else
                   echo "WARNING: k8s secret secrets/${k8s_secret} not found, skipping"
                 fi
