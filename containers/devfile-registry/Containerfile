@@ -13,5 +13,4 @@ RUN /registry-support/build-tools/build.sh /registry /build
 
 FROM quay.io/devfile/devfile-index-base:next
 
-COPY --from=builder /build/index.json /index.json
-COPY --from=builder /build/stacks /stacks
+COPY --from=builder /build /registry
