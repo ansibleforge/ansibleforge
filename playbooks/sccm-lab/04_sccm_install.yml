@@ -5,7 +5,7 @@
 
   vars:
     sccm_media_bucket: ansibleforge-tfstate
-    sccm_media_key: media/SCCM_Eval.exe
+    sccm_media_key: media/ConfigMgr_2509.exe
 
   tasks:
     - name: Create SCCM install directory
@@ -15,13 +15,13 @@
 
     - name: Download SCCM eval from S3
       ansible.windows.win_shell: |
-        Read-S3Object -BucketName {{ sccm_media_bucket }} -Key {{ sccm_media_key }} -File C:\SCCMInstall\SCCM_Eval.exe
+        Read-S3Object -BucketName {{ sccm_media_bucket }} -Key {{ sccm_media_key }} -File C:\SCCMInstall\ConfigMgr_2509.exe
       args:
-        creates: C:\SCCMInstall\SCCM_Eval.exe
+        creates: C:\SCCMInstall\ConfigMgr_2509.exe
 
     - name: Extract SCCM media
       ansible.windows.win_shell: |
-        Start-Process -FilePath C:\SCCMInstall\SCCM_Eval.exe -ArgumentList "/auto", "C:\SCCMInstall\Media" -Wait -NoNewWindow
+        Start-Process -FilePath C:\SCCMInstall\ConfigMgr_2509.exe -ArgumentList "/auto", "C:\SCCMInstall\Media" -Wait -NoNewWindow
       args:
         creates: C:\SCCMInstall\Media\SMSSETUP\BIN\X64\setup.exe
 
