@@ -515,6 +515,21 @@
     - name: Configure AWS SAML federation
       when: aws_saml and aws_account_id | length > 0
       block:
+        - name: Refresh admin token for AWS SAML tasks
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/realms/master/protocol/openid-connect/token"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              client_id: admin-cli
+              username: "{{ keycloak_admin_user }}"
+              password: "{{ keycloak_admin_pass }}"
+              grant_type: password
+            validate_certs: "{{ keycloak_validate_certs }}"
+            status_code: 200
+          register: _kc_token
+          no_log: true
+
         - name: Check if aws-admin-browser flow exists
           ansible.builtin.uri:
             url: "{{ keycloak_url }}/admin/realms/{{ realm }}/authentication/flows"
