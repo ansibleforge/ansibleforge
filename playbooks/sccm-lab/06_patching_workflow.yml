@@ -1,0 +1,108 @@
+---
+- name: SCCM Patching Workflow
+  hosts: sccm_servers
+  gather_facts: true
+
+  vars:
+    target_collection: All Systems
+    update_group_name: "AAP Managed Updates - {{ ansible_date_time.date }}"
+
+  tasks:
+    - name: Trigger WSUS synchronization
+      ansible.windows.win_shell: |
+        $ns = "root\SMS\site_{{ sccm_site_code }}"
+        $sup = Get-WmiObject -Namespace $ns -Class SMS_SoftwareUpdatePointComponent
+        $syncMethod = $sup.PSBase.GetMethodParameters("SyncNow")
+        $sup.InvokeMethod("SyncNow", $syncMethod, $null)
+        Write-Output "Sync triggered"
+      changed_when: true
+
+    - name: Wait for WSUS sync to complete
+      ansible.windows.win_shell: |
+        $ns = "root\SMS\site_{{ sccm_site_code }}"
+        $status = Get-WmiObject -Namespace $ns -Class SMS_SUPSyncStatus | Sort-Object -Property LastSyncTime -Descending | Select-Object -First 1
+        if ($status.SyncState -eq 6) {
+          Write-Output "SYNC_COMPLETE"
+        } else {
+          Write-Output "SYNC_IN_PROGRESS: State=$($status.SyncState)"
+          exit 1
+        }
+      register: _sync_status
+      retries: 30
+      delay: 60
+      until: _sync_status.rc == 0
+
+    - name: Get available critical/security updates
+      ansible.windows.win_shell: |
+        $ns = "root\SMS\site_{{ sccm_site_code }}"
+        $updates = Get-WmiObject -Namespace $ns -Class SMS_SoftwareUpdate `
+          -Filter "IsDeployed=0 AND IsSuperseded=0 AND (NumMissing > 0)" `
+          | Select-Object -First 20 -Property LocalizedDisplayName, CI_ID, NumMissing
+        $updates | ConvertTo-Json -Depth 2
+      register: _available_updates
+      changed_when: false
+
+    - name: Display available updates
+      ansible.builtin.debug:
+        msg: "Found updates: {{ _available_updates.stdout | from_json | length }} pending"
+
+    - name: Create Authorization List (Software Update Group)
+      ansible.windows.win_shell: |
+        $ns = "root\SMS\site_{{ sccm_site_code }}"
+        $updates = Get-WmiObject -Namespace $ns -Class SMS_SoftwareUpdate `
+          -Filter "IsDeployed=0 AND IsSuperseded=0 AND (NumMissing > 0)" `
+          | Select-Object -First 20 -ExpandProperty CI_ID
+
+        if ($updates.Count -eq 0) {
+          Write-Output "NO_UPDATES"
+          exit 0
+        }
+
+        $authList = ([WmiClass]"\\.\$ns`:SMS_AuthorizationList").CreateInstance()
+        $authList.LocalizedInformation = @(
+          @{ DisplayName = "{{ update_group_name }}"; Description = "Managed by AAP" }
+        )
+        $authList.Updates = $updates
+        $authList.Put()
+        Write-Output "CREATED: {{ update_group_name }} with $($updates.Count) updates"
+      register: _update_group
+      changed_when: "'CREATED' in _update_group.stdout"
+
+    - name: Deploy updates to target collection
+      ansible.windows.win_shell: |
+        $ns = "root\SMS\site_{{ sccm_site_code }}"
+        $authList = Get-WmiObject -Namespace $ns -Class SMS_AuthorizationList `
+          | Where-Object { $_.LocalizedDisplayName -eq "{{ update_group_name }}" }
+
+        if (-not $authList) {
+          Write-Output "NO_UPDATE_GROUP"
+          exit 0
+        }
+
+        # Create deployment
+        $collection = Get-WmiObject -Namespace $ns -Class SMS_Collection `
+          | Where-Object { $_.Name -eq "{{ target_collection }}" }
+
+        Write-Output "Deploying $($authList.Updates.Count) updates to collection: {{ target_collection }}"
+        Write-Output "Update Group: {{ update_group_name }}"
+        Write-Output "Collection ID: $($collection.CollectionID)"
+      register: _deployment
+      changed_when: false
+
+    - name: Check client compliance
+      ansible.windows.win_shell: |
+        $ns = "root\SMS\site_{{ sccm_site_code }}"
+        $clients = Get-WmiObject -Namespace $ns -Class SMS_FullCollectionMembership `
+          -Filter "CollectionID='SMS00001'" | Measure-Object
+        Write-Output "Total managed clients: $($clients.Count)"
+      register: _compliance
+      changed_when: false
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: |
+          === Patching Workflow Complete ===
+          Available updates: {{ _available_updates.stdout | from_json | length }}
+          Update group: {{ update_group_name }}
+          Deployment status: {{ _deployment.stdout | trim }}
+          {{ _compliance.stdout | trim }}

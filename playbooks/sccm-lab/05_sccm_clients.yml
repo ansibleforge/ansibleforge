@@ -1,0 +1,66 @@
+---
+- name: Configure SCCM Client Machines
+  hosts: sccm_clients
+  gather_facts: true
+
+  tasks:
+    - name: Wait for WinRM
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+
+    - name: Set hostname
+      ansible.windows.win_hostname:
+        name: "{{ inventory_hostname }}"
+      register: _hostname
+
+    - name: Set DNS to domain controller
+      ansible.windows.win_dns_client:
+        adapter_names: "*"
+        dns_servers:
+          - "{{ dc_private_ip }}"
+
+    - name: Reboot after hostname/DNS change
+      ansible.windows.win_reboot:
+      when: _hostname.reboot_required
+
+    - name: Join domain
+      microsoft.ad.membership:
+        dns_domain_name: "{{ domain_name }}"
+        domain_admin_user: "{{ domain_netbios }}\\Administrator"
+        domain_admin_password: "{{ ansible_password }}"
+        hostname: "{{ inventory_hostname }}"
+        ou_path: "OU=Clients,DC={{ domain_name.split('.') | join(',DC=') }}"
+        state: domain
+        reboot: true
+
+    - name: Wait after domain join
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+        delay: 15
+
+    - name: Install SCCM client
+      ansible.windows.win_shell: |
+        $ccmsetup = "\\\\SCCM01.{{ domain_name }}\SMS_{{ sccm_site_code }}\Client\ccmsetup.exe"
+        if (Test-Path $ccmsetup) {
+          Start-Process -FilePath $ccmsetup -ArgumentList "/mp:SCCM01.{{ domain_name }}", "SMSSITECODE={{ sccm_site_code }}" -Wait -NoNewWindow
+          Write-Output "INSTALLED"
+        } else {
+          Write-Output "CCMSETUP_NOT_FOUND"
+        }
+      register: _ccm_install
+      changed_when: "'INSTALLED' in _ccm_install.stdout"
+      failed_when: "'CCMSETUP_NOT_FOUND' in _ccm_install.stdout"
+
+    - name: Wait for SCCM client to register
+      ansible.windows.win_shell: |
+        $client = Get-WmiObject -Namespace "root\ccm" -Class SMS_Client -ErrorAction SilentlyContinue
+        if ($client) {
+          Write-Output "SiteCode: $($client.GetAssignedSite().sSiteCode)"
+        } else {
+          Write-Output "NOT_REGISTERED"
+          exit 1
+        }
+      register: _client_check
+      retries: 20
+      delay: 30
+      until: _client_check.rc == 0

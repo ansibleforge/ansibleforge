@@ -1,0 +1,17 @@
+---
+controller_credentials:
+  - name: "SCCM Lab - Windows Admin"
+    organization: Default
+    credential_type: Machine
+    inputs:
+      username: Administrator
+      password: "{{ lookup('hashi_vault', 'secret=secret/data/sccm-lab:admin_password') }}"
+    description: "Local admin for SCCM lab Windows hosts"
+
+  - name: "SCCM Lab - Domain Admin"
+    organization: Default
+    credential_type: Machine
+    inputs:
+      username: SCCMLAB\Administrator
+      password: "{{ lookup('hashi_vault', 'secret=secret/data/sccm-lab:admin_password') }}"
+    description: "Domain admin for SCCM lab"

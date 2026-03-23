@@ -1,0 +1,29 @@
+---
+controller_workflows:
+  - name: "SCCM Lab - Full Build"
+    organization: Default
+    description: "Provision AWS infra, then configure DC -> SQL -> SCCM -> Clients"
+    ask_variables_on_launch: true
+    simplified_workflow_nodes:
+      - identifier: provision
+        unified_job_template: "SCCM Lab - Provision Infrastructure"
+        success_nodes:
+          - dc
+      - identifier: dc
+        unified_job_template: "SCCM Lab - Configure DC"
+        success_nodes:
+          - sql
+      - identifier: sql
+        unified_job_template: "SCCM Lab - Configure SQL"
+        success_nodes:
+          - sccm_prereqs
+      - identifier: sccm_prereqs
+        unified_job_template: "SCCM Lab - SCCM Prerequisites"
+        success_nodes:
+          - sccm_install
+      - identifier: sccm_install
+        unified_job_template: "SCCM Lab - Install SCCM"
+        success_nodes:
+          - clients
+      - identifier: clients
+        unified_job_template: "SCCM Lab - Configure Clients"

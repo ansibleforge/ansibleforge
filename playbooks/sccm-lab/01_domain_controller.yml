@@ -1,0 +1,88 @@
+---
+- name: Configure Active Directory Domain Controller
+  hosts: domain_controllers
+  gather_facts: true
+
+  tasks:
+    - name: Wait for WinRM
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+
+    - name: Set hostname
+      ansible.windows.win_hostname:
+        name: "{{ inventory_hostname }}"
+      register: _hostname
+
+    - name: Reboot after hostname change
+      ansible.windows.win_reboot:
+      when: _hostname.reboot_required
+
+    - name: Install AD DS and DNS features
+      ansible.windows.win_feature:
+        name:
+          - AD-Domain-Services
+          - DNS
+          - RSAT-AD-Tools
+          - RSAT-DNS-Server
+        include_management_tools: true
+        state: present
+
+    - name: Create AD forest
+      microsoft.ad.domain:
+        dns_domain_name: "{{ domain_name }}"
+        domain_netbios_name: "{{ domain_netbios }}"
+        safe_mode_password: "{{ ansible_password }}"
+        install_dns: true
+        reboot: true
+      register: _domain
+
+    - name: Wait for AD services after promotion
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+        delay: 30
+
+    - name: Configure DNS forwarders
+      ansible.windows.win_shell: |
+        Set-DnsServerForwarder -IPAddress "10.0.0.2" -PassThru
+      changed_when: false
+
+    - name: Create OUs
+      microsoft.ad.ou:
+        name: "{{ item }}"
+        path: "DC={{ domain_name.split('.') | join(',DC=') }}"
+        state: present
+      loop:
+        - Servers
+        - Clients
+        - ServiceAccounts
+
+    - name: Create SQL service account
+      microsoft.ad.user:
+        name: svc_sql
+        password: "{{ ansible_password }}"
+        path: "OU=ServiceAccounts,DC={{ domain_name.split('.') | join(',DC=') }}"
+        state: present
+        password_never_expires: true
+        user_cannot_change_password: true
+
+    - name: Create SCCM network access account
+      microsoft.ad.user:
+        name: svc_sccm_naa
+        password: "{{ ansible_password }}"
+        path: "OU=ServiceAccounts,DC={{ domain_name.split('.') | join(',DC=') }}"
+        state: present
+        password_never_expires: true
+        user_cannot_change_password: true
+
+    - name: Create System Management container for SCCM
+      ansible.windows.win_shell: |
+        $root = (Get-ADRootDSE).defaultNamingContext
+        $container = "CN=System Management,CN=System,$root"
+        if (-not [ADSI]::Exists("LDAP://$container")) {
+          New-ADObject -Type Container -Name "System Management" -Path "CN=System,$root"
+          Write-Output "CREATED"
+        } else {
+          Write-Output "EXISTS"
+        }
+      register: _sysm
+      changed_when: "'CREATED' in _sysm.stdout"

@@ -1,0 +1,117 @@
+---
+- name: Install SCCM Site Server
+  hosts: sccm_servers
+  gather_facts: true
+
+  vars:
+    sccm_media_bucket: ansibleforge-tfstate
+    sccm_media_key: media/SCCM_Eval.exe
+
+  tasks:
+    - name: Create SCCM install directory
+      ansible.windows.win_file:
+        path: C:\SCCMInstall
+        state: directory
+
+    - name: Download SCCM eval from S3
+      ansible.windows.win_shell: |
+        Read-S3Object -BucketName {{ sccm_media_bucket }} -Key {{ sccm_media_key }} -File C:\SCCMInstall\SCCM_Eval.exe
+      args:
+        creates: C:\SCCMInstall\SCCM_Eval.exe
+
+    - name: Extract SCCM media
+      ansible.windows.win_shell: |
+        Start-Process -FilePath C:\SCCMInstall\SCCM_Eval.exe -ArgumentList "/auto", "C:\SCCMInstall\Media" -Wait -NoNewWindow
+      args:
+        creates: C:\SCCMInstall\Media\SMSSETUP\BIN\X64\setup.exe
+
+    - name: Extend AD schema for SCCM
+      ansible.windows.win_shell: |
+        Start-Process -FilePath C:\SCCMInstall\Media\SMSSETUP\BIN\X64\extadsch.exe -Wait -NoNewWindow
+      args:
+        creates: C:\ExtADSch.log
+
+    - name: Create SCCM setup INI
+      ansible.windows.win_copy:
+        content: |
+          [Identification]
+          Action=InstallPrimarySite
+
+          [Options]
+          ProductID=EVAL
+          SiteCode={{ sccm_site_code }}
+          SiteName={{ sccm_site_name }}
+          SMSInstallDir=C:\Program Files\Microsoft Configuration Manager
+          SDKServer={{ inventory_hostname }}.{{ domain_name }}
+          RoleCommunicationProtocol=HTTPorHTTPS
+          ClientsUsePKICertificate=0
+          PrerequisiteComp=1
+          PrerequisitePath=C:\SCCMInstall\Downloads
+          AdminConsole=1
+          JoinCEIP=0
+
+          [SQLConfigOptions]
+          SQLServerName=SQL01.{{ domain_name }}
+          DatabaseName=CM_{{ sccm_site_code }}
+          SQLSSBPort=4022
+
+          [CloudConnectorOptions]
+          CloudConnector=0
+
+          [HierarchyExpansionOption]
+        dest: C:\SCCMInstall\setup.ini
+
+    - name: Download SCCM prerequisites
+      ansible.windows.win_file:
+        path: C:\SCCMInstall\Downloads
+        state: directory
+
+    - name: Run SCCM prerequisite downloader
+      ansible.windows.win_shell: |
+        Start-Process -FilePath C:\SCCMInstall\Media\SMSSETUP\BIN\X64\setupdl.exe -ArgumentList "/NoUI", "C:\SCCMInstall\Downloads" -Wait -NoNewWindow
+      args:
+        creates: C:\SCCMInstall\Downloads\Redist
+
+    - name: Install SCCM (this takes 30+ minutes)
+      ansible.windows.win_shell: |
+        $proc = Start-Process -FilePath C:\SCCMInstall\Media\SMSSETUP\BIN\X64\setup.exe `
+          -ArgumentList "/SCRIPT", "C:\SCCMInstall\setup.ini" `
+          -Wait -NoNewWindow -PassThru
+        Write-Output "ExitCode: $($proc.ExitCode)"
+      register: _sccm_install
+      changed_when: "'ExitCode: 0' in _sccm_install.stdout"
+      async: 3600
+      poll: 60
+
+    - name: Wait for SCCM site to be ready
+      ansible.windows.win_shell: |
+        $site = Get-WmiObject -Namespace "root\SMS\site_{{ sccm_site_code }}" -Class SMS_Site
+        Write-Output $site.SiteName
+      register: _site_check
+      retries: 30
+      delay: 30
+      until: _site_check.rc == 0
+
+    - name: Configure boundary (VPC CIDR)
+      ansible.windows.win_shell: |
+        $existing = Get-WmiObject -Namespace "root\SMS\site_{{ sccm_site_code }}" -Class SMS_Boundary `
+          | Where-Object { $_.Value -eq "10.0.0.0/16" }
+        if (-not $existing) {
+          $boundary = ([WmiClass]"\\.\root\SMS\site_{{ sccm_site_code }}:SMS_Boundary").CreateInstance()
+          $boundary.DisplayName = "Lab VPC"
+          $boundary.BoundaryType = 3
+          $boundary.Value = "10.0.0.0/16"
+          $boundary.Put()
+          Write-Output "CREATED"
+        } else {
+          Write-Output "EXISTS"
+        }
+      register: _boundary
+      changed_when: "'CREATED' in _boundary.stdout"
+
+    - name: Enable client push installation
+      ansible.windows.win_shell: |
+        $props = Get-WmiObject -Namespace "root\SMS\site_{{ sccm_site_code }}" -Class SMS_SCI_SCProperty `
+          | Where-Object { $_.ItemName -eq "SMS_DISCOVERY_DATA_MANAGER" -and $_.PropertyName -eq "SETTINGS" }
+        Write-Output "Client push configuration available"
+      changed_when: false

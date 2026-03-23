@@ -1,0 +1,97 @@
+---
+controller_templates:
+  - name: "SCCM Lab - Provision Infrastructure"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/sccm-lab/provision_infra.yml
+    inventory: Localhost
+    execution_environment: "Community EE"
+    ask_variables_on_launch: true
+    extra_vars:
+      terraform_state: present
+      client_count: 2
+
+  - name: "SCCM Lab - Destroy Infrastructure"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/sccm-lab/provision_infra.yml
+    inventory: Localhost
+    execution_environment: "Community EE"
+    extra_vars:
+      terraform_state: absent
+
+  - name: "SCCM Lab - Configure DC"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/sccm-lab/01_domain_controller.yml
+    inventory: "SCCM Lab"
+    execution_environment: "Community EE"
+    credentials:
+      - "SCCM Lab - Windows Admin"
+    limit: domain_controllers
+    ask_variables_on_launch: true
+
+  - name: "SCCM Lab - Configure SQL"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/sccm-lab/02_sql_server.yml
+    inventory: "SCCM Lab"
+    execution_environment: "Community EE"
+    credentials:
+      - "SCCM Lab - Domain Admin"
+    limit: sql_servers
+    ask_variables_on_launch: true
+
+  - name: "SCCM Lab - SCCM Prerequisites"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/sccm-lab/03_sccm_prereqs.yml
+    inventory: "SCCM Lab"
+    execution_environment: "Community EE"
+    credentials:
+      - "SCCM Lab - Domain Admin"
+    limit: sccm_servers
+    ask_variables_on_launch: true
+
+  - name: "SCCM Lab - Install SCCM"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/sccm-lab/04_sccm_install.yml
+    inventory: "SCCM Lab"
+    execution_environment: "Community EE"
+    credentials:
+      - "SCCM Lab - Domain Admin"
+    limit: sccm_servers
+    ask_variables_on_launch: true
+    timeout: 7200
+
+  - name: "SCCM Lab - Configure Clients"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/sccm-lab/05_sccm_clients.yml
+    inventory: "SCCM Lab"
+    execution_environment: "Community EE"
+    credentials:
+      - "SCCM Lab - Domain Admin"
+    limit: sccm_clients
+    ask_variables_on_launch: true
+
+  - name: "SCCM Lab - Patching Workflow"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/sccm-lab/06_patching_workflow.yml
+    inventory: "SCCM Lab"
+    execution_environment: "Community EE"
+    credentials:
+      - "SCCM Lab - Domain Admin"
+    limit: sccm_servers
+    ask_variables_on_launch: true
+    description: "Trigger WSUS sync, create update group, deploy patches"

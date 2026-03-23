@@ -1,0 +1,29 @@
+---
+- name: Provision SCCM Lab Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    terraform_project_path: "{{ playbook_dir }}/../../infra/aws/sccm-lab"
+    terraform_state: present
+    client_count: 2
+
+  tasks:
+    - name: Run Terraform
+      cloud.terraform.terraform:
+        project_path: "{{ terraform_project_path }}"
+        state: "{{ terraform_state }}"
+        force_init: true
+        variables:
+          client_count: "{{ client_count }}"
+      register: _terraform
+
+    - name: Display outputs
+      ansible.builtin.debug:
+        msg: |
+          DC:   {{ _terraform.outputs.dc_public_ip.value }}
+          SQL:  {{ _terraform.outputs.sql_public_ip.value }}
+          SCCM: {{ _terraform.outputs.sccm_public_ip.value }}
+          Clients: {{ _terraform.outputs.client_public_ips.value | join(', ') }}
+      when: terraform_state == 'present'

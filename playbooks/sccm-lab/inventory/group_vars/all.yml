@@ -1,0 +1,17 @@
+---
+ansible_connection: winrm
+ansible_winrm_transport: credssp
+ansible_winrm_server_cert_validation: ignore
+ansible_port: 5986
+
+domain_name: sccmlab.local
+domain_netbios: SCCMLAB
+dc_private_ip: 10.0.1.10
+sccm_site_code: AF1
+sccm_site_name: AnsibleForge Lab
+
+# Override these with vault or extra-vars
+# ansible_user: Administrator
+# ansible_password: <from vault>
+# domain_admin_user: SCCMLAB\Administrator
+# domain_admin_password: <from vault>

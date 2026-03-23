@@ -1,0 +1,102 @@
+---
+- name: Configure SQL Server
+  hosts: sql_servers
+  gather_facts: true
+
+  vars:
+    sql_media_bucket: ansibleforge-tfstate
+    sql_media_key: media/SQLServer2022-DEV-x64-ENU.iso
+
+  tasks:
+    - name: Wait for WinRM
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+
+    - name: Set hostname
+      ansible.windows.win_hostname:
+        name: "{{ inventory_hostname }}"
+      register: _hostname
+
+    - name: Set DNS to domain controller
+      ansible.windows.win_dns_client:
+        adapter_names: "*"
+        dns_servers:
+          - "{{ dc_private_ip }}"
+
+    - name: Reboot after hostname/DNS change
+      ansible.windows.win_reboot:
+      when: _hostname.reboot_required
+
+    - name: Join domain
+      microsoft.ad.membership:
+        dns_domain_name: "{{ domain_name }}"
+        domain_admin_user: "{{ domain_netbios }}\\Administrator"
+        domain_admin_password: "{{ ansible_password }}"
+        hostname: "{{ inventory_hostname }}"
+        ou_path: "OU=Servers,DC={{ domain_name.split('.') | join(',DC=') }}"
+        state: domain
+        reboot: true
+
+    - name: Wait after domain join
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+        delay: 15
+
+    - name: Create SQL install directory
+      ansible.windows.win_file:
+        path: C:\SQLInstall
+        state: directory
+
+    - name: Download SQL Server ISO from S3
+      ansible.windows.win_shell: |
+        Read-S3Object -BucketName {{ sql_media_bucket }} -Key {{ sql_media_key }} -File C:\SQLInstall\sqlserver.iso
+      args:
+        creates: C:\SQLInstall\sqlserver.iso
+
+    - name: Mount SQL ISO
+      ansible.windows.win_shell: |
+        $vol = Mount-DiskImage -ImagePath C:\SQLInstall\sqlserver.iso -PassThru | Get-Volume
+        Write-Output $vol.DriveLetter
+      register: _iso_mount
+      changed_when: false
+
+    - name: Install SQL Server
+      ansible.windows.win_package:
+        path: "{{ _iso_mount.stdout | trim }}:\\setup.exe"
+        arguments:
+          - /Q
+          - /ACTION=Install
+          - /FEATURES=SQLENGINE
+          - /INSTANCENAME=MSSQLSERVER
+          - /SQLSYSADMINACCOUNTS="{{ domain_netbios }}\Domain Admins"
+          - /SQLSVCACCOUNT="{{ domain_netbios }}\svc_sql"
+          - /SQLSVCPASSWORD={{ ansible_password }}
+          - /AGTSVCACCOUNT="{{ domain_netbios }}\svc_sql"
+          - /AGTSVCPASSWORD={{ ansible_password }}
+          - /TCPENABLED=1
+          - /SECURITYMODE=SQL
+          - /SAPWD={{ ansible_password }}
+          - /IACCEPTSQLSERVERLICENSETERMS
+        product_id: '{skip}'
+        expected_return_code: [0, 3010]
+      no_log: true
+
+    - name: Open SQL firewall port
+      community.windows.win_firewall_rule:
+        name: SQL Server
+        localport: 1433
+        protocol: tcp
+        direction: in
+        action: allow
+        state: present
+        enabled: true
+
+    - name: Configure SQL max memory (12GB)
+      ansible.windows.win_shell: |
+        Invoke-Sqlcmd -Query "EXEC sp_configure 'max server memory', 12288; RECONFIGURE;"
+      changed_when: false
+
+    - name: Unmount ISO
+      ansible.windows.win_shell: |
+        Dismount-DiskImage -ImagePath C:\SQLInstall\sqlserver.iso
+      changed_when: false
