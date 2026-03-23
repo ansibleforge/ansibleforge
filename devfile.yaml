@@ -18,6 +18,7 @@ components:
       cpuRequest: 500m
       cpuLimit: 2000m
       mountSources: true
+      command: ['sleep', 'infinity']
       env:
         - name: SHELL
           value: /bin/bash
