@@ -448,7 +448,7 @@ spec:
               print(json.dumps({
                   'name': 'Community EE',
                   'organization': 1,
-                  'image': 'image-registry.openshift-image-registry.svc:5000/shared-builds/ee-community-ansibleforge:latest',
+                  'image': 'image-registry.openshift-image-registry.svc:5000/shared-builds/ee-ansibleforge:latest',
                   'pull': 'missing'
               }))
               ")
