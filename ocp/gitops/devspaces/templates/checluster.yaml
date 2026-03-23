@@ -12,9 +12,7 @@ spec:
       logLevel: INFO
     dashboard: {}
     devWorkspace: {}
-    devfileRegistry:
-      externalDevfileRegistries:
-        - url: https://devfile-registry-openshift-devspaces.{{ .Values.clusterDomain }}
+    devfileRegistry: {}
     pluginRegistry: {}
   devEnvironments:
     {{- if semverCompare ">=1.33-0" .Capabilities.KubeVersion.Version }}
