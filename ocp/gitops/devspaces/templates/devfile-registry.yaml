@@ -26,19 +26,11 @@ data:
         "projectType": "ansible",
         "language": "YAML",
         "provider": "AnsibleForge",
-        "versions": [
-          {
-            "version": "1.0.0",
-            "schemaVersion": "2.2.2",
-            "default": true,
-            "description": "AnsibleForge development workspace",
-            "git": {
-              "remotes": {
-                "origin": "https://github.com/hfenner/ansibleforge.git"
-              }
-            }
+        "git": {
+          "remotes": {
+            "origin": "https://github.com/hfenner/ansibleforge.git"
           }
-        ]
+        }
       }
     ]
 ---
