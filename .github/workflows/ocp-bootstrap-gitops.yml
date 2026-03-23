@@ -138,6 +138,7 @@ jobs:
           RHSM_USERNAME: ${{ secrets.RHSM_USERNAME }}
           RHSM_PASSWORD: ${{ secrets.RHSM_PASSWORD }}
           AUTOMATIONHUB_TOKEN: ${{ secrets.AUTOMATIONHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           oc create namespace secrets --dry-run=client -o yaml | oc apply -f -
           oc create secret generic rhsm-credentials \
@@ -148,6 +149,10 @@ jobs:
           oc create secret generic automationhub-token \
             --namespace=secrets \
             --from-literal=token="${AUTOMATIONHUB_TOKEN}" \
+            --dry-run=client -o yaml | oc apply -f -
+          oc create secret generic openai-api-key \
+            --namespace=secrets \
+            --from-literal=api_key="${OPENAI_API_KEY}" \
             --dry-run=client -o yaml | oc apply -f -
 
       - name: Discover cluster domain and Route53 zone

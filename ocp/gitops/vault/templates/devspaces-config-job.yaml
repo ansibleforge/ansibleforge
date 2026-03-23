@@ -178,6 +178,8 @@ spec:
                 echo "WARNING: k8s secret secrets/automationhub-token not found, skipping"
               fi
 
+              seed_from_k8s "openai-api-key" "openai"
+
               echo "=== AAP Controller policy and role ==="
 
               vault policy write aap-controller - <<'POLICY'

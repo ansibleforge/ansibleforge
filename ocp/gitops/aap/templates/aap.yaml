@@ -28,6 +28,15 @@ spec:
       replicas: 1
   lightspeed:
     disabled: false
+    chatbot_config_secret_name: aap-lightspeed-chatbot-config
+    extra_volumes:
+      - name: openai-api-key
+        secret:
+          secretName: lightspeed-openai-api-key
+    extra_volume_mounts:
+      - name: openai-api-key
+        mountPath: /etc/rcs
+        readOnly: true
   mcp:
     disabled: false
   no_log: true
