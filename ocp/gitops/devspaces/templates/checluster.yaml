@@ -10,14 +10,7 @@ spec:
     cheServer:
       debug: false
       logLevel: INFO
-    dashboard:
-      samples:
-        - displayName: AnsibleForge
-          description: GitOps-driven Ansible development environment with community tooling
-          icon:
-            base64data: ""
-            mediatype: image/png
-          url: https://github.com/hfenner/ansibleforge
+    dashboard: {}
     devWorkspace: {}
     pluginRegistry: {}
   devEnvironments:
