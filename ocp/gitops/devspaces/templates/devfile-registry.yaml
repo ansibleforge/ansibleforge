@@ -1,6 +1,28 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  name: getting-started-samples
+  namespace: openshift-devspaces
+  labels:
+    app.kubernetes.io/part-of: che.eclipse.org
+    app.kubernetes.io/component: getting-started-samples
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  ansibleforge.json: |
+    [
+      {
+        "displayName": "AnsibleForge",
+        "description": "GitOps-driven Ansible development environment with community tooling",
+        "icon": "https://avatars.githubusercontent.com/u/1507452?s=200",
+        "tags": ["Ansible", "OpenShift", "GitOps", "Terraform"],
+        "url": "https://github.com/hfenner/ansibleforge.git"
+      }
+    ]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
   name: devfile-registry-data
   namespace: openshift-devspaces
   annotations:
