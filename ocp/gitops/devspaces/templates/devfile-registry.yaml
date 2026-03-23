@@ -9,10 +9,11 @@ data:
   httpd.conf: |
     RewriteEngine On
     RewriteRule ^/v2index$ /index.json [L]
-    RewriteRule ^/index$ /index.json [L]
+    RewriteRule ^/index(/all)?$ /index.json [L]
+    RewriteRule ^/devfiles/index\.json$ /index.json [L]
     RewriteRule ^/health$ /index.json [L]
-    Header set Content-Type "application/json" "expr=%{REQUEST_URI} =~ m#\.(json)$|^/(v2index|index|health)$#"
-    Header set Access-Control-Allow-Origin "*"
+    Header always set Content-Type "application/json" "expr=%{REQUEST_URI} =~ m#\.(json)$|^/(v2index|index|devfiles|health)#"
+    Header always set Access-Control-Allow-Origin "*"
   index.json: |
     [
       {
