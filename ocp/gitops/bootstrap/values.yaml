@@ -186,6 +186,10 @@ components:
       - RespectIgnoreDifferences=true
       - Validate=false
     ignoreDifferences:
+      - group: ""
+        kind: Secret
+        jqPathExpressions:
+          - .data
       - group: external-secrets.io
         kind: ExternalSecret
         jqPathExpressions:
