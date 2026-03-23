@@ -171,6 +171,17 @@ jobs:
           aws iam attach-user-policy --user-name "${IAM_USER}" \
             --policy-arn arn:aws:iam::aws:policy/PowerUserAccess 2>/dev/null || true
 
+          # Copy tags from the bootstrap caller to the new IAM user.
+          # RHPDS sandbox SCPs require tags like guid/Stack on IAM principals.
+          CALLER_ARN=$(aws sts get-caller-identity --query Arn --output text)
+          CALLER_USER=$(echo "${CALLER_ARN}" | sed 's|.*/||')
+          CALLER_TAGS=$(aws iam list-user-tags --user-name "${CALLER_USER}" \
+            --query 'Tags' --output json 2>/dev/null || echo '[]')
+          if [ "${CALLER_TAGS}" != "[]" ]; then
+            aws iam tag-user --user-name "${IAM_USER}" --tags "${CALLER_TAGS}"
+            echo "Copied ${CALLER_USER} tags to ${IAM_USER}"
+          fi
+
           # Rotate: delete old keys, create new
           OLD_KEYS=$(aws iam list-access-keys --user-name "${IAM_USER}" \
             --query 'AccessKeyMetadata[*].AccessKeyId' --output text)
