@@ -5,7 +5,7 @@
 
   vars:
     sql_media_bucket: ansibleforge-tfstate
-    sql_media_key: media/SQLServer2022-DEV-x64-ENU.iso
+    sql_media_key: media/SQL2025-SSEI-EntDev.exe
 
   tasks:
     - name: Wait for WinRM
@@ -47,22 +47,31 @@
         path: C:\SQLInstall
         state: directory
 
-    - name: Download SQL Server ISO from S3
+    - name: Download SQL Server bootstrapper from S3
       ansible.windows.win_shell: |
-        Read-S3Object -BucketName {{ sql_media_bucket }} -Key {{ sql_media_key }} -File C:\SQLInstall\sqlserver.iso
+        Read-S3Object -BucketName {{ sql_media_bucket }} -Key {{ sql_media_key }} -File C:\SQLInstall\SQL2025-SSEI-EntDev.exe
       args:
-        creates: C:\SQLInstall\sqlserver.iso
+        creates: C:\SQLInstall\SQL2025-SSEI-EntDev.exe
 
-    - name: Mount SQL ISO
+    - name: Download SQL Server media via bootstrapper
       ansible.windows.win_shell: |
-        $vol = Mount-DiskImage -ImagePath C:\SQLInstall\sqlserver.iso -PassThru | Get-Volume
-        Write-Output $vol.DriveLetter
-      register: _iso_mount
-      changed_when: false
+        Start-Process -FilePath C:\SQLInstall\SQL2025-SSEI-EntDev.exe `
+          -ArgumentList "/Action=Download", "/MediaPath=C:\SQLInstall", "/MediaType=Full", "/Quiet" `
+          -Wait -NoNewWindow
+      args:
+        creates: C:\SQLInstall\SQLServer2025-DEV-x64-ENU.exe
+
+    - name: Extract SQL Server media
+      ansible.windows.win_shell: |
+        Start-Process -FilePath C:\SQLInstall\SQLServer2025-DEV-x64-ENU.exe `
+          -ArgumentList "/x:C:\SQLInstall\Media", "/q" `
+          -Wait -NoNewWindow
+      args:
+        creates: C:\SQLInstall\Media\setup.exe
 
     - name: Install SQL Server
       ansible.windows.win_package:
-        path: "{{ _iso_mount.stdout | trim }}:\\setup.exe"
+        path: C:\SQLInstall\Media\setup.exe
         arguments:
           - /Q
           - /ACTION=Install
@@ -94,9 +103,4 @@
     - name: Configure SQL max memory (12GB)
       ansible.windows.win_shell: |
         Invoke-Sqlcmd -Query "EXEC sp_configure 'max server memory', 12288; RECONFIGURE;"
-      changed_when: false
-
-    - name: Unmount ISO
-      ansible.windows.win_shell: |
-        Dismount-DiskImage -ImagePath C:\SQLInstall\sqlserver.iso
       changed_when: false
