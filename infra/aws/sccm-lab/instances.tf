@@ -62,7 +62,7 @@ resource "aws_instance" "server" {
   private_ip             = each.value.private_ip
   key_name               = var.key_pair_name != "" ? var.key_pair_name : null
   user_data              = local.userdata
-  get_password_data      = true
+  get_password_data      = false
 
   root_block_device {
     volume_size = each.value.root_size
