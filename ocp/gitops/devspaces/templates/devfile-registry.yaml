@@ -6,6 +6,13 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 data:
+  httpd.conf: |
+    RewriteEngine On
+    RewriteRule ^/v2index$ /index.json [L]
+    RewriteRule ^/index$ /index.json [L]
+    RewriteRule ^/health$ /index.json [L]
+    Header set Content-Type "application/json" "expr=%{REQUEST_URI} =~ m#\.(json)$|^/(v2index|index|health)$#"
+    Header set Access-Control-Allow-Origin "*"
   index.json: |
     [
       {
@@ -59,15 +66,18 @@ spec:
           volumeMounts:
             - name: registry-data
               mountPath: /var/www/html
+            - name: registry-data
+              mountPath: /etc/httpd/conf.d/registry.conf
+              subPath: httpd.conf
           readinessProbe:
             httpGet:
-              path: /index.json
+              path: /v2index
               port: 8080
             initialDelaySeconds: 3
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /index.json
+              path: /v2index
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 30
