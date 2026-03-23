@@ -475,6 +475,13 @@ spec:
               ")
               JT_ID=$(ensure_resource "job_templates" "CaC - Apply Controller Configuration" "$JT_PAYLOAD" | tail -1)
 
+              # Ensure job template uses the community EE (patch in case it was created before the EE)
+              curl -sk -X PATCH -u "admin:$AAP_ADMIN_PASSWORD" \
+                "$AAP_URL/api/controller/v2/job_templates/$JT_ID/" \
+                -H "Content-Type: application/json" \
+                -d "{\"execution_environment\": $EE_ID}" > /dev/null 2>&1
+              echo "Ensured Community EE on dispatch job template"
+
               # Attach AAP Controller Admin credential to the dispatch job template
               if [ -n "$AAP_CRED_ID" ]; then
                 curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
