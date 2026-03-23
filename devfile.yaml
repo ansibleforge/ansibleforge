@@ -1,0 +1,37 @@
+schemaVersion: 2.2.0
+metadata:
+  name: ansibleforge
+variables:
+  git_path: https://github.com/hfenner
+components:
+  - name: development-container
+    container:
+      image: ghcr.io/hfenner/tools-community-ansibleforge:latest
+      memoryRequest: 256M
+      memoryLimit: 5Gi
+      cpuRequest: 250m
+      cpuLimit: 2000m
+      args: ['tail', '-f', '/dev/null']
+  - name: ee-community-ansibleforge
+    container:
+      image: ghcr.io/hfenner/ee-community-ansibleforge:latest
+      memoryRequest: 256M
+      memoryLimit: 5Gi
+      cpuRequest: 250m
+      cpuLimit: 2000m
+      args: ['tail', '-f', '/dev/null']
+projects:
+  - name: ansibleforge
+    git:
+      remotes:
+        origin: "{{ git_path }}/ansibleforge.git"
+      checkoutFrom:
+        revision: main
+    clonePath: ansibleforge
+  - name: product-demos
+    git:
+      remotes:
+        origin: "{{ git_path }}/product-demos.git"
+      checkoutFrom:
+        revision: main
+    clonePath: product-demos
