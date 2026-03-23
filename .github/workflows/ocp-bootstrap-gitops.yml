@@ -137,12 +137,17 @@ jobs:
         env:
           RHSM_USERNAME: ${{ secrets.RHSM_USERNAME }}
           RHSM_PASSWORD: ${{ secrets.RHSM_PASSWORD }}
+          AUTOMATIONHUB_TOKEN: ${{ secrets.AUTOMATIONHUB_TOKEN }}
         run: |
           oc create namespace secrets --dry-run=client -o yaml | oc apply -f -
           oc create secret generic rhsm-credentials \
             --namespace=secrets \
             --from-literal=username="${RHSM_USERNAME}" \
             --from-literal=password="${RHSM_PASSWORD}" \
+            --dry-run=client -o yaml | oc apply -f -
+          oc create secret generic automationhub-token \
+            --namespace=secrets \
+            --from-literal=token="${AUTOMATIONHUB_TOKEN}" \
             --dry-run=client -o yaml | oc apply -f -
 
       - name: Discover cluster domain and Route53 zone

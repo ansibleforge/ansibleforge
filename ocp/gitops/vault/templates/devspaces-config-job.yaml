@@ -160,6 +160,24 @@ spec:
 
               seed_from_k8s "rhsm-credentials" "rhsm"
 
+              # Seed Automation Hub token (remap key name)
+              ah_json=$(curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                "${API}/api/v1/namespaces/secrets/secrets/automationhub-token" 2>/dev/null || true)
+              if [ -n "${ah_json}" ]; then
+                ah_token=$(echo "${ah_json}" \
+                  | python3 -c 'import json,sys,base64; d=json.load(sys.stdin)["data"]; print(base64.b64decode(d["token"]).decode())')
+                # Force-write (not init_secret) since placeholder may exist
+                curl -sf -X POST \
+                  -H "X-Vault-Token: ${VAULT_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"data\":{\"automationhub_token\":\"${ah_token}\"}}" \
+                  "${VAULT_ADDR}/v1/secret/data/ansible" > /dev/null
+                echo "secret/data/ansible updated with automationhub_token"
+              else
+                echo "WARNING: k8s secret secrets/automationhub-token not found, skipping"
+              fi
+
               echo "=== AAP Controller policy and role ==="
 
               vault policy write aap-controller - <<'POLICY'
