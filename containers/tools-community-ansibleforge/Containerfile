@@ -15,8 +15,8 @@ WORKDIR /tmp
 COPY requirements.txt .
 COPY requirements.yaml .
 
-RUN useradd -m user \
-    &&  chown -R user:user /home/user
+RUN useradd -m -u 10001 -g 0 user \
+    &&  chown -R g=u /home/user
 
 # Rootless podman in Dev Spaces runs as UID 10001. Provide uid/gid ranges and
 # default to fuse-overlayfs to avoid kernel overlay mount permission failures.
