@@ -27,3 +27,4 @@ collections:
   - name: cloud.terraform
   - name: cloud.terraform_ops
   - name: ansible.utils
+  - name: community.hashi_vault

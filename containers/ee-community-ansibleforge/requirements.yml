@@ -24,6 +24,7 @@ collections:
   - name: https://github.com/redhat-cop/cloud.terraform_ops.git
     type: git
   - name: ansible.utils
+  - name: community.hashi_vault
   - name: https://github.com/ansible/ansible.platform.git
     type: git
   - name: https://github.com/ansible-collections/ansible_hub.git
