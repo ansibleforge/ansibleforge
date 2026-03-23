@@ -46,6 +46,12 @@ components:
         - name: aws.accountId
           value: "171109435201"
 
+  devspaces:
+    helm:
+      parameters:
+        - name: github.scm
+          value: "true"
+
   sso-monitor:
     helm:
       parameters:

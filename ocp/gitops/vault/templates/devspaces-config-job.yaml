@@ -139,6 +139,7 @@ spec:
               init_secret "pah"     '{"registry_url":"aap-hub-aap.{{ .Values.clusterDomain }}","username":"admin","password":"test"}'
               init_secret "ocp"     '{"bearer_token":"test"}'
               init_secret "aap"     '{"admin_password":"test"}'
+              init_secret "github-devspaces-oauth" '{"id":"test","secret":"test"}'
 
               echo "=== Seeding secrets from k8s secrets namespace ==="
 
@@ -180,6 +181,7 @@ spec:
 
               seed_from_k8s "openai-api-key" "openai"
               seed_from_k8s "aws-credentials" "aws"
+              seed_from_k8s "github-devspaces-oauth" "github-devspaces-oauth"
 
               echo "=== AAP Controller policy and role ==="
 

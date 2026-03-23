@@ -140,6 +140,8 @@ jobs:
           RHSM_PASSWORD: ${{ secrets.RHSM_PASSWORD }}
           AUTOMATIONHUB_TOKEN: ${{ secrets.AUTOMATIONHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEVSPACES_OAUTH_ID: ${{ secrets.DEVSPACES_OAUTH_ID }}
+          DEVSPACES_OAUTH_SECRET: ${{ secrets.DEVSPACES_OAUTH_SECRET }}
         run: |
           oc create namespace secrets --dry-run=client -o yaml | oc apply -f -
           oc create secret generic rhsm-credentials \
@@ -155,6 +157,13 @@ jobs:
             --namespace=secrets \
             --from-literal=api_key="${OPENAI_API_KEY}" \
             --dry-run=client -o yaml | oc apply -f -
+          if [ -n "${DEVSPACES_OAUTH_ID}" ] && [ -n "${DEVSPACES_OAUTH_SECRET}" ]; then
+            oc create secret generic github-devspaces-oauth \
+              --namespace=secrets \
+              --from-literal=id="${DEVSPACES_OAUTH_ID}" \
+              --from-literal=secret="${DEVSPACES_OAUTH_SECRET}" \
+              --dry-run=client -o yaml | oc apply -f -
+          fi
 
           # Create IAM user for AAP automation (idempotent)
           IAM_USER="aap-automation-${{ inputs.cluster_name }}"
