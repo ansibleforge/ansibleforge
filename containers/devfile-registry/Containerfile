@@ -1,16 +1,26 @@
+ARG BASE_IMAGE=quay.io/devfile/devfile-index-base:next
+
 FROM registry.access.redhat.com/ubi9/go-toolset:latest AS builder
 USER root
 
-RUN curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
+ARG TARGETARCH=amd64
+
+ENV YQ_VERSION=v4.44.1
+RUN curl -sL https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${TARGETARCH} -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
 
 COPY . /registry
+WORKDIR /registry
+
+# Generate last_modified.json (no git history in container context, so use static timestamps)
+RUN echo '{"stacks":[],"samples":[]}' > last_modified.json
+
+WORKDIR /
 
 RUN git clone https://github.com/devfile/registry-support.git /registry-support
-# Patch build script to create last_modified.json before index-generator runs
-RUN sed -i '/index-generator/i [ -f "$outputFolder/last_modified.json" ] || echo "{}" > "$outputFolder/last_modified.json"' \
-    /registry-support/build-tools/build.sh
-RUN /registry-support/build-tools/build.sh /registry /build
+RUN bash /registry-support/build-tools/build.sh /registry /build
 
-FROM quay.io/devfile/devfile-index-base:next
+USER 1001
+
+FROM ${BASE_IMAGE}
 
 COPY --from=builder /build /registry
