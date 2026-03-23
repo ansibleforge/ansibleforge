@@ -179,6 +179,7 @@ spec:
               fi
 
               seed_from_k8s "openai-api-key" "openai"
+              seed_from_k8s "aws-credentials" "aws"
 
               echo "=== AAP Controller policy and role ==="
 

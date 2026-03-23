@@ -133,12 +133,15 @@ jobs:
             }
           }'
 
-      - name: Push secrets to cluster
+      - name: Create AAP IAM user and push secrets to cluster
         env:
           RHSM_USERNAME: ${{ secrets.RHSM_USERNAME }}
           RHSM_PASSWORD: ${{ secrets.RHSM_PASSWORD }}
           AUTOMATIONHUB_TOKEN: ${{ secrets.AUTOMATIONHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-2
         run: |
           oc create namespace secrets --dry-run=client -o yaml | oc apply -f -
           oc create secret generic rhsm-credentials \
@@ -153,6 +156,30 @@ jobs:
           oc create secret generic openai-api-key \
             --namespace=secrets \
             --from-literal=api_key="${OPENAI_API_KEY}" \
+            --dry-run=client -o yaml | oc apply -f -
+
+          # Create IAM user for AAP automation (idempotent)
+          IAM_USER="aap-automation-${{ inputs.cluster_name }}"
+          aws iam create-user --user-name "${IAM_USER}" 2>/dev/null || true
+          aws iam attach-user-policy --user-name "${IAM_USER}" \
+            --policy-arn arn:aws:iam::aws:policy/PowerUserAccess 2>/dev/null || true
+
+          # Rotate: delete old keys, create new
+          OLD_KEYS=$(aws iam list-access-keys --user-name "${IAM_USER}" \
+            --query 'AccessKeyMetadata[*].AccessKeyId' --output text)
+          for KEY in $OLD_KEYS; do
+            aws iam delete-access-key --user-name "${IAM_USER}" --access-key-id "$KEY"
+          done
+          NEW_KEY=$(aws iam create-access-key --user-name "${IAM_USER}" --output json)
+          AAP_AWS_ACCESS_KEY=$(echo "$NEW_KEY" | python3 -c "import sys,json; print(json.load(sys.stdin)['AccessKey']['AccessKeyId'])")
+          AAP_AWS_SECRET_KEY=$(echo "$NEW_KEY" | python3 -c "import sys,json; print(json.load(sys.stdin)['AccessKey']['SecretAccessKey'])")
+          echo "::add-mask::${AAP_AWS_ACCESS_KEY}"
+          echo "::add-mask::${AAP_AWS_SECRET_KEY}"
+
+          oc create secret generic aws-credentials \
+            --namespace=secrets \
+            --from-literal=access_key="${AAP_AWS_ACCESS_KEY}" \
+            --from-literal=secret_key="${AAP_AWS_SECRET_KEY}" \
             --dry-run=client -o yaml | oc apply -f -
 
       - name: Discover cluster domain and Route53 zone

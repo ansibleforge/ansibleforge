@@ -1,0 +1,20 @@
+---
+controller_credentials:
+  - name: "AWS - AnsibleForge"
+    organization: Default
+    credential_type: Amazon Web Services
+    inputs: {}
+    input_sources:
+      - source_credential: Vault Lookup
+        target: username
+        metadata:
+          secret_path: "secret/aws"
+          secret_key: "access_key"
+          secret_version: ""
+      - source_credential: Vault Lookup
+        target: password
+        metadata:
+          secret_path: "secret/aws"
+          secret_key: "secret_key"
+          secret_version: ""
+    description: "AWS credentials for AAP automation (from Vault)"

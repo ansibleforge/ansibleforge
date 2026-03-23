@@ -7,6 +7,8 @@ controller_templates:
     playbook: playbooks/sccm-lab/provision_infra.yml
     inventory: Localhost
     execution_environment: "Community EE"
+    credentials:
+      - "AWS - AnsibleForge"
     ask_variables_on_launch: true
     extra_vars:
       terraform_state: present
@@ -19,6 +21,8 @@ controller_templates:
     playbook: playbooks/sccm-lab/provision_infra.yml
     inventory: Localhost
     execution_environment: "Community EE"
+    credentials:
+      - "AWS - AnsibleForge"
     extra_vars:
       terraform_state: absent
 
