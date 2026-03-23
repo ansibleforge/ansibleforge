@@ -8,71 +8,11 @@
 apiVersion: console.openshift.io/v1
 kind: ConsoleLink
 metadata:
-  name: aws-console
-spec:
-  location: ApplicationMenu
-  text: AWS Console (SSO)
-  href: {{ $samlBase }}
-  applicationMenu:
-    section: Cloud Provider
-    imageURL: https://a0.awsstatic.com/libra-css/images/logos/aws_smile-header-desktop-en-white_59x35@2x.png
----
-apiVersion: console.openshift.io/v1
-kind: ConsoleLink
-metadata:
-  name: aws-secrets-manager
-spec:
-  location: ApplicationMenu
-  text: AWS Secrets Manager (SSO)
-  href: {{ $samlBase }}?RelayState=https%3A%2F%2Fconsole.aws.amazon.com%2Fsecretsmanager{{ if $awsRegion }}%3Fregion%3D{{ $awsRegion }}{{ end }}
-  applicationMenu:
-    section: Cloud Provider
-    imageURL: https://a0.awsstatic.com/libra-css/images/logos/aws_smile-header-desktop-en-white_59x35@2x.png
----
-apiVersion: console.openshift.io/v1
-kind: ConsoleLink
-metadata:
   name: aws-ec2
 spec:
   location: ApplicationMenu
   text: AWS EC2 (SSO)
   href: {{ $samlBase }}?RelayState=https%3A%2F%2Fconsole.aws.amazon.com%2Fec2%2Fhome{{ if $awsRegion }}%3Fregion%3D{{ $awsRegion }}{{ end }}
-  applicationMenu:
-    section: Cloud Provider
-    imageURL: https://a0.awsstatic.com/libra-css/images/logos/aws_smile-header-desktop-en-white_59x35@2x.png
----
-apiVersion: console.openshift.io/v1
-kind: ConsoleLink
-metadata:
-  name: aws-efs
-spec:
-  location: ApplicationMenu
-  text: AWS EFS (SSO)
-  href: {{ $samlBase }}?RelayState=https%3A%2F%2Fconsole.aws.amazon.com%2Fefs%2Fhome{{ if $awsRegion }}%3Fregion%3D{{ $awsRegion }}{{ end }}
-  applicationMenu:
-    section: Cloud Provider
-    imageURL: https://a0.awsstatic.com/libra-css/images/logos/aws_smile-header-desktop-en-white_59x35@2x.png
----
-apiVersion: console.openshift.io/v1
-kind: ConsoleLink
-metadata:
-  name: aws-s3
-spec:
-  location: ApplicationMenu
-  text: AWS S3 (SSO)
-  href: {{ $samlBase }}?RelayState=https%3A%2F%2Fs3.console.aws.amazon.com%2Fs3%2Fhome
-  applicationMenu:
-    section: Cloud Provider
-    imageURL: https://a0.awsstatic.com/libra-css/images/logos/aws_smile-header-desktop-en-white_59x35@2x.png
----
-apiVersion: console.openshift.io/v1
-kind: ConsoleLink
-metadata:
-  name: aws-parameter-store
-spec:
-  location: ApplicationMenu
-  text: AWS Parameter Store (SSO)
-  href: {{ $samlBase }}?RelayState=https%3A%2F%2Fconsole.aws.amazon.com%2Fsystems-manager%2Fparameters{{ if $awsRegion }}%3Fregion%3D{{ $awsRegion }}{{ end }}
   applicationMenu:
     section: Cloud Provider
     imageURL: https://a0.awsstatic.com/libra-css/images/logos/aws_smile-header-desktop-en-white_59x35@2x.png
