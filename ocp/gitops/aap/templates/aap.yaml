@@ -27,7 +27,9 @@ spec:
     worker:
       replicas: 1
   lightspeed:
-    disabled: true
+    disabled: false
+  mcp:
+    disabled: false
   no_log: true
   redis_mode: standalone
   route_tls_termination_mechanism: Edge
