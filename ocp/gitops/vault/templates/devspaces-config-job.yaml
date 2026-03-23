@@ -139,7 +139,6 @@ spec:
               init_secret "pah"     '{"registry_url":"aap-hub-aap.{{ .Values.clusterDomain }}","username":"admin","password":"test"}'
               init_secret "ocp"     '{"bearer_token":"test"}'
               init_secret "aap"     '{"admin_password":"test"}'
-              init_secret "github-devspaces-oauth" '{"id":"test","secret":"test"}'
 
               echo "=== Seeding secrets from k8s secrets namespace ==="
 
@@ -181,7 +180,23 @@ spec:
 
               seed_from_k8s "openai-api-key" "openai"
               seed_from_k8s "aws-credentials" "aws"
-              seed_from_k8s "github-devspaces-oauth" "github-devspaces-oauth"
+
+              # GitHub DevSpaces OAuth - force-write (overwrite placeholder if present)
+              gh_oauth_json=$(curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                "${API}/api/v1/namespaces/secrets/secrets/github-devspaces-oauth" 2>/dev/null || true)
+              if [ -n "${gh_oauth_json}" ]; then
+                gh_data=$(echo "${gh_oauth_json}" \
+                  | python3 -c 'import json,sys,base64; d=json.load(sys.stdin)["data"]; print(json.dumps({k: base64.b64decode(v).decode() for k,v in d.items()}))')
+                curl -sf -X POST \
+                  -H "X-Vault-Token: ${VAULT_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"data\":${gh_data}}" \
+                  "${VAULT_ADDR}/v1/secret/data/github-devspaces-oauth" > /dev/null
+                echo "secret/data/github-devspaces-oauth updated from k8s secret"
+              else
+                echo "WARNING: k8s secret secrets/github-devspaces-oauth not found, skipping"
+              fi
 
               echo "=== AAP Controller policy and role ==="
 
