@@ -6,6 +6,7 @@ RUN curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_a
 COPY . /registry
 
 RUN git clone https://github.com/devfile/registry-support.git /registry-support
+RUN mkdir -p /build && echo '{}' > /build/last_modified.json
 RUN /registry-support/build-tools/build.sh /registry /build
 
 FROM quay.io/devfile/devfile-index-base:next
