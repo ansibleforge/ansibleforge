@@ -1,25 +1,39 @@
-schemaVersion: 2.2.0
+schemaVersion: 2.2.2
 metadata:
   name: ansibleforge
+  displayName: AnsibleForge Development Environment
+  description: GitOps-driven Ansible development environment with community tooling
+  tags:
+    - ansible
+    - openshift
+    - gitops
 variables:
   git_path: https://github.com/hfenner
 components:
-  - name: development-container
+  - name: tools
     container:
       image: ghcr.io/hfenner/tools-community-ansibleforge:latest
-      memoryRequest: 256M
-      memoryLimit: 5Gi
-      cpuRequest: 250m
+      memoryRequest: 512M
+      memoryLimit: 4Gi
+      cpuRequest: 500m
       cpuLimit: 2000m
-      args: ['tail', '-f', '/dev/null']
-  - name: ee-community-ansibleforge
+      mountSources: true
+      env:
+        - name: SHELL
+          value: /bin/bash
+      endpoints:
+        - name: terminal
+          targetPort: 8080
+          exposure: none
+  - name: ee
     container:
       image: ghcr.io/hfenner/ee-community-ansibleforge:latest
       memoryRequest: 256M
-      memoryLimit: 5Gi
+      memoryLimit: 2Gi
       cpuRequest: 250m
-      cpuLimit: 2000m
-      args: ['tail', '-f', '/dev/null']
+      cpuLimit: 1000m
+      mountSources: true
+      command: ['sleep', 'infinity']
 projects:
   - name: ansibleforge
     git:
@@ -27,11 +41,28 @@ projects:
         origin: "{{ git_path }}/ansibleforge.git"
       checkoutFrom:
         revision: main
-    clonePath: ansibleforge
   - name: product-demos
     git:
       remotes:
         origin: "{{ git_path }}/product-demos.git"
       checkoutFrom:
         revision: main
-    clonePath: product-demos
+commands:
+  - id: ansible-lint
+    exec:
+      label: "Ansible Lint"
+      component: ee
+      commandLine: cd ${PROJECT_SOURCE} && ansible-lint
+      workingDir: ${PROJECTS_ROOT}/ansibleforge
+  - id: helm-lint
+    exec:
+      label: "Helm Lint (bootstrap)"
+      component: tools
+      commandLine: helm lint ocp/gitops/bootstrap
+      workingDir: ${PROJECTS_ROOT}/ansibleforge
+  - id: yamllint
+    exec:
+      label: "YAML Lint"
+      component: tools
+      commandLine: yamllint -c .yamllint.yml .
+      workingDir: ${PROJECTS_ROOT}/ansibleforge
