@@ -142,6 +142,9 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           DEVSPACES_OAUTH_ID: ${{ secrets.DEVSPACES_OAUTH_ID }}
           DEVSPACES_OAUTH_SECRET: ${{ secrets.DEVSPACES_OAUTH_SECRET }}
+          SN_HOST: ${{ secrets.SN_HOST }}
+          SN_USERNAME: ${{ secrets.SN_USERNAME }}
+          SN_PASSWORD: ${{ secrets.SN_PASSWORD }}
         run: |
           oc create namespace secrets --dry-run=client -o yaml | oc apply -f -
           oc create secret generic rhsm-credentials \
@@ -162,6 +165,14 @@ jobs:
               --namespace=secrets \
               --from-literal=id="${DEVSPACES_OAUTH_ID}" \
               --from-literal=secret="${DEVSPACES_OAUTH_SECRET}" \
+              --dry-run=client -o yaml | oc apply -f -
+          fi
+          if [ -n "${SN_HOST}" ] && [ -n "${SN_USERNAME}" ] && [ -n "${SN_PASSWORD}" ]; then
+            oc create secret generic servicenow-credentials \
+              --namespace=secrets \
+              --from-literal=host="${SN_HOST}" \
+              --from-literal=username="${SN_USERNAME}" \
+              --from-literal=password="${SN_PASSWORD}" \
               --dry-run=client -o yaml | oc apply -f -
           fi
 

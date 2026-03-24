@@ -140,6 +140,7 @@ spec:
               init_secret "ocp"     '{"bearer_token":"test"}'
               init_secret "aap"     '{"admin_password":"test"}'
               init_secret "sccm-lab" '{"admin_password":"placeholder"}'
+              init_secret "servicenow" '{"host":"placeholder","username":"placeholder","password":"placeholder"}'
 
               echo "=== Seeding secrets from k8s secrets namespace ==="
 
@@ -186,6 +187,7 @@ spec:
 
               seed_from_k8s "openai-api-key" "openai"
               seed_from_k8s "aws-credentials" "aws"
+              seed_from_k8s "servicenow-credentials" "servicenow"
 
               # GitHub DevSpaces OAuth - force-write (overwrite placeholder if present)
               gh_oauth_json=$(curl -sf --cacert "${CACERT}" \
