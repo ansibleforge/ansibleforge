@@ -138,5 +138,6 @@
 
     - name: Configure SQL max memory (12GB)
       ansible.windows.win_shell: |
+        Invoke-Sqlcmd -Query "EXEC sp_configure 'show advanced options', 1; RECONFIGURE;"
         Invoke-Sqlcmd -Query "EXEC sp_configure 'max server memory', 12288; RECONFIGURE;"
       changed_when: false
