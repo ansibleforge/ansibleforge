@@ -61,13 +61,15 @@
       args:
         creates: C:\SQLInstall\SQLServer2025-DEV-x64-ENU.iso
 
-    - name: Mount SQL Server ISO
-      ansible.windows.win_shell: >-
-        $iso = Mount-DiskImage -ImagePath C:\SQLInstall\SQLServer2025-DEV-x64-ENU.iso -PassThru;
-        $drive = ($iso | Get-Volume).DriveLetter;
-        $src = $drive + ':\';
-        Copy-Item -Path $src -Destination C:\SQLInstall\Media -Recurse -Force;
-        Dismount-DiskImage -ImagePath C:\SQLInstall\SQLServer2025-DEV-x64-ENU.iso
+    - name: Mount SQL Server ISO and copy media
+      ansible.windows.win_shell: "{{ mount_iso_script }}"
+      vars:
+        mount_iso_script: >-
+          $iso = Mount-DiskImage -ImagePath C:\SQLInstall\SQLServer2025-DEV-x64-ENU.iso -PassThru;
+          $drive = ($iso | Get-Volume).DriveLetter;
+          $src = $drive + [char]58 + [char]92;
+          Copy-Item -Path $src -Destination C:\SQLInstall\Media -Recurse -Force;
+          Dismount-DiskImage -ImagePath C:\SQLInstall\SQLServer2025-DEV-x64-ENU.iso
       args:
         creates: C:\SQLInstall\Media\setup.exe
 
