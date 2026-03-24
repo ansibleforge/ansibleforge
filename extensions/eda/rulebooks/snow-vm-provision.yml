@@ -35,4 +35,4 @@
               cpu_cores: "{{ event.payload.variables.cpu_cores }}"
               memory_gb: "{{ event.payload.variables.memory_gb }}"
               disk_size_gb: "{{ event.payload.variables.disk_size_gb }}"
-              environment: "{{ event.payload.variables.environment }}"
+              vm_environment: "{{ event.payload.variables.environment }}"

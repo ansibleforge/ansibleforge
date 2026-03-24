@@ -11,7 +11,7 @@
     cpu_cores: ""
     memory_gb: ""
     disk_size_gb: ""
-    environment: ""
+    vm_environment: ""
     ritm_number: ""
     ritm_sys_id: ""
     subnet_id: ""
@@ -49,12 +49,12 @@
           - operating_system in os_ami_map
           - cpu_cores | string + '_' + memory_gb | string in instance_type_map
           - disk_size_gb | int >= 20
-          - environment | length > 0
+          - vm_environment | length > 0
           - subnet_id | length > 0
           - security_group_id | length > 0
         fail_msg: >-
           Missing or invalid parameters. Ensure vm_name, operating_system,
-          cpu_cores/memory_gb (valid combination), disk_size_gb, environment,
+          cpu_cores/memory_gb (valid combination), disk_size_gb, vm_environment,
           subnet_id, and security_group_id are provided.
 
     - name: Resolve instance type
@@ -92,7 +92,7 @@
               volume_type: gp3
               encrypted: true
         tags:
-          Environment: "{{ environment }}"
+          Environment: "{{ vm_environment }}"
           ManagedBy: ansible
           ServiceNow_RITM: "{{ ritm_number }}"
         wait: true
@@ -116,7 +116,7 @@
             Private IP:  {{ _private_ip }}
             Public IP:   {{ _public_ip }}
             OS:          {{ operating_system }}
-            Environment: {{ environment }}
+            Environment: {{ vm_environment }}
             RITM:        {{ ritm_number }}
 
     - name: Update ServiceNow RITM with instance details
