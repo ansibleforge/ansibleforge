@@ -1,0 +1,27 @@
+---
+plugin: amazon.aws.aws_ec2
+regions:
+  - us-east-2
+
+filters:
+  tag:Project: sccm-lab
+  tag:ManagedBy: terraform
+  instance-state-name: running
+
+hostnames:
+  - tag:Name
+
+compose:
+  ansible_host: public_ip_address
+
+keyed_groups:
+  - key: tags.Role
+    prefix: ""
+    separator: ""
+    parent_group: all
+
+groups:
+  domain_controllers: tags.Role == 'dc'
+  sql_servers: tags.Role == 'sql'
+  sccm_servers: tags.Role == 'sccm'
+  sccm_clients: tags.Role == 'client'
