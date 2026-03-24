@@ -8,7 +8,7 @@ controller_templates:
     inventory: Localhost
     execution_environment: "EE AnsibleForge"
     credentials:
-      - "GitHub - AnsibleForge"
+      - GitHub PAT
       - "Automation Hub Token"
       - "OpenShift - Shared Builds"
     ask_variables_on_launch: true
