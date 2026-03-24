@@ -29,7 +29,7 @@
         domain_admin_user: "{{ domain_netbios }}\\Administrator"
         domain_admin_password: "{{ ansible_password }}"
         hostname: "{{ inventory_hostname }}"
-        ou_path: "OU=Servers,DC={{ domain_name.split('.') | join(',DC=') }}"
+        domain_ou_path: "OU=Servers,DC={{ domain_name.split('.') | join(',DC=') }}"
         state: domain
         reboot: true
 
