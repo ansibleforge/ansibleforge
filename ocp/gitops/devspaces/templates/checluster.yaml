@@ -29,6 +29,7 @@ spec:
     {{- end }}
     startTimeoutSeconds: 600
     maxNumberOfWorkspacesPerUser: -1
+    maxNumberOfRunningWorkspacesPerUser: -1
     secondsOfInactivityBeforeIdling: -1
     storage:
       pvcStrategy: per-user
