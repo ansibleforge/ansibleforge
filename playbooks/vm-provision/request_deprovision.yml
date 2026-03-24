@@ -20,22 +20,31 @@
         fail_msg: "vm_name, instance_id, and decommission_reason are required."
 
     - name: Submit decommission catalog request
-      servicenow.itsm.api:
-        resource: sc_req_item
-        action: post
-        data:
-          cat_item: "{{ decom_cat_item }}"
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'SN_HOST') }}/api/sn_sc/servicecatalog/items/{{ decom_cat_item }}/order_now"
+        method: POST
+        user: "{{ lookup('env', 'SN_USERNAME') }}"
+        password: "{{ lookup('env', 'SN_PASSWORD') }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers:
+          Content-Type: application/json
+          Accept: application/json
+        body_format: json
+        body:
+          sysparm_quantity: 1
           variables:
             vm_name: "{{ vm_name }}"
             instance_id: "{{ instance_id }}"
             decommission_reason: "{{ decommission_reason }}"
+        status_code: [200, 201]
       register: _request
 
     - name: Display request details
       ansible.builtin.debug:
         msg: |
           Decommission request submitted:
-            RITM:      {{ _request.record.number }}
+            Request:   {{ _request.json.result.number }}
             VM Name:   {{ vm_name }}
             Instance:  {{ instance_id }}
             Reason:    {{ decommission_reason }}
