@@ -32,17 +32,18 @@
         domain_ou_path: "OU=Clients,DC={{ domain_name.split('.') | join(',DC=') }}"
         state: domain
         reboot: true
+        reboot_timeout: 900
 
     - name: Wait after domain join
       ansible.builtin.wait_for_connection:
-        timeout: 600
+        timeout: 900
         delay: 15
 
     - name: Install SCCM client
       ansible.windows.win_shell: |
-        $ccmsetup = "\\\\SCCM01.{{ domain_name }}\SMS_{{ sccm_site_code }}\Client\ccmsetup.exe"
+        $ccmsetup = "\\\\{{ groups['sccm_servers'][0] }}.{{ domain_name }}\SMS_{{ sccm_site_code }}\Client\ccmsetup.exe"
         if (Test-Path $ccmsetup) {
-          Start-Process -FilePath $ccmsetup -ArgumentList "/mp:SCCM01.{{ domain_name }}", "SMSSITECODE={{ sccm_site_code }}" -Wait -NoNewWindow
+          Start-Process -FilePath $ccmsetup -ArgumentList "/mp:{{ groups['sccm_servers'][0] }}.{{ domain_name }}", "SMSSITECODE={{ sccm_site_code }}" -Wait -NoNewWindow
           Write-Output "INSTALLED"
         } else {
           Write-Output "CCMSETUP_NOT_FOUND"
