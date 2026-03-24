@@ -19,7 +19,7 @@ spec:
     security:
       podSecurityContext:
         fsGroup: 1000
-        fsGroupChangePolicy: OnRootMismatch
+        fsGroupChangePolicy: Always
     containerRunConfiguration:
       openShiftSecurityContextConstraint: nested-container-runasany
       workspacesPodAnnotations:
