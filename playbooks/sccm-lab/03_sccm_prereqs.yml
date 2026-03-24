@@ -111,6 +111,7 @@
 
     - name: Wait for SQL01 DNS resolution
       ansible.windows.win_shell: |
+        Clear-DnsClientCache
         Resolve-DnsName -Name SQL01.{{ domain_name }} -ErrorAction Stop
       register: _dns_check
       retries: 6
