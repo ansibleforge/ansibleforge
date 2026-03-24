@@ -3,10 +3,6 @@
   hosts: all
   sources:
     - servicenow.itsm.records:
-        instance:
-          host: "{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/servicenow:host', url=vault_url, auth_method='kubernetes', role='aap-controller') }}"
-          username: "{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/servicenow:username', url=vault_url, auth_method='kubernetes', role='aap-controller') }}"
-          password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/servicenow:password', url=vault_url, auth_method='kubernetes', role='aap-controller') }}"
         table: sc_req_item
         query: "cat_item=2c160bb0c3f33210dd6df7fdd401311f^state=1"
         interval: 30
@@ -36,10 +32,6 @@
   hosts: all
   sources:
     - servicenow.itsm.records:
-        instance:
-          host: "{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/servicenow:host', url=vault_url, auth_method='kubernetes', role='aap-controller') }}"
-          username: "{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/servicenow:username', url=vault_url, auth_method='kubernetes', role='aap-controller') }}"
-          password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/servicenow:password', url=vault_url, auth_method='kubernetes', role='aap-controller') }}"
         table: sc_req_item
         query: "cat_item=b1995e0ac33f7210dd6df7fdd40131cb^state=1"
         interval: 30
