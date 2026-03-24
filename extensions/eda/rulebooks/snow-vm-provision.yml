@@ -3,6 +3,10 @@
   hosts: all
   sources:
     - servicenow.itsm.records:
+        instance:
+          host: "{{ SN_HOST }}"
+          username: "{{ SN_USERNAME }}"
+          password: "{{ SN_PASSWORD }}"
         table: sc_req_item
         sysparm_query: "cat_item=2c160bb0c3f33210dd6df7fdd401311f^state=1"
         interval: 30
@@ -33,6 +37,10 @@
   hosts: all
   sources:
     - servicenow.itsm.records:
+        instance:
+          host: "{{ SN_HOST }}"
+          username: "{{ SN_USERNAME }}"
+          password: "{{ SN_PASSWORD }}"
         table: sc_req_item
         sysparm_query: "cat_item=b1995e0ac33f7210dd6df7fdd40131cb^state=1"
         interval: 30
