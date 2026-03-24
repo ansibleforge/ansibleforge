@@ -176,20 +176,18 @@
           - "openshift.io/build-config.name={{ buildconfig_name }}"
       register: builds
       until: >-
-        builds.resources | sort(attribute='metadata.creationTimestamp') | last |
-        json_query('status.phase') in ['Complete', 'Failed', 'Error', 'Cancelled']
+        (builds.resources | sort(attribute='metadata.creationTimestamp') | last).status.phase
+        in ['Complete', 'Failed', 'Error', 'Cancelled']
       retries: 60
       delay: 30
 
     - name: Fail if build did not complete
+      vars:
+        _build_phase: "{{ (builds.resources | sort(attribute='metadata.creationTimestamp') | last).status.phase }}"
       ansible.builtin.assert:
         that:
-          - builds.resources | sort(attribute='metadata.creationTimestamp') | last |
-            json_query('status.phase') == 'Complete'
-        fail_msg: >-
-          Build finished with status:
-          {{ builds.resources | sort(attribute='metadata.creationTimestamp') | last |
-             json_query('status.phase') }}
+          - _build_phase == 'Complete'
+        fail_msg: "Build finished with status: {{ _build_phase }}"
 
     - name: Tag image with dated version ({{ image_tag }})
       ansible.builtin.command:
