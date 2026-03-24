@@ -51,7 +51,7 @@
           JoinCEIP=0
 
           [SQLConfigOptions]
-          SQLServerName=SQL01.{{ domain_name }}
+          SQLServerName={{ groups['sql_servers'][0] }}.{{ domain_name }}
           DatabaseName=CM_{{ sccm_site_code }}
           SQLSSBPort=4022
 
