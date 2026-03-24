@@ -2,72 +2,62 @@
 - name: Provision VM on ServiceNow catalog request
   hosts: all
   sources:
-    - servicenow.itsm.now:
+    - servicenow.itsm.records:
         instance:
           host: "{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/servicenow:host', url=vault_url, auth_method='kubernetes', role='aap-controller') }}"
           username: "{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/servicenow:username', url=vault_url, auth_method='kubernetes', role='aap-controller') }}"
           password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/servicenow:password', url=vault_url, auth_method='kubernetes', role='aap-controller') }}"
         table: sc_req_item
+        query: "cat_item=2c160bb0c3f33210dd6df7fdd401311f^state=1"
         interval: 30
-        query: "cat_item=2c160bb0c3f33210dd6df7fdd401311f^state=1^ORDERBYDESCsys_created_on"
-        columns:
-          - number
-          - sys_id
-          - state
-          - variables
   rules:
     - name: New Virtual Machine request — launch provisioning
-      condition: event.payload.state == "1"
+      condition: event.sys_id is defined
       throttle:
         once_within: 1 minutes
         group_by_attributes:
-          - event.payload.sys_id
+          - event.sys_id
       action:
         run_job_template:
           name: "VM Provision - EC2"
           organization: Default
           job_args:
             extra_vars:
-              ritm_number: "{{ event.payload.number }}"
-              ritm_sys_id: "{{ event.payload.sys_id }}"
-              vm_name: "{{ event.payload.variables.vm_name }}"
-              operating_system: "{{ event.payload.variables.operating_system }}"
-              cpu_cores: "{{ event.payload.variables.cpu_cores }}"
-              memory_gb: "{{ event.payload.variables.memory_gb }}"
-              disk_size_gb: "{{ event.payload.variables.disk_size_gb }}"
-              vm_environment: "{{ event.payload.variables.environment }}"
+              ritm_number: "{{ event.number }}"
+              ritm_sys_id: "{{ event.sys_id }}"
+              vm_name: "{{ event.variables.vm_name }}"
+              operating_system: "{{ event.variables.operating_system }}"
+              cpu_cores: "{{ event.variables.cpu_cores }}"
+              memory_gb: "{{ event.variables.memory_gb }}"
+              disk_size_gb: "{{ event.variables.disk_size_gb }}"
+              vm_environment: "{{ event.variables.environment }}"
 
 - name: Decommission VM on ServiceNow catalog request
   hosts: all
   sources:
-    - servicenow.itsm.now:
+    - servicenow.itsm.records:
         instance:
           host: "{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/servicenow:host', url=vault_url, auth_method='kubernetes', role='aap-controller') }}"
           username: "{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/servicenow:username', url=vault_url, auth_method='kubernetes', role='aap-controller') }}"
           password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/servicenow:password', url=vault_url, auth_method='kubernetes', role='aap-controller') }}"
         table: sc_req_item
+        query: "cat_item=b1995e0ac33f7210dd6df7fdd40131cb^state=1"
         interval: 30
-        query: "cat_item=b1995e0ac33f7210dd6df7fdd40131cb^state=1^ORDERBYDESCsys_created_on"
-        columns:
-          - number
-          - sys_id
-          - state
-          - variables
   rules:
     - name: Decommission VM request — launch deprovisioning
-      condition: event.payload.state == "1"
+      condition: event.sys_id is defined
       throttle:
         once_within: 1 minutes
         group_by_attributes:
-          - event.payload.sys_id
+          - event.sys_id
       action:
         run_job_template:
           name: "VM Deprovision - EC2"
           organization: Default
           job_args:
             extra_vars:
-              ritm_number: "{{ event.payload.number }}"
-              ritm_sys_id: "{{ event.payload.sys_id }}"
-              vm_name: "{{ event.payload.variables.vm_name }}"
-              instance_id: "{{ event.payload.variables.instance_id }}"
-              decommission_reason: "{{ event.payload.variables.decommission_reason }}"
+              ritm_number: "{{ event.number }}"
+              ritm_sys_id: "{{ event.sys_id }}"
+              vm_name: "{{ event.variables.vm_name }}"
+              instance_id: "{{ event.variables.instance_id }}"
+              decommission_reason: "{{ event.variables.decommission_reason }}"
