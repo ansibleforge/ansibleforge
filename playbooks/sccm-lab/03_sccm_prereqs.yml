@@ -78,6 +78,11 @@
       ansible.windows.win_reboot:
       when: _features.reboot_required
 
+    - name: Create Temp directory
+      ansible.windows.win_file:
+        path: C:\Temp
+        state: directory
+
     - name: Download Windows ADK
       ansible.windows.win_get_url:
         url: https://go.microsoft.com/fwlink/?linkid=2243390
