@@ -59,17 +59,29 @@
           -ArgumentList "/Action=Download", "/MediaPath=C:\SQLInstall", "/MediaType=ISO", "/Quiet" `
           -Wait -NoNewWindow
       args:
-        creates: C:\SQLInstall\SQLServer2025-DEV-x64-ENU.iso
+        creates: C:\SQLInstall\Media\setup.exe
+
+    - name: Find downloaded SQL Server ISO
+      ansible.windows.win_find:
+        paths: C:\SQLInstall
+        patterns: "*.iso"
+      register: _sql_iso
+
+    - name: Verify ISO was downloaded
+      ansible.builtin.assert:
+        that: _sql_iso.matched > 0
+        fail_msg: "No ISO found in C:\\SQLInstall after bootstrapper download"
 
     - name: Mount SQL Server ISO and copy media
       ansible.windows.win_shell: "{{ mount_iso_script }}"
       vars:
+        iso_path: "{{ _sql_iso.files[0].path }}"
         mount_iso_script: >-
-          $iso = Mount-DiskImage -ImagePath C:\SQLInstall\SQLServer2025-DEV-x64-ENU.iso -PassThru;
+          $iso = Mount-DiskImage -ImagePath '{{ iso_path }}' -PassThru;
           $drive = ($iso | Get-Volume).DriveLetter;
           $src = $drive + [char]58 + [char]92;
           Copy-Item -Path $src -Destination C:\SQLInstall\Media -Recurse -Force;
-          Dismount-DiskImage -ImagePath C:\SQLInstall\SQLServer2025-DEV-x64-ENU.iso
+          Dismount-DiskImage -ImagePath '{{ iso_path }}'
       args:
         creates: C:\SQLInstall\Media\setup.exe
 
