@@ -139,6 +139,7 @@ spec:
               init_secret "pah"     '{"registry_url":"aap-hub-aap.{{ .Values.clusterDomain }}","username":"admin","password":"test"}'
               init_secret "ocp"     '{"bearer_token":"test"}'
               init_secret "aap"     '{"admin_password":"test"}'
+              init_secret "sccm-lab" '{"admin_password":"placeholder"}'
 
               echo "=== Seeding secrets from k8s secrets namespace ==="
 
@@ -216,6 +217,9 @@ spec:
                 capabilities = ["create", "update", "read"]
               }
               path "secret/data/ocp" {
+                capabilities = ["create", "update", "read"]
+              }
+              path "secret/data/sccm-lab" {
                 capabilities = ["create", "update", "read"]
               }
               POLICY
