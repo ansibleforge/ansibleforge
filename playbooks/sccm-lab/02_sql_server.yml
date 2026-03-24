@@ -93,10 +93,10 @@
           - /ACTION=Install
           - /FEATURES=SQLENGINE
           - /INSTANCENAME=MSSQLSERVER
-          - /SQLSYSADMINACCOUNTS="{{ domain_netbios }}\Domain Admins"
-          - /SQLSVCACCOUNT="{{ domain_netbios }}\svc_sql"
+          - /SQLSYSADMINACCOUNTS={{ domain_netbios }}\Domain Admins
+          - /SQLSVCACCOUNT={{ domain_netbios }}\svc_sql
           - /SQLSVCPASSWORD={{ ansible_password }}
-          - /AGTSVCACCOUNT="{{ domain_netbios }}\svc_sql"
+          - /AGTSVCACCOUNT={{ domain_netbios }}\svc_sql
           - /AGTSVCPASSWORD={{ ansible_password }}
           - /TCPENABLED=1
           - /SECURITYMODE=SQL
