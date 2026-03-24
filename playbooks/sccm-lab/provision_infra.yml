@@ -29,13 +29,46 @@
       when: terraform_state == 'present'
 
     - name: Sync admin password to Vault
-      community.hashi_vault.vault_write:
-        path: secret/data/sccm-lab
-        data:
-          data:
-            admin_password: "{{ _terraform.outputs.admin_password.value }}"
-        url: "http://vault.vault.svc:8200"
-        auth_method: kubernetes
-        role_id: aap-controller
-        mount_point: kubernetes
       when: terraform_state == 'present'
+      block:
+        - name: Find service account token
+          ansible.builtin.set_fact:
+            _sa_token: "{{ lookup('file', item) }}"
+          loop:
+            - /var/run/secrets/kubernetes.io/serviceaccount/token
+            - /run/secrets/kubernetes.io/serviceaccount/token
+          loop_control:
+            label: "{{ item }}"
+          ignore_errors: true
+          no_log: true
+
+        - name: Authenticate to Vault via Kubernetes
+          ansible.builtin.uri:
+            url: "http://vault.vault.svc:8200/v1/auth/kubernetes/login"
+            method: POST
+            body_format: json
+            body:
+              role: aap-controller
+              jwt: "{{ _sa_token }}"
+            validate_certs: false
+          register: _vault_auth
+          when: _sa_token is defined
+
+        - name: Write admin password to Vault
+          ansible.builtin.uri:
+            url: "http://vault.vault.svc:8200/v1/secret/data/sccm-lab"
+            method: POST
+            headers:
+              X-Vault-Token: "{{ _vault_auth.json.auth.client_token }}"
+            body_format: json
+            body:
+              data:
+                admin_password: "{{ _terraform.outputs.admin_password.value }}"
+            validate_certs: false
+            status_code: [200, 204]
+          when: _vault_auth is not skipped
+
+      rescue:
+        - name: Vault sync failed (non-fatal)
+          ansible.builtin.debug:
+            msg: "Could not sync password to Vault: {{ ansible_failed_result.msg | default('unknown') }}. Update secret/sccm-lab manually."
