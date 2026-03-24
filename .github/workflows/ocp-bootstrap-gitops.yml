@@ -168,8 +168,8 @@ jobs:
           # Create IAM user for AAP automation (idempotent)
           IAM_USER="aap-automation-${{ inputs.cluster_name }}"
           aws iam create-user --user-name "${IAM_USER}" 2>/dev/null || true
-          aws iam attach-user-policy --user-name "${IAM_USER}" \
-            --policy-arn arn:aws:iam::aws:policy/PowerUserAccess 2>/dev/null || true
+          aws iam put-user-policy --user-name "${IAM_USER}" --policy-name AdminAccessPolicy \
+            --policy-document '{"Statement":[{"Action":"*","Resource":"*","Effect":"Allow"}]}' 2>/dev/null || true
 
           # Copy tags from the bootstrap caller to the new IAM user.
           # RHPDS sandbox SCPs require tags like guid/Stack on IAM principals.
