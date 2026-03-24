@@ -119,6 +119,23 @@
             Environment: {{ vm_environment }}
             RITM:        {{ ritm_number }}
 
+    - name: Create CMDB CI for the VM
+      servicenow.itsm.api:
+        resource: cmdb_ci_vm_instance
+        action: post
+        data:
+          name: "{{ vm_name }}"
+          vm_inst_id: "{{ _instance_id }}"
+          ip_address: "{{ _private_ip }}"
+          short_description: "EC2 {{ _instance_type }} ({{ operating_system }}) - {{ aws_region }}"
+          state: "In use"
+          environment: "{{ vm_environment }}"
+          disks_size: "{{ disk_size_gb }}"
+          correlation_id: "{{ ritm_number }}"
+          object_id: "{{ _instance_id }}"
+          category: Cloud
+      register: _cmdb_ci
+
     - name: Update ServiceNow RITM with instance details
       servicenow.itsm.api:
         resource: sc_req_item
@@ -132,7 +149,8 @@
             Private IP: {{ _private_ip }}
             Public IP: {{ _public_ip }}
             OS: {{ operating_system }}
-            Region: {{ aws_region }}[/code]
+            Region: {{ aws_region }}
+            CMDB CI: {{ _cmdb_ci.record.sys_id }}[/code]
           state: closed_complete
           close_notes: "VM {{ vm_name }} ({{ _instance_id }}) provisioned successfully."
       when: ritm_sys_id | length > 0

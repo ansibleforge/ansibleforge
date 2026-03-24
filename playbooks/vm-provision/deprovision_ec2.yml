@@ -1,0 +1,78 @@
+---
+- name: Deprovision EC2 Instance from ServiceNow Request
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    aws_region: us-east-2
+    vm_name: ""
+    instance_id: ""
+    decommission_reason: ""
+    ritm_number: ""
+    ritm_sys_id: ""
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - instance_id | length > 0
+          - vm_name | length > 0
+        fail_msg: "instance_id and vm_name are required."
+
+    - name: Look up CMDB CI by instance ID
+      servicenow.itsm.api:
+        resource: cmdb_ci_vm_instance
+        action: get
+        query_params:
+          sysparm_query: "vm_inst_id={{ instance_id }}"
+          sysparm_limit: "1"
+      register: _cmdb_lookup
+
+    - name: Set CMDB CI sys_id
+      ansible.builtin.set_fact:
+        _ci_sys_id: "{{ _cmdb_lookup.record[0].sys_id | default('') }}"
+      when: _cmdb_lookup.record | length > 0
+
+    - name: Terminate EC2 instance
+      amazon.aws.ec2_instance:
+        region: "{{ aws_region }}"
+        instance_ids:
+          - "{{ instance_id }}"
+        state: terminated
+        wait: true
+      register: _terminate
+
+    - name: Display termination result
+      ansible.builtin.debug:
+        msg: |
+          VM deprovisioned:
+            Name:        {{ vm_name }}
+            Instance ID: {{ instance_id }}
+            Reason:      {{ decommission_reason }}
+            RITM:        {{ ritm_number }}
+
+    - name: Retire CMDB CI
+      servicenow.itsm.api:
+        resource: cmdb_ci_vm_instance
+        action: patch
+        sys_id: "{{ _ci_sys_id }}"
+        data:
+          state: "Retired"
+          short_description: "{{ vm_name }} - DECOMMISSIONED - {{ decommission_reason | truncate(80) }}"
+      when: _ci_sys_id is defined and _ci_sys_id | length > 0
+
+    - name: Update ServiceNow RITM with decommission details
+      servicenow.itsm.api:
+        resource: sc_req_item
+        action: patch
+        sys_id: "{{ ritm_sys_id }}"
+        data:
+          work_notes: >-
+            [code]EC2 instance decommissioned by Ansible Automation Platform.
+            Instance ID: {{ instance_id }}
+            VM Name: {{ vm_name }}
+            Reason: {{ decommission_reason }}[/code]
+          state: closed_complete
+          close_notes: "VM {{ vm_name }} ({{ instance_id }}) terminated successfully."
+      when: ritm_sys_id | length > 0

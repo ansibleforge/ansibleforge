@@ -16,3 +16,18 @@ controller_templates:
       subnet_id: ""
       security_group_id: ""
     description: "Provision an EC2 instance from a ServiceNow catalog request"
+
+  - name: "VM Deprovision - EC2"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/vm-provision/deprovision_ec2.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "AWS - AnsibleForge"
+      - "ServiceNow"
+    ask_variables_on_launch: true
+    extra_vars:
+      aws_region: us-east-2
+    description: "Terminate an EC2 instance and retire its CMDB CI"
