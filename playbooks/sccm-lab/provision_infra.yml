@@ -29,30 +29,13 @@
       when: terraform_state == 'present'
 
     - name: Sync admin password to Vault
+      community.hashi_vault.vault_write:
+        path: secret/data/sccm-lab
+        data:
+          data:
+            admin_password: "{{ _terraform.outputs.admin_password.value }}"
+        url: "http://vault.vault.svc:8200"
+        auth_method: kubernetes
+        role_id: aap-controller
+        mount_point: kubernetes
       when: terraform_state == 'present'
-      block:
-        - name: Authenticate to Vault via Kubernetes
-          ansible.builtin.uri:
-            url: "{{ vault_addr }}/v1/auth/kubernetes/login"
-            method: POST
-            body_format: json
-            body:
-              role: aap-controller
-              jwt: "{{ lookup('file', '/var/run/secrets/kubernetes.io/serviceaccount/token') }}"
-            validate_certs: false
-          register: _vault_auth
-
-        - name: Write admin password to Vault
-          ansible.builtin.uri:
-            url: "{{ vault_addr }}/v1/secret/data/sccm-lab"
-            method: POST
-            headers:
-              X-Vault-Token: "{{ _vault_auth.json.auth.client_token }}"
-            body_format: json
-            body:
-              data:
-                admin_password: "{{ _terraform.outputs.admin_password.value }}"
-            validate_certs: false
-            status_code: [200, 204]
-      vars:
-        vault_addr: "http://vault.vault.svc:8200"
