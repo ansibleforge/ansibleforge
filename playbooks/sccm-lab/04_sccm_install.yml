@@ -38,6 +38,27 @@
       args:
         creates: C:\ExtADSch.log
 
+    - name: Install ODBC Driver 18
+      ansible.windows.win_package:
+        path: https://go.microsoft.com/fwlink/?linkid=2266337
+        product_id: '{8B0E60C4-1FF1-4109-9E88-2A3BCA48EED8}'
+        arguments: IACCEPTMSODBCSQLLICENSETERMS=YES /qn
+        state: present
+
+    - name: Install SQL Native Client 11
+      ansible.windows.win_package:
+        path: https://download.microsoft.com/download/B/E/D/BED73AAC-3C8A-43F5-AF4F-EB4FEA6C8F3A/ENU/x64/sqlncli.msi
+        product_id: '{49D665A2-4C2A-476E-9AB8-FCC425F526FC}'
+        arguments: IACCEPTSQLNCLILICENSETERMS=YES /qn
+        state: present
+
+    - name: Install OLE DB Driver for SQL Server
+      ansible.windows.win_package:
+        path: C:\SCCMInstall\Media\SMSSETUP\BIN\X64\msoledbsql.msi
+        product_id: '{EF32B858-4029-4636-A3E5-19170B133B5D}'
+        arguments: IACCEPTMSOLEDBSQLLICENSETERMS=YES /qn
+        state: present
+
     - name: Create SCCM setup INI
       ansible.windows.win_copy:
         content: |
@@ -52,7 +73,8 @@
           SDKServer={{ inventory_hostname }}.{{ domain_name }}
           RoleCommunicationProtocol=HTTPorHTTPS
           ClientsUsePKICertificate=0
-          PrerequisiteComp=0
+          PrerequisiteComp=1
+          PrerequisitePath=C:\SCCMInstall\Downloads
           AdminConsole=1
           JoinCEIP=0
 
@@ -67,24 +89,52 @@
           [HierarchyExpansionOption]
         dest: C:\SCCMInstall\setup.ini
 
-    - name: Download PsExec
-      ansible.windows.win_get_url:
-        url: https://live.sysinternals.com/PsExec64.exe
-        dest: C:\Temp\PsExec64.exe
-        force: false
+    - name: Enable auto-logon for interactive desktop session
+      ansible.windows.win_auto_logon:
+        username: "{{ domain_netbios }}\\Administrator"
+        password: "{{ ansible_password }}"
+        state: present
+      no_log: true
 
-    - name: Install SCCM via PsExec (requires interactive session 0)
+    - name: Reboot to create interactive desktop session
+      ansible.windows.win_reboot:
+        reboot_timeout: 300
+        post_reboot_delay: 30
+
+    - name: Wait for interactive session to be available
       ansible.windows.win_shell: |
-        $proc = Start-Process -FilePath C:\Temp\PsExec64.exe `
-          -ArgumentList "-accepteula", "-nobanner", "-s", "-i", "0", `
-            "C:\SCCMInstall\Media\SMSSETUP\BIN\X64\setup.exe", `
-            "/SCRIPT", "C:\SCCMInstall\setup.ini" `
-          -Wait -PassThru -NoNewWindow
-        Write-Output "ExitCode: $($proc.ExitCode)"
+        (Get-Process explorer -ErrorAction SilentlyContinue) -ne $null
+      register: _desktop_ready
+      retries: 12
+      delay: 10
+      until: _desktop_ready.stdout | trim | bool
+
+    - name: Install SCCM via scheduled task (interactive desktop session)
+      ansible.windows.win_shell: |
+        $action = New-ScheduledTaskAction `
+          -Execute "C:\SCCMInstall\Media\SMSSETUP\BIN\X64\setup.exe" `
+          -Argument "/SCRIPT C:\SCCMInstall\setup.ini"
+        $principal = New-ScheduledTaskPrincipal -UserId "{{ domain_netbios }}\Administrator" `
+          -RunLevel Highest -LogonType InteractiveToken
+        Register-ScheduledTask -TaskName "InstallSCCM" -Action $action -Principal $principal -Force | Out-Null
+        Start-ScheduledTask -TaskName "InstallSCCM"
+        do {
+          Start-Sleep 60
+          $state = (Get-ScheduledTask -TaskName "InstallSCCM").State
+          Write-Host "State: $state"
+        } while ($state -eq 'Running')
+        $info = Get-ScheduledTaskInfo -TaskName "InstallSCCM"
+        Unregister-ScheduledTask -TaskName "InstallSCCM" -Confirm:$false
+        Write-Output "ExitCode: $($info.LastTaskResult)"
+        if ($info.LastTaskResult -ne 0) { exit 1 }
       register: _sccm_install
       changed_when: "'ExitCode: 0' in _sccm_install.stdout"
       async: 3600
       poll: 60
+
+    - name: Disable auto-logon
+      ansible.windows.win_auto_logon:
+        state: absent
 
     - name: Wait for SCCM site to be ready
       ansible.windows.win_shell: |
