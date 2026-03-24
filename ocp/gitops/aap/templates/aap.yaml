@@ -31,6 +31,9 @@ spec:
     chatbot_config_secret_name: aap-lightspeed-chatbot-config
   mcp:
     disabled: false
+  extra_settings:
+    - setting: SESSION_COOKIE_AGE
+      value: "86400"
   no_log: true
   redis_mode: standalone
   route_tls_termination_mechanism: Edge
