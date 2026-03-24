@@ -67,25 +67,22 @@
           [HierarchyExpansionOption]
         dest: C:\SCCMInstall\setup.ini
 
-    - name: Install SCCM via scheduled task (requires desktop session)
+    - name: Download PsExec
+      ansible.windows.win_get_url:
+        url: https://live.sysinternals.com/PsExec64.exe
+        dest: C:\Temp\PsExec64.exe
+        force: false
+
+    - name: Install SCCM via PsExec (requires interactive session 0)
       ansible.windows.win_shell: |
-        schtasks /create /tn "InstallSCCM" /tr "C:\SCCMInstall\Media\SMSSETUP\BIN\X64\setup.exe /SCRIPT C:\SCCMInstall\setup.ini" `
-          /sc once /st 00:00 /rl highest `
-          /ru "{{ domain_netbios }}\Administrator" /rp "{{ ansible_password }}" /f
-        schtasks /run /tn "InstallSCCM"
-        do {
-          Start-Sleep 60
-          $task = schtasks /query /tn "InstallSCCM" /fo csv /nh | ConvertFrom-Csv -Header Name,Next,Status
-          $state = $task.Status
-          Write-Host "State: $state"
-        } while ($state -eq 'Running')
-        $info = Get-ScheduledTaskInfo -TaskName "InstallSCCM"
-        schtasks /delete /tn "InstallSCCM" /f
-        Write-Output "ExitCode: $($info.LastTaskResult)"
-        if ($info.LastTaskResult -ne 0) { exit 1 }
+        $proc = Start-Process -FilePath C:\Temp\PsExec64.exe `
+          -ArgumentList "-accepteula", "-nobanner", "-s", "-i", "0", `
+            "C:\SCCMInstall\Media\SMSSETUP\BIN\X64\setup.exe", `
+            "/SCRIPT", "C:\SCCMInstall\setup.ini" `
+          -Wait -PassThru -NoNewWindow
+        Write-Output "ExitCode: $($proc.ExitCode)"
       register: _sccm_install
       changed_when: "'ExitCode: 0' in _sccm_install.stdout"
-      no_log: true
       async: 3600
       poll: 60
 
