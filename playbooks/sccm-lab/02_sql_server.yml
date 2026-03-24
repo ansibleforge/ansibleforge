@@ -104,7 +104,7 @@
           - /IACCEPTSQLSERVERLICENSETERMS
         product_id: '{skip}'
         expected_return_code: [0, 3010]
-      no_log: true
+      no_log: false
 
     - name: Open SQL firewall port
       community.windows.win_firewall_rule:
