@@ -1,0 +1,43 @@
+---
+- name: Submit ServiceNow Decommission VM Request
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    vm_name: ""
+    instance_id: ""
+    decommission_reason: ""
+    decom_cat_item: "b1995e0ac33f7210dd6df7fdd40131cb"
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - vm_name | length > 0
+          - instance_id | length > 0
+          - decommission_reason | length > 0
+        fail_msg: "vm_name, instance_id, and decommission_reason are required."
+
+    - name: Submit decommission catalog request
+      servicenow.itsm.api:
+        resource: sc_req_item
+        action: post
+        data:
+          cat_item: "{{ decom_cat_item }}"
+          variables:
+            vm_name: "{{ vm_name }}"
+            instance_id: "{{ instance_id }}"
+            decommission_reason: "{{ decommission_reason }}"
+      register: _request
+
+    - name: Display request details
+      ansible.builtin.debug:
+        msg: |
+          Decommission request submitted:
+            RITM:      {{ _request.record.number }}
+            VM Name:   {{ vm_name }}
+            Instance:  {{ instance_id }}
+            Reason:    {{ decommission_reason }}
+
+          EDA will pick this up and trigger the deprovision workflow automatically.
