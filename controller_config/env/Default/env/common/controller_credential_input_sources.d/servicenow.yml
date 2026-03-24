@@ -1,0 +1,23 @@
+---
+controller_credential_input_sources:
+  - source_credential: Vault Lookup
+    target_credential: ServiceNow
+    input_field_name: SN_HOST
+    metadata:
+      secret_path: "secret/servicenow"
+      secret_key: "host"
+      secret_version: ""
+  - source_credential: Vault Lookup
+    target_credential: ServiceNow
+    input_field_name: SN_USERNAME
+    metadata:
+      secret_path: "secret/servicenow"
+      secret_key: "username"
+      secret_version: ""
+  - source_credential: Vault Lookup
+    target_credential: ServiceNow
+    input_field_name: SN_PASSWORD
+    metadata:
+      secret_path: "secret/servicenow"
+      secret_key: "password"
+      secret_version: ""
