@@ -155,13 +155,6 @@
                       type: Secret
                       secret:
                         secretName: etc-pki-entitlement
-                  - name: ansible-config
-                    mounts:
-                      - destinationPath: /etc/ansible
-                    source:
-                      type: Secret
-                      secret:
-                        secretName: ansible-config
                 dockerfilePath: Containerfile
             output:
               to:
