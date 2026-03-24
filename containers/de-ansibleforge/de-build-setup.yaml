@@ -117,6 +117,16 @@
           data: "{{ _entitlement_secret.resources[0].data }}"
       when: _entitlement_secret.resources | length > 0
 
+    - name: Create ImageStream for DE
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: image.openshift.io/v1
+          kind: ImageStream
+          metadata:
+            name: "{{ de_image_name }}"
+            namespace: "{{ build_namespace }}"
+
     - name: Create DE BuildConfig
       kubernetes.core.k8s:
         state: present
@@ -155,10 +165,8 @@
                 dockerfilePath: Containerfile
             output:
               to:
-                kind: DockerImage
-                name: "{{ pah_image }}:latest"
-              pushSecret:
-                name: pah-registry-secret
+                kind: ImageStreamTag
+                name: "{{ de_image_name }}:latest"
             triggers: []
 
     - name: Start DE build
@@ -193,7 +201,6 @@
       ansible.builtin.command:
         cmd: >-
           oc tag
-          --source=docker {{ pah_image }}:latest
+          {{ build_namespace }}/{{ de_image_name }}:latest
           {{ build_namespace }}/{{ de_image_name }}:{{ image_tag }}
-          --insecure
       changed_when: true
