@@ -10,7 +10,7 @@
         table: sc_req_item
         sysparm_query: "cat_item=2c160bb0c3f33210dd6df7fdd401311f^state=1"
         interval: 30
-        remote_servicenow_timezone: UTC
+        remote_servicenow_timezone: GMT
   rules:
     - name: New Virtual Machine request — launch provisioning
       condition: event.sys_id is defined
@@ -26,12 +26,6 @@
             extra_vars:
               ritm_number: "{{ event.number }}"
               ritm_sys_id: "{{ event.sys_id }}"
-              vm_name: "{{ event.variables.vm_name }}"
-              operating_system: "{{ event.variables.operating_system }}"
-              cpu_cores: "{{ event.variables.cpu_cores }}"
-              memory_gb: "{{ event.variables.memory_gb }}"
-              disk_size_gb: "{{ event.variables.disk_size_gb }}"
-              vm_environment: "{{ event.variables.environment }}"
 
 - name: Decommission VM on ServiceNow catalog request
   hosts: all
@@ -44,7 +38,7 @@
         table: sc_req_item
         sysparm_query: "cat_item=b1995e0ac33f7210dd6df7fdd40131cb^state=1"
         interval: 30
-        remote_servicenow_timezone: UTC
+        remote_servicenow_timezone: GMT
   rules:
     - name: Decommission VM request — launch deprovisioning
       condition: event.sys_id is defined
@@ -60,6 +54,3 @@
             extra_vars:
               ritm_number: "{{ event.number }}"
               ritm_sys_id: "{{ event.sys_id }}"
-              vm_name: "{{ event.variables.vm_name }}"
-              instance_id: "{{ event.variables.instance_id }}"
-              decommission_reason: "{{ event.variables.decommission_reason }}"
