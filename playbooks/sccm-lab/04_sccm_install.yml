@@ -73,7 +73,7 @@
           -Execute "C:\SCCMInstall\Media\SMSSETUP\BIN\X64\setup.exe" `
           -Argument "/SCRIPT C:\SCCMInstall\setup.ini"
         $principal = New-ScheduledTaskPrincipal -UserId "{{ domain_netbios }}\Administrator" `
-          -RunLevel Highest -LogonType InteractiveToken
+          -RunLevel Highest -LogonType S4U
         Register-ScheduledTask -TaskName "InstallSCCM" -Action $action -Principal $principal -Force | Out-Null
         Start-ScheduledTask -TaskName "InstallSCCM"
         do {
