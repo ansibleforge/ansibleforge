@@ -43,9 +43,3 @@ variable "key_pair_name" {
   type    = string
   default = ""
 }
-
-variable "instance_profile_name" {
-  type        = string
-  description = "Pre-created IAM instance profile name for S3 access"
-  default     = "sccm-lab-instance"
-}

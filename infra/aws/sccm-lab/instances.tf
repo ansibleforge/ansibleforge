@@ -64,7 +64,7 @@ resource "aws_instance" "server" {
   key_name               = var.key_pair_name != "" ? var.key_pair_name : null
   user_data              = local.userdata
   get_password_data      = false
-  iam_instance_profile   = var.instance_profile_name != "" ? var.instance_profile_name : null
+  iam_instance_profile   = aws_iam_instance_profile.instance.name
 
   root_block_device {
     volume_size = each.value.root_size
@@ -89,7 +89,7 @@ resource "aws_instance" "client" {
   private_ip             = "10.0.1.${101 + count.index}"
   key_name               = var.key_pair_name != "" ? var.key_pair_name : null
   user_data              = local.userdata
-  iam_instance_profile   = var.instance_profile_name != "" ? var.instance_profile_name : null
+  iam_instance_profile   = aws_iam_instance_profile.instance.name
 
   root_block_device {
     volume_size = 40

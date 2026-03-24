@@ -1,3 +1,53 @@
+################################################################################
+# IAM – instance profile for all lab hosts
+################################################################################
+
+resource "aws_iam_role" "instance" {
+  name = "${var.lab_name}-instance"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = { Name = "${var.lab_name}-instance" }
+}
+
+resource "aws_iam_role_policy" "s3_read" {
+  name = "${var.lab_name}-s3-read"
+  role = aws_iam_role.instance.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["s3:GetObject", "s3:ListBucket"]
+      Resource = [
+        "arn:aws:s3:::ansibleforge-tfstate",
+        "arn:aws:s3:::ansibleforge-tfstate/*",
+      ]
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role       = aws_iam_role.instance.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "instance" {
+  name = "${var.lab_name}-instance"
+  role = aws_iam_role.instance.name
+}
+
+################################################################################
+# Security group
+################################################################################
+
 resource "aws_security_group" "lab" {
   name_prefix = "${var.lab_name}-"
   vpc_id      = aws_vpc.lab.id
