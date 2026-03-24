@@ -109,10 +109,10 @@
         product_id: '{skip}'
         expected_return_code: [0, 3010]
 
-    - name: Wait for SQL01 DNS resolution
+    - name: Wait for SQL server DNS resolution
       ansible.windows.win_shell: |
         Clear-DnsClientCache
-        Resolve-DnsName -Name SQL01.{{ domain_name }} -ErrorAction Stop
+        Resolve-DnsName -Name {{ groups['sql_servers'][0] }}.{{ domain_name }} -ErrorAction Stop
       register: _dns_check
       retries: 6
       delay: 10
@@ -120,7 +120,7 @@
 
     - name: Run WSUS post-install configuration
       ansible.windows.win_shell: |
-        & "C:\Program Files\Update Services\Tools\wsusutil.exe" postinstall SQL_INSTANCE_NAME=SQL01.{{ domain_name }} CONTENT_DIR=C:\WSUS
+        & "C:\Program Files\Update Services\Tools\wsusutil.exe" postinstall SQL_INSTANCE_NAME={{ groups['sql_servers'][0] }}.{{ domain_name }} CONTENT_DIR=C:\WSUS
       args:
         creates: C:\WSUS
 
