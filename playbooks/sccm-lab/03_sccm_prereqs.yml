@@ -136,4 +136,5 @@
           $sid, "GenericAll", "Allow", "Descendents")
         $acl.AddAccessRule($rule)
         Set-Acl "AD:\$container" $acl
+      delegate_to: "{{ groups['domain_controllers'][0] }}"
       changed_when: false
