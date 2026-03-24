@@ -37,39 +37,8 @@ locals {
   }
 }
 
-resource "aws_iam_role" "lab_instance" {
+data "aws_iam_instance_profile" "lab_instance" {
   name = "${var.lab_name}-instance"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = { Service = "ec2.amazonaws.com" }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy" "lab_s3_read" {
-  name = "${var.lab_name}-s3-read"
-  role = aws_iam_role.lab_instance.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["s3:GetObject", "s3:ListBucket"]
-      Resource = [
-        "arn:aws:s3:::ansibleforge-tfstate",
-        "arn:aws:s3:::ansibleforge-tfstate/*"
-      ]
-    }]
-  })
-}
-
-resource "aws_iam_instance_profile" "lab_instance" {
-  name = "${var.lab_name}-instance"
-  role = aws_iam_role.lab_instance.name
 }
 
 data "aws_ami" "windows_2022" {
@@ -98,7 +67,7 @@ resource "aws_instance" "server" {
   key_name               = var.key_pair_name != "" ? var.key_pair_name : null
   user_data              = local.userdata
   get_password_data      = false
-  iam_instance_profile   = aws_iam_instance_profile.lab_instance.name
+  iam_instance_profile   = data.aws_iam_instance_profile.lab_instance.name
 
   root_block_device {
     volume_size = each.value.root_size
@@ -123,7 +92,7 @@ resource "aws_instance" "client" {
   private_ip             = "10.0.1.${101 + count.index}"
   key_name               = var.key_pair_name != "" ? var.key_pair_name : null
   user_data              = local.userdata
-  iam_instance_profile   = aws_iam_instance_profile.lab_instance.name
+  iam_instance_profile   = data.aws_iam_instance_profile.lab_instance.name
 
   root_block_device {
     volume_size = 40
