@@ -6,6 +6,7 @@
         table: sc_req_item
         sysparm_query: "cat_item=2c160bb0c3f33210dd6df7fdd401311f^state=1"
         interval: 30
+        remote_servicenow_timezone: UTC
   rules:
     - name: New Virtual Machine request — launch provisioning
       condition: event.sys_id is defined
@@ -35,6 +36,7 @@
         table: sc_req_item
         sysparm_query: "cat_item=b1995e0ac33f7210dd6df7fdd40131cb^state=1"
         interval: 30
+        remote_servicenow_timezone: UTC
   rules:
     - name: Decommission VM request — launch deprovisioning
       condition: event.sys_id is defined
