@@ -1,0 +1,18 @@
+---
+controller_templates:
+  - name: "VM Provision - EC2"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/vm-provision/provision_ec2.yml
+    inventory: Localhost
+    execution_environment: "EE AnsibleForge"
+    credentials:
+      - "AWS - AnsibleForge"
+      - "ServiceNow"
+    ask_variables_on_launch: true
+    extra_vars:
+      aws_region: us-east-2
+      subnet_id: ""
+      security_group_id: ""
+    description: "Provision an EC2 instance from a ServiceNow catalog request"

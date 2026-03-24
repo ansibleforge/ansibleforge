@@ -1,0 +1,11 @@
+---
+eda_rulebook_activations:
+  - name: ServiceNow VM Provision
+    description: Polls ServiceNow for new VM catalog requests and triggers EC2 provisioning
+    project: AnsibleForge
+    rulebook: snow-vm-provision.yml
+    decision_environment: Default Decision Environment
+    restart_policy: always
+    enabled: true
+    extra_vars:
+      vault_url: "http://vault.vault.svc:8200"
