@@ -19,32 +19,27 @@
     key_pair_name: ""
 
     os_ami_map:
-      "Amazon Linux 2023":
-        owner: "137112412989"
-        filter: "al2023-ami-2023.*-x86_64"
-      "Red Hat Enterprise Linux 9":
-        owner: "309956199498"
-        filter: "RHEL-9.*-x86_64-*"
-      "Ubuntu 22.04":
-        owner: "099720109477"
-        filter: "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"
-      "Windows Server 2022":
+      win2022:
         owner: "801119661308"
         filter: "Windows_Server-2022-English-Full-Base-*"
+      win2025:
+        owner: "801119661308"
+        filter: "Windows_Server-2025-English-Full-Base-*"
+      rhel9:
+        owner: "309956199498"
+        filter: "RHEL-9.*-x86_64-*"
+      ubuntu2404:
+        owner: "099720109477"
+        filter: "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"
 
     instance_type_map:
-      "1_2": "t3a.small"
       "2_4": "t3a.medium"
       "2_8": "t3a.large"
       "4_16": "t3a.xlarge"
+      "4_32": "r5a.xlarge"
       "8_32": "m5a.2xlarge"
+      "8_64": "r5a.2xlarge"
       "16_64": "m5a.4xlarge"
-
-    env_tag_map:
-      Development: dev
-      Test: test
-      Staging: staging
-      Production: prod
 
   tasks:
     - name: Validate required variables
@@ -65,7 +60,6 @@
     - name: Resolve instance type
       ansible.builtin.set_fact:
         _instance_type: "{{ instance_type_map[cpu_cores | string + '_' + memory_gb | string] }}"
-        _env_short: "{{ env_tag_map[environment] | default(environment | lower) }}"
 
     - name: Find AMI
       amazon.aws.ec2_ami_info:
@@ -92,13 +86,13 @@
         security_group: "{{ security_group_id }}"
         key_name: "{{ key_pair_name | default(omit, true) }}"
         volumes:
-          - device_name: "{{ '/dev/sda1' if 'Windows' not in operating_system else '/dev/sda1' }}"
+          - device_name: "{{ '/dev/xvda' if operating_system.startswith('win') else '/dev/sda1' }}"
             ebs:
               volume_size: "{{ disk_size_gb | int }}"
               volume_type: gp3
               encrypted: true
         tags:
-          Environment: "{{ _env_short }}"
+          Environment: "{{ environment }}"
           ManagedBy: ansible
           ServiceNow_RITM: "{{ ritm_number }}"
         wait: true
