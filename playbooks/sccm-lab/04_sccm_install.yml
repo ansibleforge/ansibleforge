@@ -52,8 +52,7 @@
           SDKServer={{ inventory_hostname }}.{{ domain_name }}
           RoleCommunicationProtocol=HTTPorHTTPS
           ClientsUsePKICertificate=0
-          PrerequisiteComp=1
-          PrerequisitePath=C:\SCCMInstall\Downloads
+          PrerequisiteComp=0
           AdminConsole=1
           JoinCEIP=0
 
@@ -67,17 +66,6 @@
 
           [HierarchyExpansionOption]
         dest: C:\SCCMInstall\setup.ini
-
-    - name: Download SCCM prerequisites
-      ansible.windows.win_file:
-        path: C:\SCCMInstall\Downloads
-        state: directory
-
-    - name: Run SCCM prerequisite downloader
-      ansible.windows.win_shell: |
-        Start-Process -FilePath C:\SCCMInstall\Media\SMSSETUP\BIN\X64\setupdl.exe -ArgumentList "/NoUI", "C:\SCCMInstall\Downloads" -Wait -NoNewWindow
-      args:
-        creates: C:\SCCMInstall\Downloads\Redist
 
     - name: Install SCCM (this takes 30+ minutes)
       ansible.windows.win_shell: |
