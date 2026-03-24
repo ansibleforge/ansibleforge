@@ -102,9 +102,29 @@
           - /SECURITYMODE=SQL
           - /SAPWD={{ ansible_password }}
           - /IACCEPTSQLSERVERLICENSETERMS
+          - /UPDATEENABLED=False
         product_id: '{skip}'
         expected_return_code: [0, 3010]
-      no_log: false
+      no_log: true
+      register: _sql_install
+      ignore_errors: true
+
+    - name: Fetch SQL setup log on failure
+      ansible.windows.win_shell: |
+        $log = Get-ChildItem -Path C:\Program` Files\Microsoft` SQL` Server\*\Setup` Bootstrap\Log -Filter Summary.txt -Recurse | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($log) { Get-Content $log.FullName -Tail 50 } else { "No summary.txt found" }
+      register: _sql_log
+      when: _sql_install is failed
+
+    - name: Show SQL setup log
+      ansible.builtin.debug:
+        var: _sql_log.stdout_lines
+      when: _sql_install is failed
+
+    - name: Fail if SQL install failed
+      ansible.builtin.fail:
+        msg: "SQL Server installation failed - see log above"
+      when: _sql_install is failed
 
     - name: Open SQL firewall port
       community.windows.win_firewall_rule:
