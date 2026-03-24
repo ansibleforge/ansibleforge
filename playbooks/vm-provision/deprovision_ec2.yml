@@ -21,17 +21,15 @@
         fail_msg: "instance_id and vm_name are required."
 
     - name: Look up CMDB CI by instance ID
-      servicenow.itsm.api:
+      servicenow.itsm.api_info:
         resource: cmdb_ci_vm_instance
-        action: get
-        query_params:
-          sysparm_query: "vm_inst_id={{ instance_id }}"
-          sysparm_limit: "1"
+        sysparm_query: "vm_inst_id={{ instance_id }}"
+        sysparm_limit: 1
       register: _cmdb_lookup
 
     - name: Set CMDB CI sys_id
       ansible.builtin.set_fact:
-        _ci_sys_id: "{{ _cmdb_lookup.record[0].sys_id | default('') }}"
+        _ci_sys_id: "{{ _cmdb_lookup.record[0].sys_id }}"
       when: _cmdb_lookup.record | length > 0
 
     - name: Terminate EC2 instance
