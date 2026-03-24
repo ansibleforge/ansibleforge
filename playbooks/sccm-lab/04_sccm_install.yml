@@ -19,17 +19,16 @@
       args:
         creates: C:\SCCMInstall\ConfigMgr_2509.exe
 
+    - name: Install 7-Zip for archive extraction
+      ansible.windows.win_package:
+        path: https://www.7-zip.org/a/7z2408-x64.msi
+        product_id: '{23170F69-40C1-2702-2408-000001000000}'
+        arguments: /qn
+        state: present
+
     - name: Extract SCCM media
       ansible.windows.win_shell: |
-        $task = Register-ScheduledTask -TaskName "ExtractSCCM" `
-          -Action (New-ScheduledTaskAction -Execute "C:\SCCMInstall\ConfigMgr_2509.exe" -Argument "/auto C:\SCCMInstall\Media") `
-          -Principal (New-ScheduledTaskPrincipal -UserId "{{ domain_netbios }}\Administrator" -RunLevel Highest -LogonType S4U) `
-          -Force
-        Start-ScheduledTask -TaskName "ExtractSCCM"
-        while ((Get-ScheduledTask -TaskName "ExtractSCCM").State -eq 'Running') { Start-Sleep 10 }
-        $info = Get-ScheduledTaskInfo -TaskName "ExtractSCCM"
-        Unregister-ScheduledTask -TaskName "ExtractSCCM" -Confirm:$false
-        if ($info.LastTaskResult -ne 0) { throw "Extraction failed with code $($info.LastTaskResult)" }
+        & "C:\Program Files\7-Zip\7z.exe" x C:\SCCMInstall\ConfigMgr_2509.exe -oC:\SCCMInstall\Media -y
       args:
         creates: C:\SCCMInstall\Media\SMSSETUP\BIN\X64\setup.exe
 
