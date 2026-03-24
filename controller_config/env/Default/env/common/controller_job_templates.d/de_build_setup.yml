@@ -1,0 +1,17 @@
+---
+controller_templates:
+  - name: "DE - Build AnsibleForge"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: containers/de-ansibleforge/de-build-setup.yaml
+    inventory: Localhost
+    execution_environment: "EE AnsibleForge"
+    credentials:
+      - "GitHub - AnsibleForge"
+      - "Automation Hub Token"
+      - "OpenShift - Shared Builds"
+    ask_variables_on_launch: true
+    extra_vars:
+      cluster_domain: "apps.ocp.fire.ansibleforge.dev"
+    description: "Build the AnsibleForge Decision Environment for EDA"

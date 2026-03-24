@@ -1,0 +1,4 @@
+collections:
+  - name: servicenow.itsm
+  - name: community.hashi_vault
+  - name: ansible.eda

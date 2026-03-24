@@ -1,0 +1,201 @@
+---
+- name: Create DE Build Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3.9
+    build_namespace: aap-shared-builds
+    buildconfig_name: bc-de-ansibleforge
+    source_repo: https://github.com/hfenner/ansibleforge.git
+    source_revision: main
+    context_dir: containers/de-ansibleforge/context
+    de_image_name: de-ansibleforge
+    image_tag: "v{{ '%Y-%m-%d' | strftime }}"
+    pah_registry: "aap-hub-aap.{{ cluster_domain }}"
+    pah_image: "{{ pah_registry }}/{{ de_image_name }}"
+    github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
+    automationhub_token: "{{ lookup('env', 'AUTOMATIONHUB_TOKEN') | default(lookup('env', 'AH_TOKEN'), true) }}"
+    pah_username: "{{ lookup('env', 'PAH_USERNAME') | default('admin', true) }}"
+    pah_password: "{{ lookup('env', 'PAH_PASSWORD') | default('', true) }}"
+
+  pre_tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - cluster_domain is defined and cluster_domain | length > 0
+          - github_token | length > 0
+          - automationhub_token | length > 0
+        fail_msg: >-
+          cluster_domain, github_token, and automationhub_token are required.
+          Attach credentials that inject GITHUB_TOKEN and AUTOMATIONHUB_TOKEN.
+
+  tasks:
+    - name: Ensure build namespace exists
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ build_namespace }}"
+
+    - name: Create source secret for git clone
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: repo-https-secret
+            namespace: "{{ build_namespace }}"
+          type: kubernetes.io/basic-auth
+          stringData:
+            username: git
+            password: "{{ github_token }}"
+
+    - name: Create ansible.cfg secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: ansible-config
+            namespace: "{{ build_namespace }}"
+          stringData:
+            ansible.cfg: |
+              [galaxy]
+              server_list = certified, validated, galaxy
+
+              [galaxy_server.certified]
+              url=https://console.redhat.com/api/automation-hub/content/published/
+              auth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+              token={{ automationhub_token }}
+
+              [galaxy_server.validated]
+              url=https://console.redhat.com/api/automation-hub/content/validated/
+              auth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+              token={{ automationhub_token }}
+
+              [galaxy_server.galaxy]
+              url=https://galaxy.ansible.com/
+
+    - name: Create PAH push secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: pah-registry-secret
+            namespace: "{{ build_namespace }}"
+          type: kubernetes.io/dockerconfigjson
+          stringData:
+            .dockerconfigjson: |
+              {"auths":{"{{ pah_registry }}":{"username":"{{ pah_username }}","password":"{{ pah_password }}","auth":"{{ (pah_username ~ ':' ~ pah_password) | b64encode }}"}}}
+      when: pah_password | length > 0
+
+    - name: Check if entitlement secret exists in source namespace
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        name: etc-pki-entitlement
+        namespace: openshift-config-managed
+      register: _entitlement_secret
+
+    - name: Copy RHEL entitlement to build namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: etc-pki-entitlement
+            namespace: "{{ build_namespace }}"
+          type: Opaque
+          data: "{{ _entitlement_secret.resources[0].data }}"
+      when: _entitlement_secret.resources | length > 0
+
+    - name: Create DE BuildConfig
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: build.openshift.io/v1
+          kind: BuildConfig
+          metadata:
+            name: "{{ buildconfig_name }}"
+            namespace: "{{ build_namespace }}"
+          spec:
+            source:
+              git:
+                uri: "{{ source_repo }}"
+                ref: "{{ source_revision }}"
+              contextDir: "{{ context_dir }}"
+              sourceSecret:
+                name: repo-https-secret
+            strategy:
+              type: Docker
+              dockerStrategy:
+                volumes:
+                  - name: etc-pki-entitlement
+                    mounts:
+                      - destinationPath: /etc/pki/entitlement
+                    source:
+                      type: Secret
+                      secret:
+                        secretName: etc-pki-entitlement
+                  - name: ansible-config
+                    mounts:
+                      - destinationPath: /etc/ansible
+                    source:
+                      type: Secret
+                      secret:
+                        secretName: ansible-config
+                dockerfilePath: Containerfile
+            output:
+              to:
+                kind: DockerImage
+                name: "{{ pah_image }}:latest"
+              pushSecret:
+                name: pah-registry-secret
+            triggers: []
+
+    - name: Start DE build
+      redhat.openshift.openshift_build:
+        namespace: "{{ build_namespace }}"
+        build_config_name: "{{ buildconfig_name }}"
+      register: build_result
+
+    - name: Wait for build to complete
+      kubernetes.core.k8s_info:
+        api_version: build.openshift.io/v1
+        kind: Build
+        namespace: "{{ build_namespace }}"
+        label_selectors:
+          - "openshift.io/build-config.name={{ buildconfig_name }}"
+      register: builds
+      until: >-
+        builds.resources | sort(attribute='metadata.creationTimestamp') | last |
+        json_query('status.phase') in ['Complete', 'Failed', 'Error', 'Cancelled']
+      retries: 60
+      delay: 30
+
+    - name: Fail if build did not complete
+      ansible.builtin.assert:
+        that:
+          - builds.resources | sort(attribute='metadata.creationTimestamp') | last |
+            json_query('status.phase') == 'Complete'
+        fail_msg: >-
+          Build finished with status:
+          {{ builds.resources | sort(attribute='metadata.creationTimestamp') | last |
+             json_query('status.phase') }}
+
+    - name: Tag image with dated version ({{ image_tag }})
+      ansible.builtin.command:
+        cmd: >-
+          oc tag
+          --source=docker {{ pah_image }}:latest
+          {{ build_namespace }}/{{ de_image_name }}:{{ image_tag }}
+          --insecure
+      changed_when: true
