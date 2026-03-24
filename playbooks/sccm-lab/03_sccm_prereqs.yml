@@ -92,10 +92,7 @@
     - name: Install Windows ADK
       ansible.windows.win_package:
         path: C:\Temp\adksetup.exe
-        arguments:
-          - /quiet
-          - /ceip off
-          - /features OptionId.DeploymentTools OptionId.UserStateMigrationTool
+        arguments: /quiet /ceip off /features OptionId.DeploymentTools OptionId.UserStateMigrationTool
         product_id: '{skip}'
         expected_return_code: [0, 3010]
 
@@ -108,10 +105,7 @@
     - name: Install Windows PE addon
       ansible.windows.win_package:
         path: C:\Temp\adkwinpesetup.exe
-        arguments:
-          - /quiet
-          - /ceip off
-          - /features OptionId.WindowsPreinstallationEnvironment
+        arguments: /quiet /ceip off /features OptionId.WindowsPreinstallationEnvironment
         product_id: '{skip}'
         expected_return_code: [0, 3010]
 
