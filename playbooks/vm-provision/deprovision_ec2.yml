@@ -24,7 +24,6 @@
       servicenow.itsm.api_info:
         resource: cmdb_ci_vm_instance
         sysparm_query: "vm_inst_id={{ instance_id }}"
-        sysparm_limit: 1
       register: _cmdb_lookup
 
     - name: Set CMDB CI sys_id
