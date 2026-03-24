@@ -3,11 +3,27 @@ controller_inventory_sources:
   - name: "SCCM Lab - AWS EC2"
     inventory: "SCCM Lab"
     organization: Default
-    source: scm
-    source_project: AnsibleForge
-    source_path: playbooks/sccm-lab/inventory/aws_ec2.yml
+    source: ec2
     credential: "AWS - AnsibleForge"
-    execution_environment: "Community EE"
     overwrite: true
     update_on_launch: true
     update_cache_timeout: 60
+    source_vars:
+      regions: us-east-2
+      filters:
+        tag:Project: sccm-lab
+        tag:ManagedBy: terraform
+        instance-state-name: running
+      hostnames:
+        - tag:Name
+      compose:
+        ansible_host: public_ip_address
+      keyed_groups:
+        - key: tags.Role
+          prefix: ""
+          separator: ""
+      groups:
+        domain_controllers: tags.Role == 'dc'
+        sql_servers: tags.Role == 'sql'
+        sccm_servers: tags.Role == 'sccm'
+        sccm_clients: tags.Role == 'client'
