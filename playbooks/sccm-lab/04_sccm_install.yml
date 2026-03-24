@@ -21,7 +21,15 @@
 
     - name: Extract SCCM media
       ansible.windows.win_shell: |
-        Start-Process -FilePath C:\SCCMInstall\ConfigMgr_2509.exe -ArgumentList "/auto", "C:\SCCMInstall\Media" -Wait -NoNewWindow
+        $task = Register-ScheduledTask -TaskName "ExtractSCCM" `
+          -Action (New-ScheduledTaskAction -Execute "C:\SCCMInstall\ConfigMgr_2509.exe" -Argument "/auto C:\SCCMInstall\Media") `
+          -Principal (New-ScheduledTaskPrincipal -UserId "{{ domain_netbios }}\Administrator" -RunLevel Highest -LogonType S4U) `
+          -Force
+        Start-ScheduledTask -TaskName "ExtractSCCM"
+        while ((Get-ScheduledTask -TaskName "ExtractSCCM").State -eq 'Running') { Start-Sleep 10 }
+        $info = Get-ScheduledTaskInfo -TaskName "ExtractSCCM"
+        Unregister-ScheduledTask -TaskName "ExtractSCCM" -Confirm:$false
+        if ($info.LastTaskResult -ne 0) { throw "Extraction failed with code $($info.LastTaskResult)" }
       args:
         creates: C:\SCCMInstall\Media\SMSSETUP\BIN\X64\setup.exe
 
