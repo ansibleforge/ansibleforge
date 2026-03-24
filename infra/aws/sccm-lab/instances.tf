@@ -37,9 +37,6 @@ locals {
   }
 }
 
-data "aws_iam_instance_profile" "lab_instance" {
-  name = "${var.lab_name}-instance"
-}
 
 data "aws_ami" "windows_2022" {
   most_recent = true
@@ -67,7 +64,7 @@ resource "aws_instance" "server" {
   key_name               = var.key_pair_name != "" ? var.key_pair_name : null
   user_data              = local.userdata
   get_password_data      = false
-  iam_instance_profile   = data.aws_iam_instance_profile.lab_instance.name
+  iam_instance_profile   = var.instance_profile_name != "" ? var.instance_profile_name : null
 
   root_block_device {
     volume_size = each.value.root_size
@@ -92,7 +89,7 @@ resource "aws_instance" "client" {
   private_ip             = "10.0.1.${101 + count.index}"
   key_name               = var.key_pair_name != "" ? var.key_pair_name : null
   user_data              = local.userdata
-  iam_instance_profile   = data.aws_iam_instance_profile.lab_instance.name
+  iam_instance_profile   = var.instance_profile_name != "" ? var.instance_profile_name : null
 
   root_block_device {
     volume_size = 40
