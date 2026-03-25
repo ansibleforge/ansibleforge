@@ -32,7 +32,7 @@ spec:
               - secret: gitlab-keycloak-oidc
                 key: provider
         ingress:
-          class: none
+          class: openshift-default
           provider: none
           configureCertmanager: false
           annotations:

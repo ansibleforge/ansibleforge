@@ -28,6 +28,10 @@ spec:
     database: keycloak
   hostname:
     hostname: keycloak.{{ $clusterDomain }}
+  ingress:
+    className: openshift-default
+    annotations:
+      route.openshift.io/termination: edge
   http:
     httpEnabled: true
   proxy:
