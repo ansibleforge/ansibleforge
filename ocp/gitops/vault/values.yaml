@@ -6,6 +6,8 @@ vault:
     openshift: true
     namespace: vault
   injector:
+    webhook:
+      timeoutSeconds: 10
     image:
       repository: registry.connect.redhat.com/hashicorp/vault-k8s
       tag: 1.7.2-ubi
