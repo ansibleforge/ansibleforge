@@ -74,6 +74,7 @@
           RoleCommunicationProtocol=HTTPorHTTPS
           ClientsUsePKICertificate=0
           PrerequisiteComp=0
+          PrerequisitePath=C:\SCCMInstall\Downloads
           AdminConsole=1
           JoinCEIP=0
 
@@ -87,6 +88,11 @@
 
           [HierarchyExpansionOption]
         dest: C:\SCCMInstall\setup.ini
+
+    - name: Create prerequisite download directory
+      ansible.windows.win_file:
+        path: C:\SCCMInstall\Downloads
+        state: directory
 
     - name: Enable auto-logon for interactive desktop session
       ansible.windows.win_auto_logon:
