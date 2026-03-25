@@ -134,7 +134,7 @@
         if ($info.LastTaskResult -ne 0) { exit 1 }
       register: _sccm_install
       changed_when: "'ExitCode: 0' in _sccm_install.stdout"
-      async: 3600
+      async: 7200
       poll: 60
 
     - name: Disable auto-logon
