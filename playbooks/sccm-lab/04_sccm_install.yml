@@ -38,12 +38,20 @@
       args:
         creates: C:\ExtADSch.log
 
-    - name: Install ODBC Driver 18
-      ansible.windows.win_package:
-        path: https://go.microsoft.com/fwlink/?linkid=2266337
-        product_id: '{8B0E60C4-1FF1-4109-9E88-2A3BCA48EED8}'
-        arguments: IACCEPTMSODBCSQLLICENSETERMS=YES /qn
-        state: present
+    - name: Install Chocolatey
+      ansible.windows.win_shell: |
+        Set-ExecutionPolicy Bypass -Scope Process -Force
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+      args:
+        creates: C:\ProgramData\chocolatey\bin\choco.exe
+
+    - name: Install ODBC Driver 18 via Chocolatey
+      ansible.windows.win_shell: |
+        C:\ProgramData\chocolatey\bin\choco install sqlserver-odbcdriver-18 -y --no-progress
+      register: _odbc
+      changed_when: "'installed 1' in _odbc.stdout"
+      failed_when: _odbc.rc != 0
 
     - name: Install SQL Native Client 11
       ansible.windows.win_package:
