@@ -23,15 +23,23 @@
       register: _ritm_vars_raw
       when: ritm_sys_id | length > 0 and (vm_name | length == 0 or instance_id | length == 0)
 
-    - name: Parse RITM variables
+    - name: Build RITM variables dict
       ansible.builtin.set_fact:
-        vm_name: "{{ item['sc_item_option.item_option_new.name'] == 'vm_name' | ternary(item['sc_item_option.value'], vm_name) }}"
-        instance_id: "{{ item['sc_item_option.item_option_new.name'] == 'instance_id' | ternary(item['sc_item_option.value'], instance_id) }}"
-        decommission_reason: "{{ item['sc_item_option.item_option_new.name'] == 'decommission_reason' | ternary(item['sc_item_option.value'], decommission_reason) }}"
+        _ritm_vars: >-
+          {{ _ritm_vars | default({}) | combine({
+            item['sc_item_option.item_option_new.name']: item['sc_item_option.value']
+          }) }}
       loop: "{{ _ritm_vars_raw.record }}"
       loop_control:
         label: "{{ item['sc_item_option.item_option_new.name'] | default('') }}"
       when: _ritm_vars_raw is not skipped
+
+    - name: Apply RITM variables
+      ansible.builtin.set_fact:
+        vm_name: "{{ _ritm_vars.vm_name | default(vm_name) }}"
+        instance_id: "{{ _ritm_vars.instance_id | default(instance_id) }}"
+        decommission_reason: "{{ _ritm_vars.decommission_reason | default(decommission_reason) }}"
+      when: _ritm_vars is defined
 
     - name: Validate required variables
       ansible.builtin.assert:

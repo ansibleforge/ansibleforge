@@ -52,21 +52,26 @@
       register: _ritm_vars_raw
       when: ritm_sys_id | length > 0 and vm_name | length == 0
 
-    - name: Parse RITM variables
+    - name: Build RITM variables dict
       ansible.builtin.set_fact:
-        "{{ item['sc_item_option.item_option_new.name'] }}": "{{ item['sc_item_option.value'] }}"
+        _ritm_vars: >-
+          {{ _ritm_vars | default({}) | combine({
+            item['sc_item_option.item_option_new.name']: item['sc_item_option.value']
+          }) }}
       loop: "{{ _ritm_vars_raw.record }}"
       loop_control:
         label: "{{ item['sc_item_option.item_option_new.name'] | default('') }}"
-      when: _ritm_vars_raw is not skipped and item['sc_item_option.item_option_new.name'] in ['vm_name', 'operating_system', 'cpu_cores', 'memory_gb', 'disk_size_gb']
+      when: _ritm_vars_raw is not skipped
 
-    - name: Parse RITM environment variable
+    - name: Apply RITM variables
       ansible.builtin.set_fact:
-        vm_environment: "{{ item['sc_item_option.value'] }}"
-      loop: "{{ _ritm_vars_raw.record }}"
-      loop_control:
-        label: "{{ item['sc_item_option.item_option_new.name'] | default('') }}"
-      when: _ritm_vars_raw is not skipped and item['sc_item_option.item_option_new.name'] == 'environment'
+        vm_name: "{{ _ritm_vars.vm_name | default(vm_name) }}"
+        operating_system: "{{ _ritm_vars.operating_system | default(operating_system) }}"
+        cpu_cores: "{{ _ritm_vars.cpu_cores | default(cpu_cores) }}"
+        memory_gb: "{{ _ritm_vars.memory_gb | default(memory_gb) }}"
+        disk_size_gb: "{{ _ritm_vars.disk_size_gb | default(disk_size_gb) }}"
+        vm_environment: "{{ _ritm_vars.environment | default(vm_environment) }}"
+      when: _ritm_vars is defined
 
     - name: Validate required variables
       ansible.builtin.assert:
