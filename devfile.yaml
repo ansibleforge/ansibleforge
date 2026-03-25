@@ -26,10 +26,6 @@ components:
         - name: terminal
           targetPort: 8080
           exposure: none
-        - name: vite-dev
-          targetPort: 5173
-          exposure: public
-          protocol: https
   - name: ee
     container:
       image: ghcr.io/hfenner/ee-community-ansibleforge:latest
@@ -70,10 +66,4 @@ commands:
       label: "YAML Lint"
       component: tools
       commandLine: yamllint -c .yamllint.yml .
-      workingDir: ${PROJECTS_ROOT}/ansibleforge
-  - id: site-dev
-    exec:
-      label: "Site Dev Server"
-      component: tools
-      commandLine: cd site && npm install && npm run dev -- --host 0.0.0.0
       workingDir: ${PROJECTS_ROOT}/ansibleforge
