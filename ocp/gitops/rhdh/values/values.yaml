@@ -25,6 +25,11 @@ upstream:
                   - resolver: preferredUsernameMatchingUserEntityName
       signInPage: oidc
       catalog:
+        locations:
+          - type: url
+            target: https://github.com/hfenner/ansibleforge/blob/main/catalog-info.yaml
+            rules:
+              - allow: [Component, System, Resource]
         providers:
           keycloakOrg:
             default:

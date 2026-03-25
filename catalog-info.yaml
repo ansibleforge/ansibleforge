@@ -1,0 +1,79 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ansibleforge
+  title: AnsibleForge
+  description: |
+    GitOps-driven Ansible automation platform with EDA, ServiceNow ITSM
+    integration, and AWS infrastructure provisioning. Includes SCCM lab
+    automation, VM lifecycle management, and OpenShift platform configuration.
+  annotations:
+    backstage.io/source-location: url:https://github.com/hfenner/ansibleforge
+    backstage.io/techdocs-ref: dir:.
+    github.com/project-slug: hfenner/ansibleforge
+  tags:
+    - ansible
+    - openshift
+    - gitops
+    - eda
+    - servicenow
+    - aws
+    - terraform
+  links:
+    - url: https://github.com/hfenner/ansibleforge
+      title: GitHub Repository
+      icon: github
+    - url: https://github.com/hfenner/ansibleforge/fork
+      title: Fork This Repo
+      icon: scaffolder
+    - url: https://github.com/hfenner/ansibleforge/issues/new
+      title: Report an Issue
+      icon: alert
+    - url: https://github.com/hfenner/ansibleforge/pulls
+      title: Pull Requests
+      icon: dashboard
+    - url: https://github.com/hfenner/ansibleforge/blob/main/CONTRIBUTING.md
+      title: Contributing Guide
+      icon: docs
+spec:
+  type: library
+  lifecycle: production
+  owner: user:default/hfenner
+  system: ansibleforge
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: ansibleforge
+  title: AnsibleForge Platform
+  description: Ansible automation platform with GitOps, EDA, and ITSM integration
+spec:
+  owner: user:default/hfenner
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: ansibleforge-aap
+  title: Ansible Automation Platform
+  description: AAP Controller and EDA for job templates, workflows, and event-driven automation
+  links:
+    - url: https://aap-aap.apps.ocp.fire.ansibleforge.dev
+      title: AAP Console
+spec:
+  type: service
+  owner: user:default/hfenner
+  system: ansibleforge
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: ansibleforge-servicenow
+  title: ServiceNow ITSM
+  description: ServiceNow dev instance for catalog requests, CMDB, and incident management
+  links:
+    - url: https://dev270956.service-now.com
+      title: ServiceNow Instance
+spec:
+  type: service
+  owner: user:default/hfenner
+  system: ansibleforge
