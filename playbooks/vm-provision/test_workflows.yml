@@ -1,0 +1,148 @@
+---
+- name: Create ServiceNow Incidents to Test VM Workflows
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    provision_cat_item: "2c160bb0c3f33210dd6df7fdd401311f"
+    decom_cat_item: "b1995e0ac33f7210dd6df7fdd40131cb"
+    test_vm_name: "test-vm-{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=6') }}"
+    test_os: "rhel9"
+    test_cpu: "2"
+    test_mem: "4"
+    test_disk: "50"
+    test_env: "dev"
+
+  tasks:
+    # ── Provision test ──────────────────────────────────────────────
+    - name: Create incident for provision test
+      servicenow.itsm.incident:
+        state: new
+        short_description: "[TEST] VM Provision - {{ test_vm_name }}"
+        description: |
+          Automated test of the VM provisioning workflow.
+          A catalog request will be submitted for a new EC2 instance.
+          EDA should detect the request and trigger the VM Provision - EC2 job template.
+
+          Test parameters:
+            VM Name: {{ test_vm_name }}
+            OS: {{ test_os }}
+            CPU: {{ test_cpu }}
+            Memory: {{ test_mem }} GB
+            Disk: {{ test_disk }} GB
+            Environment: {{ test_env }}
+        impact: low
+        urgency: low
+        caller: admin
+      register: _provision_inc
+
+    - name: Submit provision catalog request
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'SN_HOST') }}/api/sn_sc/servicecatalog/items/{{ provision_cat_item }}/order_now"
+        method: POST
+        user: "{{ lookup('env', 'SN_USERNAME') }}"
+        password: "{{ lookup('env', 'SN_PASSWORD') }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers:
+          Content-Type: application/json
+          Accept: application/json
+        body_format: json
+        body:
+          sysparm_quantity: 1
+          variables:
+            vm_name: "{{ test_vm_name }}"
+            operating_system: "{{ test_os }}"
+            cpu_cores: "{{ test_cpu }}"
+            memory_gb: "{{ test_mem }}"
+            disk_size_gb: "{{ test_disk }}"
+            environment: "{{ test_env }}"
+            business_justification: "Automated test - {{ _provision_inc.record.number }}"
+        status_code: [200, 201]
+      register: _provision_req
+
+    - name: Update incident with request details
+      servicenow.itsm.incident:
+        number: "{{ _provision_inc.record.number }}"
+        state: in_progress
+        work_notes: >-
+          [code]Catalog request submitted.
+          Request: {{ _provision_req.json.result.number }}
+          VM Name: {{ test_vm_name }}
+          Awaiting EDA pickup and EC2 provisioning.[/code]
+
+    - name: Display provision test info
+      ansible.builtin.debug:
+        msg: |
+          PROVISION TEST
+            Incident:  {{ _provision_inc.record.number }}
+            Request:   {{ _provision_req.json.result.number }}
+            VM Name:   {{ test_vm_name }}
+
+          EDA will detect the RITM and launch VM Provision - EC2.
+          Once complete, run this playbook with -e test_phase=deprovision
+          and the instance_id to test decommissioning.
+
+    # ── Deprovision test ────────────────────────────────────────────
+    - name: Create incident for deprovision test
+      servicenow.itsm.incident:
+        state: new
+        short_description: "[TEST] VM Deprovision - {{ test_vm_name }}"
+        description: |
+          Automated test of the VM decommissioning workflow.
+          A decommission catalog request will be submitted once the instance_id
+          is provided. EDA should detect the request and trigger VM Deprovision - EC2.
+
+          This incident will be updated when the deprovision request is submitted.
+        impact: low
+        urgency: low
+        caller: admin
+      register: _deprovision_inc
+      when: instance_id is defined and instance_id | length > 0
+
+    - name: Submit deprovision catalog request
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'SN_HOST') }}/api/sn_sc/servicecatalog/items/{{ decom_cat_item }}/order_now"
+        method: POST
+        user: "{{ lookup('env', 'SN_USERNAME') }}"
+        password: "{{ lookup('env', 'SN_PASSWORD') }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers:
+          Content-Type: application/json
+          Accept: application/json
+        body_format: json
+        body:
+          sysparm_quantity: 1
+          variables:
+            vm_name: "{{ test_vm_name }}"
+            instance_id: "{{ instance_id }}"
+            decommission_reason: "Automated test - {{ _deprovision_inc.record.number }}"
+        status_code: [200, 201]
+      register: _deprovision_req
+      when: instance_id is defined and instance_id | length > 0
+
+    - name: Update deprovision incident with request details
+      servicenow.itsm.incident:
+        number: "{{ _deprovision_inc.record.number }}"
+        state: in_progress
+        work_notes: >-
+          [code]Decommission catalog request submitted.
+          Request: {{ _deprovision_req.json.result.number }}
+          VM Name: {{ test_vm_name }}
+          Instance ID: {{ instance_id }}
+          Awaiting EDA pickup and EC2 termination.[/code]
+      when: instance_id is defined and instance_id | length > 0
+
+    - name: Display deprovision test info
+      ansible.builtin.debug:
+        msg: |
+          DEPROVISION TEST
+            Incident:    {{ _deprovision_inc.record.number }}
+            Request:     {{ _deprovision_req.json.result.number }}
+            VM Name:     {{ test_vm_name }}
+            Instance ID: {{ instance_id }}
+
+          EDA will detect the RITM and launch VM Deprovision - EC2.
+      when: instance_id is defined and instance_id | length > 0
