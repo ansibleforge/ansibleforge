@@ -73,8 +73,7 @@
           SDKServer={{ inventory_hostname }}.{{ domain_name }}
           RoleCommunicationProtocol=HTTPorHTTPS
           ClientsUsePKICertificate=0
-          PrerequisiteComp=1
-          PrerequisitePath=C:\SCCMInstall\Downloads
+          PrerequisiteComp=0
           AdminConsole=1
           JoinCEIP=0
 
