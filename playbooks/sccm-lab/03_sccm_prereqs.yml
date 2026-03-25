@@ -133,8 +133,16 @@
         $acl = Get-Acl "AD:\$container"
         $sid = $computer.SID
         $rule = New-Object System.DirectoryServices.ActiveDirectoryAccessRule(
-          $sid, "GenericAll", "Allow", "Descendents")
+          $sid, "GenericAll", "Allow", "All")
         $acl.AddAccessRule($rule)
         Set-Acl "AD:\$container" $acl
       delegate_to: "{{ groups['domain_controllers'][0] }}"
       changed_when: false
+
+    - name: Add SCCM computer account as local admin on SQL server
+      ansible.windows.win_group_membership:
+        name: Administrators
+        members:
+          - "{{ domain_netbios }}\\{{ inventory_hostname }}$"
+        state: present
+      delegate_to: "{{ groups['sql_servers'][0] }}"
