@@ -31,3 +31,23 @@ controller_templates:
     extra_vars:
       aws_region: us-east-2
     description: "Terminate an EC2 instance and retire its CMDB CI"
+
+  - name: "VM Request Provision"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/vm-provision/request_provision.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "ServiceNow"
+    ask_variables_on_launch: true
+    extra_vars:
+      vm_name: ""
+      operating_system: rhel9
+      cpu_cores: "2"
+      memory_gb: "4"
+      disk_size_gb: "50"
+      vm_environment: dev
+      business_justification: ""
+    description: "Submit a ServiceNow catalog request to provision a new VM"
