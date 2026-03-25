@@ -44,32 +44,19 @@
         path: C:\Temp
         state: directory
 
-    - name: Copy SCCM client installer locally
-      ansible.windows.win_get_url:
-        url: http://{{ groups['sccm_servers'][0] }}.{{ domain_name }}/CCM_Client/ccmsetup.exe
-        dest: C:\Temp\ccmsetup.exe
-        force: false
-      register: _ccm_download
-      ignore_errors: true
-
-    - name: Copy SCCM client installer via UNC fallback
+    - name: Copy and install SCCM client
       ansible.windows.win_shell: |
-        Copy-Item "\\\\{{ groups['sccm_servers'][0] }}.{{ domain_name }}\SMS_{{ sccm_site_code }}\Client\ccmsetup.exe" C:\Temp\ccmsetup.exe -Force
-      when: _ccm_download is failed
-      vars:
-        ansible_become: true
-        ansible_become_method: runas
-        ansible_become_user: "{{ domain_netbios }}\\Administrator"
-        ansible_become_pass: "{{ ansible_password }}"
-
-    - name: Install SCCM client
-      ansible.windows.win_shell: |
+        $source = "\\\\{{ groups['sccm_servers'][0] }}.{{ domain_name }}\SMS_{{ sccm_site_code }}\Client\ccmsetup.exe"
+        net use "\\\\{{ groups['sccm_servers'][0] }}.{{ domain_name }}\SMS_{{ sccm_site_code }}" /user:{{ domain_netbios }}\{{ ansible_user }} "{{ ansible_password }}" 2>&1 | Out-Null
+        Copy-Item $source C:\Temp\ccmsetup.exe -Force
+        net use "\\\\{{ groups['sccm_servers'][0] }}.{{ domain_name }}\SMS_{{ sccm_site_code }}" /delete 2>&1 | Out-Null
         Start-Process -FilePath C:\Temp\ccmsetup.exe -ArgumentList "/mp:{{ groups['sccm_servers'][0] }}.{{ domain_name }}", "SMSSITECODE={{ sccm_site_code }}" -Wait -NoNewWindow
         Write-Output "INSTALLED"
       args:
         creates: C:\Windows\ccmsetup\ccmsetup.exe
       register: _ccm_install
       changed_when: "'INSTALLED' in _ccm_install.stdout"
+      no_log: true
 
     - name: Wait for SCCM client to register
       ansible.windows.win_shell: |
