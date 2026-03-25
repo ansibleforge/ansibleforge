@@ -99,3 +99,29 @@ controller_templates:
     limit: sccm_servers
     ask_variables_on_launch: true
     description: "Trigger WSUS sync, create update group, deploy patches"
+
+  - name: "SCCM Lab - Stop Instances"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/sccm-lab/manage_instances.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "AWS - AnsibleForge"
+    extra_vars:
+      instance_state: stopped
+    description: "Stop all SCCM lab EC2 instances to save costs"
+
+  - name: "SCCM Lab - Start Instances"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/sccm-lab/manage_instances.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "AWS - AnsibleForge"
+    extra_vars:
+      instance_state: running
+    description: "Start all SCCM lab EC2 instances"

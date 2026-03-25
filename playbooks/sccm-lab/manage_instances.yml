@@ -1,0 +1,44 @@
+---
+- name: Manage SCCM Lab EC2 Instances
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    aws_region: us-east-2
+    instance_state: stopped
+    lab_name: sccm-lab
+
+  tasks:
+    - name: Discover SCCM lab instances
+      amazon.aws.ec2_instance_info:
+        region: "{{ aws_region }}"
+        filters:
+          tag:Project: "{{ lab_name }}"
+          tag:ManagedBy: terraform
+          instance-state-name:
+            - running
+            - stopped
+      register: _instances
+
+    - name: Display discovered instances
+      ansible.builtin.debug:
+        msg: "{{ _instances.instances | map(attribute='tags.Name') | list }} ({{ _instances.instances | length }} instances)"
+
+    - name: "{{ 'Stop' if instance_state == 'stopped' else 'Start' }} SCCM lab instances"
+      amazon.aws.ec2_instance:
+        region: "{{ aws_region }}"
+        instance_ids: "{{ _instances.instances | map(attribute='instance_id') | list }}"
+        state: "{{ instance_state }}"
+        wait: true
+      when: _instances.instances | length > 0
+      register: _result
+
+    - name: Display result
+      ansible.builtin.debug:
+        msg: |
+          SCCM Lab instances {{ 'stopped' if instance_state == 'stopped' else 'started' }}:
+          {% for inst in _instances.instances %}
+            {{ inst.tags.Name }}: {{ inst.instance_id }}
+          {% endfor %}
+      when: _instances.instances | length > 0
