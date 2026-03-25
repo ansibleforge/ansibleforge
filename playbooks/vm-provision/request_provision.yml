@@ -1,0 +1,69 @@
+---
+- name: Submit ServiceNow Provision VM Request
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    provision_cat_item: "2c160bb0c3f33210dd6df7fdd401311f"
+    vm_name: ""
+    operating_system: "rhel9"
+    cpu_cores: "2"
+    memory_gb: "4"
+    disk_size_gb: "50"
+    vm_environment: "dev"
+    business_justification: ""
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - vm_name | length > 0
+          - operating_system in ['win2022', 'win2025', 'rhel9', 'ubuntu2404']
+          - cpu_cores in ['2', '4', '8', '16']
+          - memory_gb in ['4', '8', '16', '32', '64']
+          - disk_size_gb in ['50', '100', '250', '500']
+          - vm_environment in ['dev', 'test', 'prod']
+          - business_justification | length > 0
+        fail_msg: >-
+          Required: vm_name, operating_system, cpu_cores, memory_gb,
+          disk_size_gb, vm_environment, business_justification.
+
+    - name: Submit provision catalog request
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'SN_HOST') }}/api/sn_sc/servicecatalog/items/{{ provision_cat_item }}/order_now"
+        method: POST
+        user: "{{ lookup('env', 'SN_USERNAME') }}"
+        password: "{{ lookup('env', 'SN_PASSWORD') }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers:
+          Content-Type: application/json
+          Accept: application/json
+        body_format: json
+        body:
+          sysparm_quantity: 1
+          variables:
+            vm_name: "{{ vm_name }}"
+            operating_system: "{{ operating_system }}"
+            cpu_cores: "{{ cpu_cores }}"
+            memory_gb: "{{ memory_gb }}"
+            disk_size_gb: "{{ disk_size_gb }}"
+            environment: "{{ vm_environment }}"
+            business_justification: "{{ business_justification }}"
+        status_code: [200, 201]
+      register: _request
+
+    - name: Display request details
+      ansible.builtin.debug:
+        msg: |
+          Provision request submitted:
+            Request:       {{ _request.json.result.number }}
+            VM Name:       {{ vm_name }}
+            OS:            {{ operating_system }}
+            CPU/Memory:    {{ cpu_cores }} cores / {{ memory_gb }} GB
+            Disk:          {{ disk_size_gb }} GB
+            Environment:   {{ vm_environment }}
+            Justification: {{ business_justification }}
+
+          EDA will pick this up and trigger the VM Provision - EC2 job template.
