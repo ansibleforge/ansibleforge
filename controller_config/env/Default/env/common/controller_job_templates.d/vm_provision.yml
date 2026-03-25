@@ -6,7 +6,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/vm-provision/provision_ec2.yml
     inventory: Localhost
-    execution_environment: "EE AnsibleForge"
+    execution_environment: "Default execution environment"
     credentials:
       - "AWS - AnsibleForge"
       - "ServiceNow"
