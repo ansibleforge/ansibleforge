@@ -13,8 +13,8 @@ controller_templates:
     ask_variables_on_launch: true
     extra_vars:
       aws_region: us-east-2
-      subnet_id: ""
-      security_group_id: ""
+      subnet_id: "subnet-0048b1b310a720c5b"
+      security_group_id: "sg-0b7cc52861cdcd8a1"
     description: "Provision an EC2 instance from a ServiceNow catalog request"
 
   - name: "VM Deprovision - EC2"
