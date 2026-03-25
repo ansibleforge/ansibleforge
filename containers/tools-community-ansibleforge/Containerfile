@@ -78,6 +78,9 @@ RUN curl -L -o - "https://github.com/vmware/govmomi/releases/latest/download/gov
 RUN curl -L -o - "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz" | tar -C /usr/local/bin -xvzf - oc kubectl
 RUN curl -L https://mirror.openshift.com/pub/openshift-v4/clients/helm/latest/helm-linux-amd64 -o /usr/local/bin/helm \
     && chmod +x /usr/local/bin/helm
+RUN curl -sL "https://code.visualstudio.com/sha/download?build=stable&os=cli-alpine-x64" -o /tmp/vscode-cli.tar.gz \
+    && tar -xzf /tmp/vscode-cli.tar.gz -C /usr/local/bin/ \
+    && rm /tmp/vscode-cli.tar.gz
 RUN ansible-galaxy collection install -r requirements.yaml -p /collections
 RUN mkdir -p /opt/ansible
 COPY --chmod=755 vault_env_reader.sh /opt/ansible/vault_env_reader.sh
