@@ -66,11 +66,12 @@
       servicenow.itsm.incident:
         number: "{{ _provision_inc.record.number }}"
         state: in_progress
-        work_notes: >-
-          [code]Catalog request submitted.
-          Request: {{ _provision_req.json.result.number }}
-          VM Name: {{ test_vm_name }}
-          Awaiting EDA pickup and EC2 provisioning.[/code]
+        other:
+          work_notes: >-
+            [code]Catalog request submitted.
+            Request: {{ _provision_req.json.result.number }}
+            VM Name: {{ test_vm_name }}
+            Awaiting EDA pickup and EC2 provisioning.[/code]
 
     - name: Display provision test info
       ansible.builtin.debug:
@@ -127,12 +128,13 @@
       servicenow.itsm.incident:
         number: "{{ _deprovision_inc.record.number }}"
         state: in_progress
-        work_notes: >-
-          [code]Decommission catalog request submitted.
-          Request: {{ _deprovision_req.json.result.number }}
-          VM Name: {{ test_vm_name }}
-          Instance ID: {{ instance_id }}
-          Awaiting EDA pickup and EC2 termination.[/code]
+        other:
+          work_notes: >-
+            [code]Decommission catalog request submitted.
+            Request: {{ _deprovision_req.json.result.number }}
+            VM Name: {{ test_vm_name }}
+            Instance ID: {{ instance_id }}
+            Awaiting EDA pickup and EC2 termination.[/code]
       when: instance_id is defined and instance_id | length > 0
 
     - name: Display deprovision test info
