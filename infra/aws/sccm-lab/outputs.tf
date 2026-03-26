@@ -34,7 +34,7 @@ output "inventory" {
     all = {
       vars = {
         ansible_connection                    = "winrm"
-        ansible_winrm_transport               = "credssp"
+        ansible_winrm_transport               = "ntlm"
         ansible_winrm_server_cert_validation  = "ignore"
         ansible_port                          = 5986
         ansible_user                          = "Administrator"
