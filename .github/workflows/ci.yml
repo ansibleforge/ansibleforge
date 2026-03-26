@@ -36,8 +36,31 @@ jobs:
             helm lint "$chart" || exit 1
           done
 
+  ansible-lint:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ansible-lint
+        uses: ansible/ansible-lint@v24
+
+  trufflehog:
+    name: Secret Detection (TruffleHog)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
+
   gitleaks:
-    name: Secret Detection
+    name: Secret Detection (Gitleaks)
     runs-on: ubuntu-latest
     permissions:
       contents: read
