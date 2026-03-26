@@ -64,7 +64,7 @@
       ansible.windows.win_shell: |
         $ErrorActionPreference = "Stop"
         $server = "{{ groups['sccm_servers'][0] }}.{{ domain_name }}"
-        $share = "\\\\$server\SMS_{{ sccm_site_code }}"
+        $share = "\\$server\SMS_{{ sccm_site_code }}"
         $source = "$share\Client\ccmsetup.exe"
 
         Write-Output "Mounting share $share"
@@ -85,6 +85,7 @@
         creates: C:\Windows\ccmsetup\ccmsetup.exe
       register: _ccm_install
       changed_when: "'INSTALLED' in _ccm_install.stdout"
+      no_log: true
 
     - name: Register SCCM client
       block:
