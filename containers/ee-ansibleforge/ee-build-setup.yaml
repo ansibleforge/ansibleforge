@@ -56,7 +56,7 @@
           stringData:
             username: git
             password: "{{ github_token }}"
-      #no_log: true
+      # no_log: true
 
     # ── Secret 2: ansible.cfg for galaxy content ────────────────────
     - name: Create ansible.cfg secret
@@ -85,7 +85,7 @@
 
               [galaxy_server.galaxy]
               url=https://galaxy.ansible.com/
-      #no_log: true
+      # no_log: true
 
     # ── Secret 3: PAH registry push credentials ────────────────────
     - name: Create PAH push secret
@@ -101,7 +101,7 @@
           stringData:
             .dockerconfigjson: |
               {"auths":{"{{ pah_registry }}":{"username":"{{ pah_username }}","password":"{{ pah_password }}","auth":"{{ (pah_username ~ ':' ~ pah_password) | b64encode }}"}}}
-      #no_log: true
+      # no_log: true
       when: pah_password | length > 0
 
     # ── Sync RHEL entitlements ─────────────────────────────────────
