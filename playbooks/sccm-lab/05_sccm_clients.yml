@@ -90,15 +90,36 @@
           delay: 30
           until: _client_check.rc == 0
       rescue:
-        - name: Fetch ccmsetup log on registration failure
+        - name: Gather SCCM client install diagnostics
           ansible.windows.win_shell: |
-            Get-Content C:\Windows\ccmsetup\Logs\ccmsetup.log -Tail 80
-          register: _ccmsetup_log
+            $logPaths = @(
+              "C:\Windows\ccmsetup\Logs\ccmsetup.log",
+              "C:\Windows\ccmsetup\Logs\ccmsetup-ccmeval.log",
+              "C:\Windows\Temp\ccmsetup.log"
+            )
+            foreach ($p in $logPaths) {
+              if (Test-Path $p) {
+                Write-Output "=== $p ==="
+                Get-Content $p -Tail 50
+                Write-Output ""
+              }
+            }
+            Write-Output "=== ccmsetup directory ==="
+            if (Test-Path C:\Windows\ccmsetup) {
+              Get-ChildItem C:\Windows\ccmsetup -Recurse | Select-Object FullName,Length,LastWriteTime | Format-Table -AutoSize
+            } else {
+              Write-Output "C:\Windows\ccmsetup does not exist"
+            }
+            Write-Output "=== C:\Temp ==="
+            if (Test-Path C:\Temp) { Get-ChildItem C:\Temp | Format-Table Name,Length,LastWriteTime -AutoSize }
+            Write-Output "=== SCCM services ==="
+            Get-Service ccm* -ErrorAction SilentlyContinue | Format-Table Status,Name,DisplayName -AutoSize
+          register: _ccm_diag
 
-        - name: Display ccmsetup log
+        - name: Display SCCM client diagnostics
           ansible.builtin.debug:
-            var: _ccmsetup_log.stdout_lines
+            var: _ccm_diag.stdout_lines
 
         - name: Fail with registration error
           ansible.builtin.fail:
-            msg: "SCCM client failed to register after 40 retries. See ccmsetup log above."
+            msg: "SCCM client failed to register after 40 retries. See diagnostics above."
