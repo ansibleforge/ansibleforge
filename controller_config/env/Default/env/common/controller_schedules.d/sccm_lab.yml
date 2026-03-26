@@ -2,18 +2,18 @@
 controller_schedules:
   - name: "SCCM Lab - Nightly Shutdown"
     unified_job_template: "SCCM Lab - Stop Instances"
-    rrule: "DTSTART;TZID=America/New_York:20260325T190000 RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR"
+    rrule: "DTSTART;TZID=America/New_York:20260325T190000 RRULE:FREQ=DAILY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR"
     enabled: true
     description: "Stop SCCM lab instances at 7 PM ET on weekdays"
 
   - name: "SCCM Lab - Morning Startup"
     unified_job_template: "SCCM Lab - Start Instances"
-    rrule: "DTSTART;TZID=America/New_York:20260326T070000 RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR"
+    rrule: "DTSTART;TZID=America/New_York:20260326T070000 RRULE:FREQ=DAILY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR"
     enabled: true
     description: "Start SCCM lab instances at 7 AM ET on weekdays"
 
   - name: "SCCM Lab - Weekend Shutdown"
     unified_job_template: "SCCM Lab - Stop Instances"
-    rrule: "DTSTART;TZID=America/New_York:20260327T190000 RRULE:FREQ=WEEKLY;BYDAY=FR"
+    rrule: "DTSTART;TZID=America/New_York:20260327T190000 RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=FR"
     enabled: true
     description: "Stop SCCM lab instances Friday at 7 PM ET for the weekend"

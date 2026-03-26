@@ -68,6 +68,6 @@
           exit 1
         }
       register: _client_check
-      retries: 20
+      retries: 40
       delay: 30
       until: _client_check.rc == 0
