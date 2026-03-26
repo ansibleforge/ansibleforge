@@ -12,7 +12,7 @@ jobs:
     name: List OCP Clusters
     runs-on: ubuntu-latest
     steps:
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActions-${{ github.repository_owner }}-${{ github.event.repository.name }}
           aws-region: us-east-2
