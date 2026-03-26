@@ -19,13 +19,21 @@
         dns_servers:
           - "{{ dc_private_ip }}"
 
-    - name: Regenerate WinRM HTTPS cert for new hostname
+    - name: Ensure WinRM HTTPS cert matches hostname
       ansible.windows.win_shell: |
+        $listener = winrm enumerate winrm/config/listener 2>$null
+        $current = ($listener | Select-String 'Hostname\s*=\s*(.+)').Matches.Groups[1].Value.Trim()
+        if ($current -eq "{{ inventory_hostname }}") {
+          Write-Output "CERT_OK"
+          exit 0
+        }
         $thumb = (New-SelfSignedCertificate -DnsName "{{ inventory_hostname }}" -CertStoreLocation Cert:\LocalMachine\My).Thumbprint
         winrm delete winrm/config/listener?Address=*+Transport=HTTPS 2>$null
         winrm create winrm/config/listener?Address=*+Transport=HTTPS "@{Hostname=`"{{ inventory_hostname }}`";CertificateThumbprint=`"$thumb`"}"
         Restart-Service WinRM
-      when: _hostname.reboot_required
+        Write-Output "CERT_REGENERATED"
+      register: _cert_result
+      changed_when: "'CERT_REGENERATED' in _cert_result.stdout"
 
     - name: Reboot after hostname/DNS change
       ansible.windows.win_reboot:
