@@ -68,7 +68,7 @@
         $source = "$share\Client\ccmsetup.exe"
 
         Write-Output "Mounting share $share"
-        $netResult = net use $share /user:{{ domain_netbios }}\{{ ansible_user }} "{{ ansible_password }}" 2>&1
+        $netResult = net use $share /user:{{ domain_netbios }}\{{ ansible_user }} '{{ ansible_password }}' 2>&1
         if ($LASTEXITCODE -ne 0) { throw "net use failed: $netResult" }
 
         Write-Output "Copying ccmsetup.exe"
@@ -85,7 +85,7 @@
         creates: C:\Windows\ccmsetup\ccmsetup.exe
       register: _ccm_install
       changed_when: "'INSTALLED' in _ccm_install.stdout"
-      # no_log: true  # temporarily disabled for debugging
+      no_log: true
 
     - name: Register SCCM client
       block:
