@@ -62,11 +62,24 @@
 
     - name: Copy and install SCCM client
       ansible.windows.win_shell: |
-        $source = "\\\\{{ groups['sccm_servers'][0] }}.{{ domain_name }}\SMS_{{ sccm_site_code }}\Client\ccmsetup.exe"
-        net use "\\\\{{ groups['sccm_servers'][0] }}.{{ domain_name }}\SMS_{{ sccm_site_code }}" /user:{{ domain_netbios }}\{{ ansible_user }} "{{ ansible_password }}" 2>&1 | Out-Null
+        $ErrorActionPreference = "Stop"
+        $server = "{{ groups['sccm_servers'][0] }}.{{ domain_name }}"
+        $share = "\\\\$server\SMS_{{ sccm_site_code }}"
+        $source = "$share\Client\ccmsetup.exe"
+
+        Write-Output "Mounting share $share"
+        $netResult = net use $share /user:{{ domain_netbios }}\{{ ansible_user }} "{{ ansible_password }}" 2>&1
+        if ($LASTEXITCODE -ne 0) { throw "net use failed: $netResult" }
+
+        Write-Output "Copying ccmsetup.exe"
         Copy-Item $source C:\Temp\ccmsetup.exe -Force
-        net use "\\\\{{ groups['sccm_servers'][0] }}.{{ domain_name }}\SMS_{{ sccm_site_code }}" /delete 2>&1 | Out-Null
-        Start-Process -FilePath C:\Temp\ccmsetup.exe -ArgumentList "/mp:{{ groups['sccm_servers'][0] }}.{{ domain_name }}", "SMSSITECODE={{ sccm_site_code }}" -Wait -NoNewWindow
+        if (-not (Test-Path C:\Temp\ccmsetup.exe)) { throw "Copy failed - ccmsetup.exe not found in C:\Temp" }
+
+        net use $share /delete 2>&1 | Out-Null
+
+        Write-Output "Running ccmsetup.exe"
+        $proc = Start-Process -FilePath C:\Temp\ccmsetup.exe -ArgumentList "/mp:$server", "SMSSITECODE={{ sccm_site_code }}" -Wait -NoNewWindow -PassThru
+        Write-Output "ccmsetup exit code: $($proc.ExitCode)"
         Write-Output "INSTALLED"
       args:
         creates: C:\Windows\ccmsetup\ccmsetup.exe
