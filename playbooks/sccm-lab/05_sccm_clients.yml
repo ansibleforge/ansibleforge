@@ -85,7 +85,7 @@
         creates: C:\Windows\ccmsetup\ccmsetup.exe
       register: _ccm_install
       changed_when: "'INSTALLED' in _ccm_install.stdout"
-      no_log: true
+      # no_log: true  # temporarily disabled for debugging
 
     - name: Register SCCM client
       block:
