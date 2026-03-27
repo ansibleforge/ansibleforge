@@ -54,18 +54,14 @@ spec:
         app: plugin-registry
     spec:
       initContainers:
-        - name: fetch-plugins
+        - name: download
           image: amazon/aws-cli:latest
           command:
             - /bin/sh
             - -c
             - |
-              aws s3 cp s3://ansibleforge-tfstate/media/ansible-rhdh-plugins-2.1.1.tar.gz /tmp/rhdh.tar.gz
-              aws s3 cp s3://ansibleforge-tfstate/media/self-service-automation-portal-plugins-2.1.1.tar.gz /tmp/self-service.tar.gz
-              cd /plugins
-              tar xzf /tmp/rhdh.tar.gz --wildcards '*.tgz'
-              tar xzf /tmp/self-service.tar.gz --wildcards '*.tgz'
-              ls -la /plugins/
+              aws s3 cp s3://ansibleforge-tfstate/media/ansible-rhdh-plugins-2.1.1.tar.gz /staging/rhdh.tar.gz
+              aws s3 cp s3://ansibleforge-tfstate/media/self-service-automation-portal-plugins-2.1.1.tar.gz /staging/self-service.tar.gz
           env:
             - name: AWS_DEFAULT_REGION
               value: us-east-2
@@ -73,6 +69,21 @@ spec:
             - secretRef:
                 name: plugin-registry-aws
           volumeMounts:
+            - name: staging
+              mountPath: /staging
+        - name: extract
+          image: registry.access.redhat.com/ubi9/ubi:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cd /plugins
+              tar xzf /staging/rhdh.tar.gz --wildcards '*.tgz'
+              tar xzf /staging/self-service.tar.gz --wildcards '*.tgz'
+              ls -la /plugins/
+          volumeMounts:
+            - name: staging
+              mountPath: /staging
             - name: plugins
               mountPath: /plugins
       containers:
@@ -90,5 +101,7 @@ spec:
             limits:
               memory: 128Mi
       volumes:
+        - name: staging
+          emptyDir: {}
         - name: plugins
           emptyDir: {}
