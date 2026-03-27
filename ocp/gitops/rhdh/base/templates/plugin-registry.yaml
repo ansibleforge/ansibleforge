@@ -1,0 +1,94 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: plugin-registry-aws
+  namespace: rhdh
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault
+    kind: ClusterSecretStore
+  target:
+    name: plugin-registry-aws
+  data:
+    - secretKey: AWS_ACCESS_KEY_ID
+      remoteRef:
+        key: aws
+        property: access_key
+    - secretKey: AWS_SECRET_ACCESS_KEY
+      remoteRef:
+        key: aws
+        property: secret_key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: plugin-registry
+  namespace: rhdh
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  selector:
+    app: plugin-registry
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plugin-registry
+  namespace: rhdh
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: plugin-registry
+  template:
+    metadata:
+      labels:
+        app: plugin-registry
+    spec:
+      initContainers:
+        - name: fetch-plugins
+          image: amazon/aws-cli:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              aws s3 cp s3://ansibleforge-tfstate/media/ansible-rhdh-plugins-2.1.1.tar.gz /tmp/rhdh.tar.gz
+              aws s3 cp s3://ansibleforge-tfstate/media/self-service-automation-portal-plugins-2.1.1.tar.gz /tmp/self-service.tar.gz
+              cd /plugins
+              tar xzf /tmp/rhdh.tar.gz --wildcards '*.tgz'
+              tar xzf /tmp/self-service.tar.gz --wildcards '*.tgz'
+              ls -la /plugins/
+          env:
+            - name: AWS_DEFAULT_REGION
+              value: us-east-2
+          envFrom:
+            - secretRef:
+                name: plugin-registry-aws
+          volumeMounts:
+            - name: plugins
+              mountPath: /plugins
+      containers:
+        - name: httpd
+          image: registry.access.redhat.com/ubi9/httpd-24:latest
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: plugins
+              mountPath: /var/www/html
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+      volumes:
+        - name: plugins
+          emptyDir: {}
