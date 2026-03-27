@@ -193,6 +193,35 @@
       delay: 30
       until: _mp_ready.rc == 0
 
+    - name: Add Software Update Point role
+      ansible.windows.win_shell: |
+        $existing = Get-WmiObject -Namespace "root\SMS\site_{{ sccm_site_code }}" -Class SMS_SCI_SysResUse `
+          -Filter "RoleName='SMS Software Update Point'" -ErrorAction SilentlyContinue
+        if ($existing) {
+          Write-Output "EXISTS"
+          exit 0
+        }
+        Import-Module "$env:SMS_ADMIN_UI_PATH\..\ConfigurationManager.psd1"
+        Set-Location "{{ sccm_site_code }}:"
+        Add-CMSoftwareUpdatePoint -SiteSystemServerName "{{ inventory_hostname }}.{{ domain_name }}" `
+          -SiteCode "{{ sccm_site_code }}" -WsusIisPort 8530 -WsusIisSslPort 8531
+        Write-Output "ADDED"
+      register: _sup_role
+      changed_when: "'ADDED' in _sup_role.stdout"
+      async: 3600
+      poll: 60
+
+    - name: Wait for SUP installation to complete
+      ansible.windows.win_shell: |
+        $ns = "root\SMS\site_{{ sccm_site_code }}"
+        $comp = Get-WmiObject -Namespace $ns -Class SMS_ComponentSummarizer `
+          -Filter "ComponentName='SMS_WSUS_SYNC_MANAGER'" -ErrorAction SilentlyContinue
+        if ($comp) { Write-Output "SUP_READY" } else { Write-Output "NOT_READY"; exit 1 }
+      register: _sup_ready
+      retries: 30
+      delay: 30
+      until: _sup_ready.rc == 0
+
     - name: Configure boundary (VPC CIDR)
       ansible.windows.win_shell: |
         $existing = Get-WmiObject -Namespace "root\SMS\site_{{ sccm_site_code }}" -Class SMS_Boundary `
