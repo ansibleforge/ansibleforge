@@ -121,6 +121,14 @@ upstream:
                       minutes: 15
                     initialDelay:
                       seconds: 30
+                jobTemplates:
+                  schedule:
+                    frequency:
+                      minutes: 60
+                    timeout:
+                      minutes: 15
+                    initialDelay:
+                      seconds: 30
   postgresql:
     auth:
       existingSecret: rhdh-postgresql
