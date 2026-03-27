@@ -498,6 +498,58 @@ spec:
                 echo "Attached AAP Controller Admin credential to dispatch job template"
               fi
 
+              echo "=== OpenShift credential for CaC ==="
+
+              # Create a long-lived token for the aap-cluster-admin SA
+              SA_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              CACERT="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+              K8S_API="https://kubernetes.default.svc"
+
+              CLUSTER_ADMIN_TOKEN=$(curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -X POST "${K8S_API}/api/v1/namespaces/aap/serviceaccounts/aap-cluster-admin/token" \
+                -d '{"apiVersion":"authentication.k8s.io/v1","kind":"TokenRequest","spec":{"expirationSeconds":31536000}}' \
+                | python3 -c "import json,sys; print(json.load(sys.stdin)['status']['token'])")
+
+              # Find the OpenShift credential type
+              OCP_CRED_TYPE=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                "$AAP_URL/api/controller/v2/credential_types/?name=OpenShift+or+Kubernetes+API+Bearer+Token" \
+                | python3 -c "import json,sys; print(json.load(sys.stdin)['results'][0]['id'])" 2>/dev/null || echo "")
+
+              if [ -n "$OCP_CRED_TYPE" ]; then
+                OCP_CRED_PAYLOAD=$(python3 -c "
+              import json
+              print(json.dumps({
+                  'name': 'OpenShift Cluster Admin',
+                  'credential_type': int('$OCP_CRED_TYPE'),
+                  'organization': 1,
+                  'inputs': {
+                      'host': '$K8S_API',
+                      'bearer_token': '$CLUSTER_ADMIN_TOKEN',
+                      'verify_ssl': False
+                  }
+              }))
+              ")
+                OCP_CRED_ID=$(ensure_resource "credentials" "OpenShift Cluster Admin" "$OCP_CRED_PAYLOAD" | tail -1)
+
+                # Update the token on existing credential
+                curl -sk -X PATCH -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/controller/v2/credentials/$OCP_CRED_ID/" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"inputs\":{\"host\":\"$K8S_API\",\"bearer_token\":\"$CLUSTER_ADMIN_TOKEN\",\"verify_ssl\":false}}" > /dev/null 2>&1
+                echo "Ensured OpenShift Cluster Admin credential (id=$OCP_CRED_ID)"
+
+                # Attach to CaC dispatch job template
+                curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/controller/v2/job_templates/$JT_ID/credentials/" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"id\": $OCP_CRED_ID}" > /dev/null 2>&1 || true
+                echo "Attached OpenShift credential to dispatch job template"
+              else
+                echo "WARNING: OpenShift credential type not found"
+              fi
+
               echo "=== AAP post-deploy configuration complete ==="
 ---
 apiVersion: v1
