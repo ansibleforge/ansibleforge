@@ -222,6 +222,50 @@
       delay: 30
       until: _sup_ready.rc == 0
 
+    - name: Configure WSUS products and classifications
+      ansible.windows.win_shell: |
+        $wsus = [Microsoft.UpdateServices.Administration.AdminProxy]::GetUpdateServer("localhost", $false, 8530)
+        $subscription = $wsus.GetSubscription()
+
+        $classificationIDs = @(
+          "e6cf1350-c01b-414d-a61f-263d14d133b4",
+          "0fa1201d-4330-4fa8-8ae9-b877473b6441",
+          "28bc880e-0592-4cbf-8f95-c79b17911d5f",
+          "cd5ffd1e-e932-4e3a-bf74-18bf0b1bbd83"
+        )
+        $productIDs = @(
+          "2935e0c0-40b3-455e-bc7d-5be5eb407382",
+          "72e7624a-5b51-45da-a3d0-3c1bfe8a7389"
+        )
+
+        $allClassifications = $wsus.GetUpdateClassifications()
+        $selClass = New-Object Microsoft.UpdateServices.Administration.UpdateClassificationCollection
+        foreach ($id in $classificationIDs) {
+          $cls = $allClassifications | Where-Object { $_.Id.Guid -eq $id }
+          if ($cls) { $selClass.Add($cls) }
+        }
+        $subscription.SetUpdateClassifications($selClass)
+
+        $allProducts = $wsus.GetUpdateCategories()
+        $selProd = New-Object Microsoft.UpdateServices.Administration.UpdateCategoryCollection
+        foreach ($id in $productIDs) {
+          $prod = $allProducts | Where-Object { $_.Id.Guid -eq $id }
+          if ($prod) { $selProd.Add($prod) }
+        }
+        $subscription.SetUpdateCategories($selProd)
+        $subscription.Save()
+
+        Write-Output "CONFIGURED: $($selClass.Count) classifications, $($selProd.Count) products"
+      register: _wsus_config
+      changed_when: "'CONFIGURED' in _wsus_config.stdout"
+
+    - name: Trigger initial WSUS synchronization
+      ansible.windows.win_shell: |
+        $wsus = [Microsoft.UpdateServices.Administration.AdminProxy]::GetUpdateServer("localhost", $false, 8530)
+        $wsus.GetSubscription().StartSynchronization()
+        Write-Output "SYNC_STARTED"
+      changed_when: true
+
     - name: Configure boundary (VPC CIDR)
       ansible.windows.win_shell: |
         $existing = Get-WmiObject -Namespace "root\SMS\site_{{ sccm_site_code }}" -Class SMS_Boundary `
