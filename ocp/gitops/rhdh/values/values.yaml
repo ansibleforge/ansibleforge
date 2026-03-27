@@ -111,6 +111,7 @@ upstream:
             default:
               baseUrl: https://aap-aap.apps.ocp.fire.ansibleforge.dev
               authorization: "Bearer ${token}"
+              orgs: Default
               schedule:
                 frequency:
                   minutes: 60
