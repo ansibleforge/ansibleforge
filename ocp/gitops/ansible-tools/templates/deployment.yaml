@@ -24,17 +24,25 @@ spec:
             - --provider=oidc
             - --oidc-issuer-url=https://keycloak.{{ .Values.clusterDomain }}/realms/sso
             - --client-id=ansible-tools
-            - --client-secret-file=/secrets/client-secret-decoded
-            - --cookie-secret-file=/secrets/cookie-secret-decoded
             - --cookie-secure=true
             - --cookie-samesite=lax
             - --email-domain=*
             - --skip-provider-button=true
             - --redirect-url=https://ansible-tools.{{ .Values.clusterDomain }}/oauth2/callback
             - --ssl-insecure-skip-verify=true
-            - --insecure-oidc-skip-issuer-verification=false
             - --code-challenge-method=S256
             - --skip-jwt-bearer-tokens=true
+          env:
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy
+                  key: cookie-secret
           ports:
             - containerPort: 4180
               name: proxy
@@ -44,10 +52,6 @@ spec:
               port: 4180
             initialDelaySeconds: 5
             periodSeconds: 10
-          volumeMounts:
-            - name: oauth-secrets-decoded
-              mountPath: /secrets
-              readOnly: true
 
         - name: httpd
           image: registry.access.redhat.com/ubi9/httpd-24:latest
@@ -66,22 +70,6 @@ spec:
             periodSeconds: 10
 
       initContainers:
-        - name: decode-secrets
-          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
-          command:
-            - /bin/bash
-            - -c
-            - |
-              echo -n "$(cat /raw-secrets/client-secret | base64 -d)" > /decoded/client-secret-decoded
-              echo -n "$(cat /raw-secrets/cookie-secret | base64 -d)" > /decoded/cookie-secret-decoded
-              chmod 444 /decoded/*
-          volumeMounts:
-            - name: oauth-secret-raw
-              mountPath: /raw-secrets
-              readOnly: true
-            - name: oauth-secrets-decoded
-              mountPath: /decoded
-
         - name: fetch-content
           image: registry.access.redhat.com/ubi9/ubi-minimal:latest
           command:
@@ -97,11 +85,5 @@ spec:
               mountPath: /content
 
       volumes:
-        - name: oauth-secret-raw
-          secret:
-            secretName: oauth2-proxy
-        - name: oauth-secrets-decoded
-          emptyDir:
-            medium: Memory
         - name: content
           emptyDir: {}

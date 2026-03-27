@@ -26,7 +26,7 @@ spec:
               REALM="sso"
               CLIENT_ID="ansible-tools"
               REDIRECT_URI="https://ansible-tools.{{ .Values.clusterDomain }}/oauth2/callback"
-              CLIENT_SECRET=$(cat /secrets/oauth2-proxy/client-secret | base64 -d)
+              CLIENT_SECRET=$(cat /secrets/oauth2-proxy/client-secret)
 
               # Get admin token
               KC_ADMIN_PASS=$(oc get secret keycloak-initial-admin -n keycloak -o jsonpath='{.data.password}' | base64 -d)
