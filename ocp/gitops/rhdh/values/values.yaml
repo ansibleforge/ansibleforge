@@ -57,7 +57,6 @@ upstream:
     extraEnvVars: []
     extraEnvVarsSecrets:
       - rhdh-keycloak-client-secret
-      - rhdh-aap-token
     appConfig:
       auth:
         session:
