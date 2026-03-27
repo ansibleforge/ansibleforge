@@ -26,3 +26,32 @@
   roles:
     - infra.controller_configuration.filetree_read
     - infra.controller_configuration.dispatch
+
+  post_tasks:
+    - name: Create RHDH service token in AAP
+      ansible.builtin.uri:
+        url: "{{ controller_hostname }}/api/controller/v2/tokens/"
+        method: POST
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ controller_validate_certs }}"
+        body_format: json
+        body:
+          scope: read
+          description: RHDH catalog sync
+        status_code: [201]
+      register: _rhdh_token
+
+    - name: Store RHDH token as k8s secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: rhdh-aap-token
+            namespace: rhdh
+          type: Opaque
+          stringData:
+            token: "{{ _rhdh_token.json.token }}"
