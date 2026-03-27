@@ -158,6 +158,13 @@
       delay: 30
       until: _site_check.rc == 0
 
+    - name: Ensure SMS MP registry key exists
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Microsoft\SMS\MP
+        name: Installation Directory
+        data: C:\SMS_CCM
+        type: string
+
     - name: Add Management Point role
       ansible.windows.win_shell: |
         $existing = Get-WmiObject -Namespace "root\SMS\site_{{ sccm_site_code }}" -Class SMS_SCI_SysResUse `
