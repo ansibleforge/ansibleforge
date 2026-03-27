@@ -29,16 +29,26 @@
     - infra.controller_configuration.dispatch
 
   post_tasks:
+    - name: Read k8s service account token
+      ansible.builtin.set_fact:
+        _sa_token: "{{ lookup('file', '/var/run/secrets/kubernetes.io/serviceaccount/token', errors='ignore') | default('') }}"
+      no_log: true
+
     - name: Check if RHDH AAP token secret exists
-      kubernetes.core.k8s_info:
-        api_version: v1
-        kind: Secret
-        name: rhdh-aap-token
-        namespace: rhdh
+      ansible.builtin.uri:
+        url: "https://kubernetes.default.svc/api/v1/namespaces/rhdh/secrets/rhdh-aap-token"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ _sa_token }}"
+        validate_certs: false
+        status_code: [200, 404]
       register: _rhdh_secret
+      when: _sa_token | length > 0
 
     - name: Create RHDH service token in AAP
-      when: _rhdh_secret.resources | length == 0 or force_rhdh_token | bool
+      when: >-
+        _sa_token | length > 0 and
+        (_rhdh_secret.status == 404 or force_rhdh_token | bool)
       block:
         - name: Generate AAP personal token
           ansible.builtin.uri:
@@ -56,14 +66,43 @@
           register: _rhdh_token
 
         - name: Store RHDH token as k8s secret
-          kubernetes.core.k8s:
-            state: present
-            definition:
+          ansible.builtin.uri:
+            url: "https://kubernetes.default.svc/api/v1/namespaces/rhdh/secrets/rhdh-aap-token"
+            method: PUT
+            headers:
+              Authorization: "Bearer {{ _sa_token }}"
+              Content-Type: application/json
+            validate_certs: false
+            body_format: json
+            body:
               apiVersion: v1
               kind: Secret
               metadata:
                 name: rhdh-aap-token
                 namespace: rhdh
               type: Opaque
-              stringData:
-                token: "{{ _rhdh_token.json.token }}"
+              data:
+                token: "{{ _rhdh_token.json.token | b64encode }}"
+            status_code: [200, 201, 404]
+          register: _put_result
+
+        - name: Create secret if it does not exist yet
+          ansible.builtin.uri:
+            url: "https://kubernetes.default.svc/api/v1/namespaces/rhdh/secrets"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ _sa_token }}"
+              Content-Type: application/json
+            validate_certs: false
+            body_format: json
+            body:
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: rhdh-aap-token
+                namespace: rhdh
+              type: Opaque
+              data:
+                token: "{{ _rhdh_token.json.token | b64encode }}"
+            status_code: [201]
+          when: _put_result.status == 404
