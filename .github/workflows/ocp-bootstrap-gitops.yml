@@ -145,6 +145,8 @@ jobs:
           SN_HOST: ${{ secrets.SN_HOST }}
           SN_USERNAME: ${{ secrets.SN_USERNAME }}
           SN_PASSWORD: ${{ secrets.SN_PASSWORD }}
+          KEYCLOAK_GITHUB_APP_ID: ${{ secrets.KEYCLOAK_GITHUB_APP_ID }}
+          KEYCLOAK_GITHUB_APP_SECRET: ${{ secrets.KEYCLOAK_GITHUB_APP_SECRET }}
         run: |
           oc create namespace secrets --dry-run=client -o yaml | oc apply -f -
           oc create secret generic rhsm-credentials \
@@ -173,6 +175,13 @@ jobs:
               --from-literal=host="${SN_HOST}" \
               --from-literal=username="${SN_USERNAME}" \
               --from-literal=password="${SN_PASSWORD}" \
+              --dry-run=client -o yaml | oc apply -f -
+          fi
+          if [ -n "${KEYCLOAK_GITHUB_APP_ID}" ] && [ -n "${KEYCLOAK_GITHUB_APP_SECRET}" ]; then
+            oc create secret generic github-app-credentials \
+              --namespace=secrets \
+              --from-literal=client-id="${KEYCLOAK_GITHUB_APP_ID}" \
+              --from-literal=client-secret="${KEYCLOAK_GITHUB_APP_SECRET}" \
               --dry-run=client -o yaml | oc apply -f -
           fi
 
