@@ -259,3 +259,11 @@ components:
     syncOptions:
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
+
+  ansible-tools:
+    enabled: true
+    syncWave: "3"
+    path: ocp/gitops/ansible-tools
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true

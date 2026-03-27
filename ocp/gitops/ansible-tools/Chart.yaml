@@ -1,0 +1,4 @@
+apiVersion: v2
+name: ansible-tools
+version: 0.1.0
+description: Static content server with Keycloak SSO (slides, docs, dashboards)

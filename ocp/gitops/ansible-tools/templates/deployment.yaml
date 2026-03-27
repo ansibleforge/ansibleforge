@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ansible-tools
+  namespace: ansible-tools
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ansible-tools
+  template:
+    metadata:
+      labels:
+        app: ansible-tools
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1
+          args:
+            - --http-address=0.0.0.0:4180
+            - --upstream=http://localhost:8080
+            - --provider=oidc
+            - --oidc-issuer-url=https://keycloak.{{ .Values.clusterDomain }}/realms/sso
+            - --client-id=ansible-tools
+            - --client-secret-file=/secrets/client-secret-decoded
+            - --cookie-secret-file=/secrets/cookie-secret-decoded
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --email-domain=*
+            - --skip-provider-button=true
+            - --redirect-url=https://ansible-tools.{{ .Values.clusterDomain }}/oauth2/callback
+            - --ssl-insecure-skip-verify=true
+            - --insecure-oidc-skip-issuer-verification=false
+            - --code-challenge-method=S256
+            - --skip-jwt-bearer-tokens=true
+          ports:
+            - containerPort: 4180
+              name: proxy
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: oauth-secrets-decoded
+              mountPath: /secrets
+              readOnly: true
+
+        - name: httpd
+          image: registry.access.redhat.com/ubi9/httpd-24:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: content
+              mountPath: /var/www/html
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /slideshow.html
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+
+      initContainers:
+        - name: decode-secrets
+          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo -n "$(cat /raw-secrets/client-secret | base64 -d)" > /decoded/client-secret-decoded
+              echo -n "$(cat /raw-secrets/cookie-secret | base64 -d)" > /decoded/cookie-secret-decoded
+              chmod 444 /decoded/*
+          volumeMounts:
+            - name: oauth-secret-raw
+              mountPath: /raw-secrets
+              readOnly: true
+            - name: oauth-secrets-decoded
+              mountPath: /decoded
+
+        - name: fetch-content
+          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              curl -sL -o /content/slideshow.html \
+                "https://raw.githubusercontent.com/hfenner/ansibleforge/main/site/slideshow.html"
+              echo '<html><head><meta http-equiv="refresh" content="0;url=/slideshow.html"></head></html>' \
+                > /content/index.html
+          volumeMounts:
+            - name: content
+              mountPath: /content
+
+      volumes:
+        - name: oauth-secret-raw
+          secret:
+            secretName: oauth2-proxy
+        - name: oauth-secrets-decoded
+          emptyDir:
+            medium: Memory
+        - name: content
+          emptyDir: {}

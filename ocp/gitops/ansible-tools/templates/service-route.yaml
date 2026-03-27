@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ansible-tools
+  namespace: ansible-tools
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  selector:
+    app: ansible-tools
+  ports:
+    - name: proxy
+      port: 4180
+      targetPort: 4180
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ansible-tools
+  namespace: ansible-tools
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  host: ansible-tools.{{ .Values.clusterDomain }}
+  to:
+    kind: Service
+    name: ansible-tools
+  port:
+    targetPort: proxy
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
