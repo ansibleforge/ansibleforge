@@ -158,6 +158,34 @@
       delay: 30
       until: _site_check.rc == 0
 
+    - name: Add Management Point role
+      ansible.windows.win_shell: |
+        $existing = Get-WmiObject -Namespace "root\SMS\site_{{ sccm_site_code }}" -Class SMS_SCI_SysResUse `
+          -Filter "RoleName='SMS Management Point'" -ErrorAction SilentlyContinue
+        if ($existing) {
+          Write-Output "EXISTS"
+          exit 0
+        }
+        Import-Module "$env:SMS_ADMIN_UI_PATH\..\ConfigurationManager.psd1"
+        Set-Location "{{ sccm_site_code }}:"
+        Add-CMManagementPoint -SiteSystemServerName "{{ inventory_hostname }}.{{ domain_name }}" `
+          -SiteCode "{{ sccm_site_code }}" -CommunicationType Http
+        Write-Output "ADDED"
+      register: _mp_role
+      changed_when: "'ADDED' in _mp_role.stdout"
+      async: 3600
+      poll: 60
+
+    - name: Wait for Management Point IIS virtual directories
+      ansible.windows.win_shell: |
+        Import-Module WebAdministration
+        $vdir = Get-WebVirtualDirectory -Site "Default Web Site" -Name "CCM_Client" -ErrorAction SilentlyContinue
+        if ($vdir) { Write-Output "MP_READY" } else { Write-Output "NOT_READY"; exit 1 }
+      register: _mp_ready
+      retries: 30
+      delay: 30
+      until: _mp_ready.rc == 0
+
     - name: Configure boundary (VPC CIDR)
       ansible.windows.win_shell: |
         $existing = Get-WmiObject -Namespace "root\SMS\site_{{ sccm_site_code }}" -Class SMS_Boundary `
