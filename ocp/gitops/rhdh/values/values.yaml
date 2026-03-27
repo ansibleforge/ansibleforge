@@ -109,15 +109,15 @@ upstream:
                   seconds: 15
           rhaap:
             default:
-              orgs: Default
-              sync:
-                jobTemplates:
-                  enabled: true
-                  schedule:
-                    frequency:
-                      minutes: 60
-                    timeout:
-                      minutes: 15
+              baseUrl: https://aap-aap.apps.ocp.fire.ansibleforge.dev
+              authorization: "Bearer ${token}"
+              schedule:
+                frequency:
+                  minutes: 60
+                timeout:
+                  minutes: 15
+                initialDelay:
+                  seconds: 30
   postgresql:
     auth:
       existingSecret: rhdh-postgresql
