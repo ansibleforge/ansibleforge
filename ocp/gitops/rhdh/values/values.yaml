@@ -112,13 +112,15 @@ upstream:
               baseUrl: https://aap-aap.apps.ocp.fire.ansibleforge.dev
               authorization: "Bearer ${token}"
               orgs: Default
-              schedule:
-                frequency:
-                  minutes: 60
-                timeout:
-                  minutes: 15
-                initialDelay:
-                  seconds: 30
+              sync:
+                orgsUsersTeams:
+                  schedule:
+                    frequency:
+                      minutes: 60
+                    timeout:
+                      minutes: 15
+                    initialDelay:
+                      seconds: 30
   postgresql:
     auth:
       existingSecret: rhdh-postgresql
