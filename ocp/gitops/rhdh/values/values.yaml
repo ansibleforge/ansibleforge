@@ -3,11 +3,61 @@ global:
     plugins:
       - package: ./dynamic-plugins/dist/backstage-community-plugin-catalog-backend-module-keycloak-dynamic
         disabled: false
+      # Ansible frontend plugin - sidebar and pages
+      - package: http://plugin-registry:8080/ansible-plugin-backstage-rhaap-dynamic-2.1.1.tgz
+        disabled: false
+        integrity: sha512-1pZ+qjVEs5pouyjhufxzLBKcZ4frsZYhEZbUJcMgc9ukshLkFOOOIV/PXIfmUfCYQuwDlPxwK1OoU7vjMOiRYA==
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              ansible.plugin-backstage-rhaap:
+                appIcons:
+                  - importName: AnsibleLogo
+                    name: AnsibleLogo
+                dynamicRoutes:
+                  - importName: AnsiblePage
+                    menuItem:
+                      icon: AnsibleLogo
+                      text: Ansible
+                    path: /ansible
+      # Ansible scaffolder backend - template actions for AAP
+      - package: http://plugin-registry:8080/ansible-plugin-scaffolder-backend-module-backstage-rhaap-dynamic-2.1.1.tgz
+        disabled: false
+        integrity: sha512-0V3LJ5IFfMmsHUcybP9oA7YU8WheoVyrmE9YTyEiv4MDzg2wXFZODmqKDoPDm6Yp3+OWDbSaAP0obeogg0XVSA==
+        pluginConfig:
+          dynamicPlugins:
+            backend:
+              ansible.plugin-scaffolder-backend-module-backstage-rhaap: null
+      # Ansible catalog backend - syncs AAP job templates
+      - package: http://plugin-registry:8080/ansible-backstage-plugin-catalog-backend-module-rhaap-dynamic-2.1.1.tgz
+        disabled: false
+        integrity: sha512-JkR79YuPqx+/0wZWFPWdzoUzNzm0hqXR53DNdWNh6so/oBA3+yYqQM7onp9N/StJCpXZXpMoWUGxot7C1cnRJA==
+        pluginConfig:
+          dynamicPlugins:
+            backend:
+              ansible.backstage-plugin-catalog-backend-module-rhaap: null
+      # Ansible auth backend - AAP authentication provider
+      - package: http://plugin-registry:8080/ansible-backstage-plugin-auth-backend-module-rhaap-provider-dynamic-2.1.1.tgz
+        disabled: false
+        integrity: sha512-JJP1fCX+z8tStb9WCctuY5vTxWI4kaG2eduEK3wMMg7NXodo2snCVyWd3CH5Kf5kcsTza6q50dpRwwER1Cg8kg==
+        pluginConfig:
+          dynamicPlugins:
+            backend:
+              ansible.backstage-plugin-auth-backend-module-rhaap-provider: null
+      # Ansible self-service UI
+      - package: http://plugin-registry:8080/ansible-plugin-backstage-self-service-dynamic-2.1.1.tgz
+        disabled: false
+        integrity: sha512-ta8GLVlUsOYyUMccjocom1R308hrCBqjIDUO2oPmjO6GjhIWL6pbgxSQjDder7Al4hbK+mwW/wfFPAGyGaiyUA==
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              ansible.plugin-backstage-self-service: null
 upstream:
   backstage:
     extraEnvVars: []
     extraEnvVarsSecrets:
       - rhdh-keycloak-client-secret
+      - rhdh-aap-token
     appConfig:
       auth:
         session:
@@ -24,12 +74,24 @@ upstream:
                 resolvers:
                   - resolver: preferredUsernameMatchingUserEntityName
       signInPage: oidc
+      ansible:
+        rhaap:
+          baseUrl: https://aap-aap.apps.ocp.fire.ansibleforge.dev
+          token: ${token}
+          checkSSL: false
+        creatorService:
+          baseUrl: '127.0.0.1'
+          port: '8000'
       catalog:
         locations:
           - type: url
             target: https://github.com/hfenner/ansibleforge/blob/main/catalog-info.yaml
             rules:
               - allow: [Component, System, Resource]
+          - type: url
+            target: https://github.com/ansible/ansible-rhdh-templates/blob/main/all.yaml
+            rules:
+              - allow: [Template]
         providers:
           keycloakOrg:
             default:
@@ -45,6 +107,17 @@ upstream:
                   minutes: 3
                 initialDelay:
                   seconds: 15
+          rhaap:
+            default:
+              orgs: Default
+              sync:
+                jobTemplates:
+                  enabled: true
+                  schedule:
+                    frequency:
+                      minutes: 60
+                    timeout:
+                      minutes: 15
   postgresql:
     auth:
       existingSecret: rhdh-postgresql
