@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnsibleForge - Enterprise Automation Platform</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css">
+  <style>
+    :root {
+      --ansible-red: #EE0000;
+      --ansible-dark: #1A1918;
+      --forge-orange: #F0AB00;
+      --forge-blue: #0066CC;
+      --text-light: #E0E0E0;
+    }
+    .reveal {
+      font-family: 'Red Hat Display', 'Segoe UI', sans-serif;
+    }
+    .reveal h1, .reveal h2, .reveal h3 {
+      text-transform: none;
+      font-weight: 700;
+    }
+    .reveal h1 { font-size: 2.2em; }
+    .reveal h2 { font-size: 1.6em; color: var(--forge-orange); }
+    .reveal h3 { font-size: 1.2em; color: var(--text-light); }
+    .reveal .subtitle { color: var(--text-light); font-size: 0.7em; opacity: 0.8; }
+
+    .reveal .highlight { color: var(--forge-orange); }
+    .reveal .red { color: var(--ansible-red); }
+
+    .reveal section { text-align: left; }
+    .reveal .center { text-align: center; }
+
+    .reveal ul { list-style: none; padding-left: 0; }
+    .reveal ul li { padding: 0.3em 0; }
+    .reveal ul li::before {
+      content: "\25B8";
+      color: var(--forge-orange);
+      font-weight: bold;
+      margin-right: 0.6em;
+    }
+    .reveal .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2em;
+      font-size: 0.85em;
+    }
+    .reveal .three-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.5em;
+      font-size: 0.75em;
+    }
+    .reveal .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1.2em;
+      border-top: 3px solid var(--forge-orange);
+    }
+    .reveal .card h3 {
+      margin-top: 0;
+      font-size: 1em;
+      color: var(--forge-orange);
+    }
+    .reveal .card ul { font-size: 0.9em; }
+
+    .reveal .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1em;
+      text-align: center;
+      margin: 1em 0;
+    }
+    .reveal .stat {
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 1em 0.5em;
+      border-bottom: 3px solid var(--forge-orange);
+    }
+    .reveal .stat .number {
+      font-size: 2em;
+      font-weight: 800;
+      color: var(--forge-orange);
+      display: block;
+    }
+    .reveal .stat .label {
+      font-size: 0.7em;
+      opacity: 0.8;
+    }
+
+    .reveal .flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5em;
+      flex-wrap: wrap;
+      margin: 1em 0;
+      font-size: 0.85em;
+    }
+    .reveal .flow .step {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 0.5em 1em;
+    }
+    .reveal .flow .arrow {
+      color: var(--forge-orange);
+      font-size: 1.4em;
+    }
+
+    .reveal .tag {
+      display: inline-block;
+      background: rgba(240,171,0,0.15);
+      border: 1px solid rgba(240,171,0,0.3);
+      border-radius: 4px;
+      padding: 0.1em 0.5em;
+      font-size: 0.8em;
+      margin: 0.15em;
+    }
+
+    .reveal .logo-text {
+      font-size: 3em;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .reveal .logo-text .ansible { color: var(--ansible-red); }
+    .reveal .logo-text .forge { color: var(--forge-orange); }
+
+    .reveal .timeline {
+      position: relative;
+      padding-left: 2em;
+      font-size: 0.85em;
+    }
+    .reveal .timeline::before {
+      content: '';
+      position: absolute;
+      left: 0.5em;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--forge-orange);
+    }
+    .reveal .timeline .event {
+      position: relative;
+      padding: 0.5em 0;
+    }
+    .reveal .timeline .event::before {
+      content: '';
+      position: absolute;
+      left: -1.75em;
+      top: 0.85em;
+      width: 10px;
+      height: 10px;
+      background: var(--forge-orange);
+      border-radius: 50%;
+    }
+    .reveal .quote {
+      font-style: italic;
+      font-size: 1.1em;
+      border-left: 4px solid var(--forge-orange);
+      padding-left: 1em;
+      margin: 1em 0;
+      color: var(--text-light);
+    }
+  </style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+  <!-- TITLE -->
+  <section class="center">
+    <div class="logo-text">
+      <span class="ansible">Ansible</span><span class="forge">Forge</span>
+    </div>
+    <p class="subtitle" style="font-size:1.2em; margin-top:0.5em;">
+      Enterprise Automation Platform on OpenShift
+    </p>
+    <p class="subtitle" style="margin-top:2em;">
+      GitOps-Driven &bull; Self-Service &bull; Event-Driven &bull; AI-Powered
+    </p>
+  </section>
+
+  <!-- THE PROBLEM -->
+  <section>
+    <h2>The Problem</h2>
+    <div class="quote">
+      "We have the tools, but getting them to work together takes months&mdash;and every team does it differently."
+    </div>
+    <ul style="margin-top:1em;">
+      <li>Scattered tooling across teams with no standard platform</li>
+      <li>Weeks of setup before writing a single playbook</li>
+      <li>Manual secrets management and credential rotation</li>
+      <li>No self-service&mdash;every request goes through a bottleneck</li>
+      <li>Automation that can't respond to events in real time</li>
+    </ul>
+  </section>
+
+  <!-- THE SOLUTION -->
+  <section class="center">
+    <h2>AnsibleForge</h2>
+    <p style="font-size:1.1em; max-width:700px; margin:0 auto;">
+      A <span class="highlight">single git push</span> bootstraps a complete automation platform&mdash;from infrastructure provisioning to self-service portal&mdash;in under an hour.
+    </p>
+    <div class="stat-grid" style="margin-top:1.5em;">
+      <div class="stat">
+        <span class="number">1</span>
+        <span class="label">Command to Deploy</span>
+      </div>
+      <div class="stat">
+        <span class="number">30+</span>
+        <span class="label">Ansible Collections</span>
+      </div>
+      <div class="stat">
+        <span class="number">15+</span>
+        <span class="label">Integrated Services</span>
+      </div>
+      <div class="stat">
+        <span class="number">0</span>
+        <span class="label">Manual Steps</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section>
+    <h2>Platform Architecture</h2>
+    <div class="flow">
+      <div class="step"><strong>Git Push</strong></div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">ArgoCD</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">Operators &amp; Helm</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step"><strong>Full Platform</strong></div>
+    </div>
+    <div class="three-col" style="margin-top:1em;">
+      <div class="card">
+        <h3>Platform Layer</h3>
+        <ul>
+          <li>OpenShift 4.x</li>
+          <li>ArgoCD GitOps</li>
+          <li>HashiCorp Vault</li>
+          <li>External Secrets</li>
+          <li>Cert-Manager</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Automation Layer</h3>
+        <ul>
+          <li>AAP Controller</li>
+          <li>Automation Hub</li>
+          <li>Event-Driven Ansible</li>
+          <li>Lightspeed AI</li>
+          <li>MCP Server</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>User Layer</h3>
+        <ul>
+          <li>DevSpaces IDE</li>
+          <li>Developer Hub</li>
+          <li>Self-Service Portal</li>
+          <li>Keycloak SSO</li>
+          <li>ServiceNow ITSM</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- GITOPS -->
+  <section>
+    <h2>GitOps-First Design</h2>
+    <p>The entire platform is defined in Git. One bootstrap command, zero drift.</p>
+    <div class="two-col" style="margin-top:1em;">
+      <div>
+        <h3>App-of-Apps Pattern</h3>
+        <div class="timeline">
+          <div class="event"><strong>Wave 0</strong> &mdash; Namespaces, RBAC, GitOps config</div>
+          <div class="event"><strong>Wave 1</strong> &mdash; Vault, ESO, Keycloak, AAP, Pipelines</div>
+          <div class="event"><strong>Wave 2</strong> &mdash; Auth, SSO, Secret Stores</div>
+          <div class="event"><strong>Wave 3</strong> &mdash; DevSpaces, Shared Builds, User Projects</div>
+        </div>
+      </div>
+      <div>
+        <h3>What This Means</h3>
+        <ul>
+          <li>Entire platform in version control</li>
+          <li>Consistent across environments</li>
+          <li>Disaster recovery = redeploy from git</li>
+          <li>Changes are PRs, not tickets</li>
+          <li>Audit trail built in</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEVELOPER EXPERIENCE -->
+  <section>
+    <h2>Developer Experience</h2>
+    <p>From zero to productive in minutes, not days.</p>
+    <div class="two-col" style="margin-top:1em;">
+      <div class="card">
+        <h3>Browser-Based Workspace</h3>
+        <ul>
+          <li>VS Code in the browser via DevSpaces</li>
+          <li>Pre-loaded with 30+ Ansible collections</li>
+          <li>Terraform, AWS CLI, Helm, Podman, oc</li>
+          <li>Vault secrets auto-injected via sidecar</li>
+          <li>Persistent storage per developer</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>One-Line Onboarding</h3>
+        <ul>
+          <li>Add username to a YAML file</li>
+          <li>ApplicationSet creates namespace</li>
+          <li>DevWorkspace auto-provisions</li>
+          <li>SSO identity ready via Keycloak</li>
+          <li>Full IDE + tools in minutes</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI-POWERED -->
+  <section>
+    <h2>AI-Powered Automation</h2>
+    <p>Ansible Lightspeed and MCP bring intelligence to your automation.</p>
+    <div class="two-col" style="margin-top:1em;">
+      <div class="card">
+        <h3>Lightspeed Chatbot</h3>
+        <ul>
+          <li>Conversational AI in the AAP UI</li>
+          <li>Powered by GPT-4o via OpenAI</li>
+          <li>RAG with Ansible product docs</li>
+          <li>Context-aware tool calling</li>
+          <li>Query jobs, templates, inventories</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>MCP Integration</h3>
+        <ul>
+          <li>Model Context Protocol server</li>
+          <li>337 controller tools exposed</li>
+          <li>Chatbot calls real AAP APIs</li>
+          <li>External MCP client support</li>
+          <li>Claude Desktop / VS Code compatible</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- EVENT-DRIVEN -->
+  <section>
+    <h2>Event-Driven Automation</h2>
+    <p>React to events in real time&mdash;no polling, no waiting.</p>
+    <div class="flow" style="font-size:0.8em;">
+      <div class="step">ServiceNow<br>Catalog Request</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">EDA<br>Rulebook</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">AAP<br>Job Template</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">EC2 Instance<br>Provisioned</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">ServiceNow<br>Updated</div>
+    </div>
+    <div class="two-col" style="margin-top:1.5em;">
+      <div>
+        <h3>Use Cases</h3>
+        <ul>
+          <li>ServiceNow &rarr; VM provisioning/deprovisioning</li>
+          <li>Git push &rarr; EE container rebuild</li>
+          <li>Webhook &rarr; Configuration drift remediation</li>
+          <li>Alert &rarr; Automated incident response</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Key Features</h3>
+        <ul>
+          <li>Throttling prevents duplicate triggers</li>
+          <li>Source grouping for batch processing</li>
+          <li>Custom decision environments</li>
+          <li>Full audit trail in AAP</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SELF-SERVICE -->
+  <section>
+    <h2>Self-Service Portal</h2>
+    <p>Empower teams to consume automation without being automation experts.</p>
+    <div class="two-col" style="margin-top:1em;">
+      <div class="card">
+        <h3>Red Hat Developer Hub</h3>
+        <ul>
+          <li>Backstage-based developer portal</li>
+          <li>AAP job templates synced as catalog</li>
+          <li>Software templates for scaffolding</li>
+          <li>Keycloak SSO integration</li>
+          <li>Team-based access control</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Ansible Plugins</h3>
+        <ul>
+          <li>Launch job templates from portal</li>
+          <li>Create projects and EEs</li>
+          <li>Browse automation catalog</li>
+          <li>Credential self-service</li>
+          <li>Point-and-click automation</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECRETS MANAGEMENT -->
+  <section>
+    <h2>Secrets Management</h2>
+    <p>Zero secrets in git. Zero manual rotation. Zero excuses.</p>
+    <div class="flow">
+      <div class="step">GitHub Actions</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">K8s Secrets</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">Vault</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">External Secrets</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">Application</div>
+    </div>
+    <div class="two-col" style="margin-top:1em; font-size:0.85em;">
+      <div>
+        <ul>
+          <li>HashiCorp Vault auto-initialized and unsealed</li>
+          <li>Kubernetes auth for pod-level access</li>
+          <li>OIDC auth for developer access</li>
+          <li>Vault agent sidecars in DevSpaces</li>
+        </ul>
+      </div>
+      <div>
+        <ul>
+          <li>External Secrets Operator syncs from Vault</li>
+          <li>AWS Secrets Manager as secondary backend</li>
+          <li>Automatic credential injection</li>
+          <li>Secret rotation without restarts</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- INFRASTRUCTURE AS CODE -->
+  <section>
+    <h2>Infrastructure as Code</h2>
+    <div class="two-col">
+      <div class="card">
+        <h3>AWS Infrastructure</h3>
+        <ul>
+          <li>Terraform for VPCs, subnets, IAM</li>
+          <li>S3 + DynamoDB state backend</li>
+          <li>OIDC-federated GitHub Actions</li>
+          <li>Route 53 + Cloudflare DNS</li>
+          <li>EC2 provisioning via Ansible</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>OpenShift Clusters</h3>
+        <ul>
+          <li>IPI provisioning on AWS</li>
+          <li>Kubeconfig in Secrets Manager</li>
+          <li>Multi-cluster support (fire, ice, spark)</li>
+          <li>Automated DNS delegation</li>
+          <li>One-command destroy + cleanup</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- REAL-WORLD SCENARIO -->
+  <section>
+    <h2>Real-World Scenario: SCCM Lab</h2>
+    <p>Complete Windows infrastructure automated end-to-end.</p>
+    <div class="timeline" style="margin-top:1em;">
+      <div class="event"><strong>Provision Domain Controller</strong> &mdash; Active Directory, DNS, DHCP</div>
+      <div class="event"><strong>Deploy SQL Server</strong> &mdash; Automated installation and configuration</div>
+      <div class="event"><strong>Install SCCM</strong> &mdash; Site server, distribution points, management points</div>
+      <div class="event"><strong>Configure Clients</strong> &mdash; WinRM bootstrap, domain join, SCCM agent</div>
+      <div class="event"><strong>Manage Lifecycle</strong> &mdash; Patching, compliance, scheduled start/stop</div>
+    </div>
+    <p style="margin-top:1em; font-size:0.8em; opacity:0.7;">
+      Includes CredSSP auth, certificate management, idempotent state management, and ServiceNow integration.
+    </p>
+  </section>
+
+  <!-- EXECUTION ENVIRONMENTS -->
+  <section>
+    <h2>Custom Execution Environments</h2>
+    <p>Consistent, reproducible automation runtimes.</p>
+    <div class="two-col">
+      <div>
+        <h3>ee-ansibleforge</h3>
+        <p style="font-size:0.8em;">Production execution environment for AAP</p>
+        <div style="font-size:0.75em;">
+          <span class="tag">amazon.aws</span>
+          <span class="tag">ansible.windows</span>
+          <span class="tag">microsoft.ad</span>
+          <span class="tag">cloud.terraform</span>
+          <span class="tag">kubernetes.core</span>
+          <span class="tag">servicenow.itsm</span>
+          <span class="tag">community.hashi_vault</span>
+          <span class="tag">redhat.openshift</span>
+          <span class="tag">containers.podman</span>
+          <span class="tag">redhat.satellite</span>
+          <span class="tag">redhat.rhel_system_roles</span>
+          <span class="tag">ansible.controller</span>
+          <span class="tag">infra.aap_configuration</span>
+          <span class="tag">+17 more</span>
+        </div>
+      </div>
+      <div>
+        <h3>Automated Builds</h3>
+        <ul>
+          <li>OpenShift Pipelines build on push</li>
+          <li>EDA auto-rebuilds on changes</li>
+          <li>Internal registry + GHCR publishing</li>
+          <li>Shared across controller jobs</li>
+          <li>Same collections in dev + prod</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- CI/CD -->
+  <section>
+    <h2>CI/CD Pipelines</h2>
+    <div class="three-col">
+      <div class="card">
+        <h3>Quality Gates</h3>
+        <ul>
+          <li>YAML lint</li>
+          <li>Ansible lint</li>
+          <li>Helm lint</li>
+          <li>Gitleaks secrets scan</li>
+          <li>TruffleHog detection</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Infrastructure</h3>
+        <ul>
+          <li>OCP cluster provision</li>
+          <li>OCP cluster destroy</li>
+          <li>DNS management</li>
+          <li>AWS OIDC bootstrap</li>
+          <li>Terraform state backend</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Containers</h3>
+        <ul>
+          <li>EE build + push</li>
+          <li>Tools image build</li>
+          <li>Multi-arch support</li>
+          <li>Automated scheduling</li>
+          <li>Docs site publishing</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTEGRATION MAP -->
+  <section>
+    <h2>Integration Ecosystem</h2>
+    <div class="three-col" style="font-size:0.8em;">
+      <div class="card" style="border-top-color: var(--ansible-red);">
+        <h3 style="color: var(--ansible-red);">Red Hat</h3>
+        <ul>
+          <li>OpenShift</li>
+          <li>AAP 2.6</li>
+          <li>Developer Hub</li>
+          <li>DevSpaces</li>
+          <li>Keycloak SSO</li>
+          <li>Satellite</li>
+        </ul>
+      </div>
+      <div class="card" style="border-top-color: var(--forge-blue);">
+        <h3 style="color: var(--forge-blue);">Cloud & Infra</h3>
+        <ul>
+          <li>AWS (EC2, IAM, S3, R53)</li>
+          <li>Terraform</li>
+          <li>HashiCorp Vault</li>
+          <li>Kubernetes</li>
+          <li>Active Directory</li>
+          <li>SCCM / ConfigMgr</li>
+        </ul>
+      </div>
+      <div class="card" style="border-top-color: #28A745;">
+        <h3 style="color: #28A745;">DevOps & ITSM</h3>
+        <ul>
+          <li>GitHub Actions</li>
+          <li>ArgoCD</li>
+          <li>ServiceNow ITSM</li>
+          <li>GitLab</li>
+          <li>Podman / GHCR</li>
+          <li>MkDocs</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROI -->
+  <section>
+    <h2>Return on Investment</h2>
+    <div class="two-col">
+      <div>
+        <h3>Before AnsibleForge</h3>
+        <ul>
+          <li>Weeks to set up automation environments</li>
+          <li>Each team builds their own tooling</li>
+          <li>Manual secrets management</li>
+          <li>Tickets for every infrastructure request</li>
+          <li>No visibility into automation usage</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="color: #28A745;">After AnsibleForge</h3>
+        <ul>
+          <li style="color: #28A745;">Minutes to productive workspace</li>
+          <li style="color: #28A745;">Standardized platform for all teams</li>
+          <li style="color: #28A745;">Automated secrets lifecycle</li>
+          <li style="color: #28A745;">Self-service portal for consumers</li>
+          <li style="color: #28A745;">Full audit trail and observability</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEPLOYMENT -->
+  <section>
+    <h2>Getting Started</h2>
+    <div class="card" style="max-width:700px; margin:1em auto;">
+      <h3>Three Ways to Deploy</h3>
+      <div class="timeline">
+        <div class="event"><strong>GitHub Actions Bootstrap</strong><br>
+          <span style="font-size:0.85em;">Trigger the workflow with your cluster credentials. Platform deploys in ~45 minutes.</span>
+        </div>
+        <div class="event"><strong>Red Hat Demo Platform</strong><br>
+          <span style="font-size:0.85em;">Order "Field Content CI" for a one-click, pre-provisioned environment.</span>
+        </div>
+        <div class="event"><strong>DevSpaces</strong><br>
+          <span style="font-size:0.85em;">Open the devfile on any OpenShift cluster for a browser-based dev environment.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSING -->
+  <section class="center">
+    <div class="logo-text">
+      <span class="ansible">Ansible</span><span class="forge">Forge</span>
+    </div>
+    <p style="font-size:1.1em; margin-top:1em; max-width:650px; margin-left:auto; margin-right:auto;">
+      Stop building platforms. Start <span class="highlight">building automation</span>.
+    </p>
+    <div style="margin-top:2em; font-size:0.8em; opacity:0.6;">
+      <p>github.com/hfenner/ansibleforge</p>
+    </div>
+  </section>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    slideNumber: true,
+    transition: 'slide',
+    transitionSpeed: 'default',
+    width: 1280,
+    height: 720,
+    margin: 0.08,
+    center: false
+  });
+</script>
+</body>
+</html>

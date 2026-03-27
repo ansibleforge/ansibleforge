@@ -35,6 +35,9 @@ metadata:
     - url: https://github.com/hfenner/ansibleforge/blob/main/CONTRIBUTING.md
       title: Contributing Guide
       icon: docs
+    - url: https://slideshow-rhdh.apps.ocp.fire.ansibleforge.dev/slideshow.html
+      title: Platform Overview Slideshow
+      icon: dashboard
 spec:
   type: library
   lifecycle: production
