@@ -217,15 +217,8 @@ spec:
                 "${API}/api/v1/namespaces/secrets/secrets" 2>/dev/null || true)
 
               if [ -n "${ALL_SECRETS}" ]; then
-                echo "${ALL_SECRETS}" | python3 -c '
-import json, sys, re
-secrets = json.load(sys.stdin).get("items", [])
-for s in secrets:
-    name = s["metadata"]["name"]
-    m = re.match(r"^(.+)-(servicenow|aws)-credentials$", name)
-    if m:
-        print(f"{m.group(1)} {m.group(2)} {name}")
-' | while read -r username credtype secretname; do
+                echo "${ALL_SECRETS}" | python3 -c 'import json,sys,re;[print(f"{m.group(1)} {m.group(2)} {s["metadata"]["name"]}") for s in json.load(sys.stdin).get("items",[]) if (m:=re.match(r"^(.+)-(servicenow|aws)-credentials$",s["metadata"]["name"]))]' \
+                | while read -r username credtype secretname; do
                   [ -z "${username}" ] && continue
                   seed_from_k8s "${secretname}" "users/${username}/${credtype}"
                 done
