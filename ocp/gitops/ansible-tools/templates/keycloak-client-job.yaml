@@ -17,10 +17,10 @@ spec:
         - name: register-client
           image: registry.redhat.io/ubi9/ubi-minimal:latest
           command:
-            - /bin/bash
+            - /bin/sh
             - -c
             - |
-              set -euo pipefail
+              set -eu
 
               KEYCLOAK_URL="https://keycloak.{{ .Values.clusterDomain }}"
               REALM="sso"
