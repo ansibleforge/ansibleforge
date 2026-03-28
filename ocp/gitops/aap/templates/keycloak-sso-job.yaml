@@ -515,7 +515,8 @@ spec:
               # Create custom credential type that injects env vars
               CRED_TYPE_PAYLOAD=$(python3 -c "
               import json
-              ob, cb = '{{', '}}'
+              ob = chr(123)*2
+              cb = chr(125)*2
               print(json.dumps({
                   'name': 'OpenShift API Token',
                   'kind': 'cloud',
