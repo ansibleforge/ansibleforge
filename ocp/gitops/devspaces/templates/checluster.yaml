@@ -15,7 +15,6 @@ spec:
     devfileRegistry: {}
     pluginRegistry: {}
   devEnvironments:
-    {{- if semverCompare ">=1.33-0" .Capabilities.KubeVersion.Version }}
     security:
       podSecurityContext:
         fsGroup: 1000
@@ -26,7 +25,6 @@ spec:
         io.kubernetes.cri-o.Devices: /dev/fuse,/dev/net/tun
         io.openshift.podman-fuse: ""
     disableContainerRunCapabilities: false
-    {{- end }}
     startTimeoutSeconds: 600
     maxNumberOfWorkspacesPerUser: -1
     maxNumberOfRunningWorkspacesPerUser: -1
