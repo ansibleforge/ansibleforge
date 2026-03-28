@@ -1,0 +1,4 @@
+apiVersion: v2
+name: web-terminal
+version: 0.1.0
+description: Web Terminal operator subscription
