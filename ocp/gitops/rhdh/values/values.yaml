@@ -57,6 +57,7 @@ upstream:
     extraEnvVars: []
     extraEnvVarsSecrets:
       - rhdh-keycloak-client-secret
+      - rhdh-aap-token
     appConfig:
       auth:
         session:
@@ -75,7 +76,7 @@ upstream:
       signInPage: oidc
       ansible:
         rhaap:
-          baseUrl: https://aap-aap.apps.ocp.fire.ansibleforge.dev
+          baseUrl: ${AAP_BASE_URL}
           token: ${token}
           checkSSL: false
         creatorService:
@@ -108,7 +109,7 @@ upstream:
                   seconds: 15
           rhaap:
             default:
-              baseUrl: https://aap-aap.apps.ocp.fire.ansibleforge.dev
+              baseUrl: ${AAP_BASE_URL}
               authorization: "Bearer ${token}"
               orgs: Default
               sync:

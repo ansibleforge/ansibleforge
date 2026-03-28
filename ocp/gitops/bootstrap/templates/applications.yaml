@@ -68,6 +68,10 @@ spec:
             value: KEYCLOAK_BASE_URL
           - name: upstream.backstage.extraEnvVars[3].value
             value: {{ printf "https://keycloak.%s" $.Values.clusterDomain | quote }}
+          - name: upstream.backstage.extraEnvVars[4].name
+            value: AAP_BASE_URL
+          - name: upstream.backstage.extraEnvVars[4].value
+            value: {{ printf "https://aap-aap.%s" $.Values.clusterDomain | quote }}
           {{- end }}
           {{- with .helm }}
           {{- range .parameters }}
