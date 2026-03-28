@@ -267,3 +267,10 @@ components:
     syncOptions:
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true
+    ignoreDifferences:
+      - group: ""
+        kind: Secret
+        jqPathExpressions:
+          - .data
+          - .stringData
