@@ -1,0 +1,15 @@
+---
+controller_templates:
+  - name: "DevSpaces - Provision User Secrets"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/devspaces/provision_user_secrets.yml
+    inventory: Localhost
+    execution_environment: "Community EE"
+    credentials:
+      - "AAP Controller Admin"
+      - "OpenShift Cluster Admin"
+    ask_variables_on_launch: true
+    extra_vars:
+      username: ""
