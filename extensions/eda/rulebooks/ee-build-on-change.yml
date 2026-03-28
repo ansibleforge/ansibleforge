@@ -1,16 +1,11 @@
 ---
-- name: Rebuild EE when execution-environment.yaml changes
+- name: GitHub push event handler
   hosts: all
   sources:
-    - ansible.eda.webhook:
-        host: 0.0.0.0
-        port: 5000
-      filters:
-        - ansible.eda.json_filter:
-            exclude_keys:
-              - sender
-              - enterprise
-        - ansible.eda.dashes_to_underscores:
+    - ansible.eda.pg_listener:
+        dsn: "{{ EDA_PG_DSN }}"
+        channels:
+          - github
   rules:
     - name: EE files changed — trigger build workflow
       condition: >-
@@ -29,4 +24,25 @@
       action:
         run_workflow_template:
           name: "EE - Build AnsibleForge"
+          organization: Default
+
+    - name: CaC files changed — trigger dispatch
+      condition: >-
+        event.meta.headers.X_GitHub_Event == "push" and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.commits is defined and
+        (
+          event.payload.commits is selectattr("modified", "search", "controller_config/")
+            or
+          event.payload.commits is selectattr("added", "search", "controller_config/")
+            or
+          event.payload.commits is selectattr("removed", "search", "controller_config/")
+        )
+      throttle:
+        once_within: 5 minutes
+        group_by_attributes:
+          - event.payload.ref
+      action:
+        run_job_template:
+          name: "CaC - Apply Controller Configuration"
           organization: Default

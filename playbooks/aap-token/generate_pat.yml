@@ -1,0 +1,103 @@
+---
+- name: Generate AAP Personal Access Token for launching user
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    vault_addr: "http://vault.vault.svc:8200"
+    vault_k8s_role: "aap-controller"
+    pat_scope: write
+    pat_description: "Auto-generated PAT for {{ launching_user }}"
+    aap_host: "{{ lookup('env', 'CONTROLLER_HOST') }}"
+    aap_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    aap_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+
+  tasks:
+    - name: Get launching user from job metadata
+      ansible.builtin.uri:
+        url: "{{ aap_host }}/api/controller/v2/jobs/{{ tower_job_id }}/"
+        method: GET
+        url_username: "{{ aap_username }}"
+        url_password: "{{ aap_password }}"
+        force_basic_auth: true
+        validate_certs: false
+      register: job_info
+
+    - name: Set launching user
+      ansible.builtin.set_fact:
+        launching_user: "{{ job_info.json.summary_fields.created_by.username }}"
+        launching_user_id: "{{ job_info.json.summary_fields.created_by.id }}"
+
+    - name: Display launching user
+      ansible.builtin.debug:
+        msg: "Generating PAT for user: {{ launching_user }} (id={{ launching_user_id }})"
+
+    - name: Check for existing auto-generated tokens
+      ansible.builtin.uri:
+        url: "{{ aap_host }}/api/controller/v2/users/{{ launching_user_id }}/personal_tokens/"
+        method: GET
+        url_username: "{{ aap_username }}"
+        url_password: "{{ aap_password }}"
+        force_basic_auth: true
+        validate_certs: false
+      register: existing_tokens
+
+    - name: Revoke existing auto-generated tokens
+      ansible.builtin.uri:
+        url: "{{ aap_host }}/api/controller/v2/tokens/{{ item.id }}/"
+        method: DELETE
+        url_username: "{{ aap_username }}"
+        url_password: "{{ aap_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [204]
+      loop: "{{ existing_tokens.json.results | selectattr('description', 'search', 'Auto-generated PAT') | list }}"
+      loop_control:
+        label: "token {{ item.id }}"
+
+    - name: Create new PAT for launching user
+      ansible.builtin.uri:
+        url: "{{ aap_host }}/api/controller/v2/users/{{ launching_user_id }}/personal_tokens/"
+        method: POST
+        url_username: "{{ aap_username }}"
+        url_password: "{{ aap_password }}"
+        force_basic_auth: true
+        body_format: json
+        body:
+          scope: "{{ pat_scope }}"
+          description: "{{ pat_description }}"
+        validate_certs: false
+        status_code: [201]
+      register: new_token
+      no_log: true
+
+    - name: Authenticate to Vault via Kubernetes auth
+      ansible.builtin.uri:
+        url: "{{ vault_addr }}/v1/auth/kubernetes/login"
+        method: POST
+        body_format: json
+        body:
+          role: "{{ vault_k8s_role }}"
+          jwt: "{{ lookup('file', '/var/run/secrets/kubernetes.io/serviceaccount/token') }}"
+        status_code: [200]
+      register: vault_login
+      no_log: true
+
+    - name: Store PAT in Vault at user path
+      ansible.builtin.uri:
+        url: "{{ vault_addr }}/v1/secret/data/users/{{ launching_user }}/aap"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ vault_login.json.auth.client_token }}"
+        body_format: json
+        body:
+          data:
+            token: "{{ new_token.json.token }}"
+            host: "{{ aap_host }}"
+        status_code: [200]
+      no_log: true
+
+    - name: Done
+      ansible.builtin.debug:
+        msg: "PAT stored in Vault at secret/users/{{ launching_user }}/aap — available in your devspace via ExternalSecret"

@@ -1,0 +1,7 @@
+---
+controller_organizations:
+  - name: Default
+    description: "AnsibleForge default organization"
+    default_environment: "EE AnsibleForge"
+    galaxy_credentials:
+      - "Ansible Galaxy"

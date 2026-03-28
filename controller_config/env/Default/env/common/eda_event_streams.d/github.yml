@@ -1,0 +1,6 @@
+---
+eda_event_streams:
+  - name: GitHub
+    credential_name: GitHub Webhook Credential
+    event_stream_type: "GitHub"
+    forward_events: true

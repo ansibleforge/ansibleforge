@@ -1,0 +1,8 @@
+---
+controller_teams:
+  - name: Admins
+    description: "Platform administrators — mapped from Keycloak admins group"
+    organization: Default
+  - name: Operators
+    description: "Day-2 operators — can run job templates and view resources"
+    organization: Default

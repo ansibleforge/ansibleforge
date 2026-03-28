@@ -1,0 +1,12 @@
+---
+controller_templates:
+  - name: "Generate My API Token"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/aap-token/generate_pat.yml
+    inventory: Localhost
+    execution_environment: "EE AnsibleForge"
+    credentials:
+      - "AAP Controller Admin"
+    description: "Generate a personal AAP API token and store it in Vault. Launch this job — your token will be available in your devspace automatically."

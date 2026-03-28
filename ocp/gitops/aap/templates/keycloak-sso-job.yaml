@@ -498,6 +498,32 @@ spec:
                 echo "Attached AAP Controller Admin credential to dispatch job template"
               fi
 
+              echo "=== Generate My API Token job template ==="
+
+              PAT_JT_PAYLOAD=$(python3 -c "
+              import json
+              print(json.dumps({
+                  'name': 'Generate My API Token',
+                  'job_type': 'run',
+                  'organization': 1,
+                  'project': $PROJECT_ID,
+                  'playbook': 'playbooks/aap-token/generate_pat.yml',
+                  'inventory': $INV_ID,
+                  'execution_environment': $EE_ID,
+                  'description': 'Generate a personal AAP API token and store it in Vault. Launch this job — your token will be available in your devspace automatically.'
+              }))
+              ")
+              PAT_JT_ID=$(ensure_resource "job_templates" "Generate My API Token" "$PAT_JT_PAYLOAD" | tail -1)
+
+              # Attach AAP Controller Admin credential
+              if [ -n "$AAP_CRED_ID" ]; then
+                curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/controller/v2/job_templates/$PAT_JT_ID/credentials/" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"id\": $AAP_CRED_ID}" > /dev/null 2>&1 || true
+                echo "Attached AAP Controller Admin credential to PAT job template"
+              fi
+
               echo "=== OpenShift credential for CaC ==="
 
               SA_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)

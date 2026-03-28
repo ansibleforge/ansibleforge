@@ -1,0 +1,13 @@
+---
+controller_settings:
+  - name: SESSION_COOKIE_AGE
+    value: 86400
+  - name: SESSIONS_PER_USER
+    value: -1
+  - name: MAX_PAGE_SIZE
+    value: 200
+  - name: GALAXY_IGNORE_CERTS
+    value: false
+  - name: AWX_TASK_ENV
+    value:
+      GIT_SSL_NO_VERIFY: "false"

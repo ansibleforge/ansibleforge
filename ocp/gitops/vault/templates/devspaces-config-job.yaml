@@ -207,6 +207,32 @@ spec:
                 echo "WARNING: k8s secret secrets/github-devspaces-oauth not found, skipping"
               fi
 
+              echo "=== Seeding per-user credentials ==="
+
+              # Discover per-user credential secrets by naming convention:
+              #   <username>-servicenow-credentials → secret/users/<username>/servicenow
+              #   <username>-aws-credentials        → secret/users/<username>/aws
+              ALL_SECRETS=$(curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                "${API}/api/v1/namespaces/secrets/secrets" 2>/dev/null || true)
+
+              if [ -n "${ALL_SECRETS}" ]; then
+                echo "${ALL_SECRETS}" | python3 -c '
+import json, sys, re
+secrets = json.load(sys.stdin).get("items", [])
+for s in secrets:
+    name = s["metadata"]["name"]
+    m = re.match(r"^(.+)-(servicenow|aws)-credentials$", name)
+    if m:
+        print(f"{m.group(1)} {m.group(2)} {name}")
+' | while read -r username credtype secretname; do
+                  [ -z "${username}" ] && continue
+                  seed_from_k8s "${secretname}" "users/${username}/${credtype}"
+                done
+              else
+                echo "WARNING: could not list secrets in secrets namespace, skipping per-user seeding"
+              fi
+
               echo "=== AAP Controller policy and role ==="
 
               vault policy write aap-controller - <<'POLICY'
@@ -263,13 +289,22 @@ spec:
               }
               POLICY
 
-                # Reader policy - read-only secrets
-                vault policy write reader - <<'POLICY'
+                # Get OIDC mount accessor for templated policy
+                OIDC_ACCESSOR=$(vault auth list -format=json | python3 -c 'import json,sys; print(json.load(sys.stdin)["oidc/"]["accessor"])')
+
+                # Reader policy - read-only secrets + self-service personal creds
+                vault policy write reader - <<POLICY
               path "secret/data/*" {
                 capabilities = ["read", "list"]
               }
               path "secret/metadata/*" {
                 capabilities = ["read", "list"]
+              }
+              path "secret/data/users/{{"{{"}}identity.entity.aliases.${OIDC_ACCESSOR}.name{{"}}"}}/*" {
+                capabilities = ["create", "update", "read", "delete"]
+              }
+              path "secret/metadata/users/{{"{{"}}identity.entity.aliases.${OIDC_ACCESSOR}.name{{"}}"}}/*" {
+                capabilities = ["read", "list", "delete"]
               }
               path "sys/mounts" {
                 capabilities = ["read"]
