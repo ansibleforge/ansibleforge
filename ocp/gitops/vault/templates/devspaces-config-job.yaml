@@ -86,6 +86,55 @@ spec:
                 policies="external-secrets" \
                 ttl="1h"
 
+              echo "=== AAP Playbook AppRole ==="
+
+              vault policy write aap-playbook - <<'POLICY'
+              path "secret/data/users/*" {
+                capabilities = ["create", "update", "read"]
+              }
+              path "secret/metadata/users/*" {
+                capabilities = ["read", "list"]
+              }
+              POLICY
+
+              # Enable AppRole auth (idempotent)
+              vault auth list -format=json | grep -q '"approle/"' \
+                && echo "AppRole auth already enabled" \
+                || vault auth enable approle
+
+              vault write auth/approle/role/aap-playbook \
+                token_policies="aap-playbook" \
+                token_ttl="1h" \
+                token_max_ttl="4h" \
+                secret_id_ttl="0"
+
+              ROLE_ID=$(vault read -field=role_id auth/approle/role/aap-playbook/role-id)
+              echo "AAP playbook AppRole role_id: ${ROLE_ID}"
+
+              # Generate a secret_id only if one hasn't been stored yet
+              EXISTING_SECRET=$(curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                "${API}/api/v1/namespaces/${NS}/secrets/vault-approle-aap-playbook" 2>/dev/null || true)
+              if [ -z "${EXISTING_SECRET}" ]; then
+                SECRET_ID=$(vault write -field=secret_id -f auth/approle/role/aap-playbook/secret-id)
+                # Store as K8s secret for the AAP SSO job to pick up
+                curl -sf --cacert "${CACERT}" \
+                  -H "Authorization: Bearer ${SA_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -X POST "${API}/api/v1/namespaces/${NS}/secrets" \
+                  -d "{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"vault-approle-aap-playbook\",\"namespace\":\"${NS}\"},\"type\":\"Opaque\",\"stringData\":{\"role_id\":\"${ROLE_ID}\",\"secret_id\":\"${SECRET_ID}\"}}" > /dev/null
+                echo "Created K8s secret vault-approle-aap-playbook"
+              else
+                # Update role_id in case it changed
+                ENCODED_ROLE_ID=$(echo -n "${ROLE_ID}" | base64 -w0)
+                curl -sf --cacert "${CACERT}" \
+                  -H "Authorization: Bearer ${SA_TOKEN}" \
+                  -H "Content-Type: application/merge-patch+json" \
+                  -X PATCH "${API}/api/v1/namespaces/${NS}/secrets/vault-approle-aap-playbook" \
+                  -d "{\"data\":{\"role_id\":\"${ENCODED_ROLE_ID}\"}}" > /dev/null
+                echo "K8s secret vault-approle-aap-playbook exists, updated role_id"
+              fi
+
               echo "=== DevSpaces policy and role ==="
 
               vault policy write devspaces-user - <<'POLICY'

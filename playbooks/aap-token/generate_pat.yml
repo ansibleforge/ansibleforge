@@ -5,8 +5,9 @@
   gather_facts: false
 
   vars:
-    vault_addr: "http://vault.vault.svc:8200"
-    vault_k8s_role: "aap-controller"
+    vault_addr: "{{ lookup('env', 'VAULT_ADDR') }}"
+    vault_role_id: "{{ lookup('env', 'VAULT_ROLE_ID') }}"
+    vault_secret_id: "{{ lookup('env', 'VAULT_SECRET_ID') }}"
     pat_scope: write
     pat_description: "Auto-generated PAT for {{ launching_user }}"
     aap_host: "{{ lookup('env', 'CONTROLLER_HOST') }}"
@@ -72,25 +73,17 @@
       register: new_token
       no_log: true
 
-    - name: Check for service account token
-      ansible.builtin.stat:
-        path: /var/run/secrets/kubernetes.io/serviceaccount/token
-      register: sa_token_file
-
-    - name: Show SA token status
-      ansible.builtin.debug:
-        msg: "SA token exists: {{ sa_token_file.stat.exists | default(false) }}"
-
-    - name: Authenticate to Vault via Kubernetes auth
+    - name: Authenticate to Vault via AppRole
       ansible.builtin.uri:
-        url: "{{ vault_addr }}/v1/auth/kubernetes/login"
+        url: "{{ vault_addr }}/v1/auth/approle/login"
         method: POST
         body_format: json
         body:
-          role: "{{ vault_k8s_role }}"
-          jwt: "{{ lookup('file', '/var/run/secrets/kubernetes.io/serviceaccount/token') }}"
+          role_id: "{{ vault_role_id }}"
+          secret_id: "{{ vault_secret_id }}"
         status_code: [200]
       register: vault_login
+      no_log: true
 
     - name: Store PAT in Vault at user path
       ansible.builtin.uri:

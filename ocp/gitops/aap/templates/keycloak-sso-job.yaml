@@ -524,6 +524,79 @@ spec:
                 echo "Attached AAP Controller Admin credential to PAT job template"
               fi
 
+              echo "=== Vault AppRole credential for PAT job ==="
+
+              # Create Vault AppRole credential type
+              VAULT_AR_TYPE_ID=$(curl -sk -u "admin:$AAP_ADMIN_PASSWORD" \
+                "$AAP_URL/api/controller/v2/credential_types/?name=Vault+AppRole" \
+                | python3 -c "
+              import json,sys
+              data = json.load(sys.stdin)
+              if data['count'] > 0: print(data['results'][0]['id'])
+              " 2>/dev/null || echo "")
+
+              if [ -z "$VAULT_AR_TYPE_ID" ]; then
+                VAULT_AR_TYPE_ID=$(curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/controller/v2/credential_types/" \
+                  -H "Content-Type: application/json" \
+                  -d '{
+                    "name": "Vault AppRole",
+                    "kind": "cloud",
+                    "inputs": {
+                      "fields": [
+                        {"id": "vault_addr", "label": "Vault Address", "type": "string"},
+                        {"id": "role_id", "label": "Role ID", "type": "string"},
+                        {"id": "secret_id", "label": "Secret ID", "type": "string", "secret": true}
+                      ],
+                      "required": ["vault_addr", "role_id", "secret_id"]
+                    },
+                    "injectors": {
+                      "env": {
+                        "VAULT_ADDR": "{{ "{{" }} vault_addr {{ "}}" }}",
+                        "VAULT_ROLE_ID": "{{ "{{" }} role_id {{ "}}" }}",
+                        "VAULT_SECRET_ID": "{{ "{{" }} secret_id {{ "}}" }}"
+                      }
+                    }
+                  }' | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+                echo "Created Vault AppRole credential type (id=$VAULT_AR_TYPE_ID)"
+              else
+                echo "Vault AppRole credential type already exists (id=$VAULT_AR_TYPE_ID)"
+              fi
+
+              # Read AppRole credentials from vault namespace K8s secret
+              APPROLE_JSON=$(curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                "https://kubernetes.default.svc/api/v1/namespaces/vault/secrets/vault-approle-aap-playbook" 2>/dev/null || true)
+
+              if [ -n "$APPROLE_JSON" ] && [ -n "$VAULT_AR_TYPE_ID" ]; then
+                AR_ROLE_ID=$(echo "$APPROLE_JSON" | python3 -c 'import json,sys,base64; d=json.load(sys.stdin)["data"]; print(base64.b64decode(d["role_id"]).decode())')
+                AR_SECRET_ID=$(echo "$APPROLE_JSON" | python3 -c 'import json,sys,base64; d=json.load(sys.stdin)["data"]; print(base64.b64decode(d["secret_id"]).decode())')
+
+                VAULT_AR_CRED_PAYLOAD=$(python3 -c "
+              import json
+              print(json.dumps({
+                  'name': 'Vault AppRole - AAP Playbook',
+                  'credential_type': int('$VAULT_AR_TYPE_ID'),
+                  'organization': 1,
+                  'inputs': {
+                      'vault_addr': 'http://vault.vault.svc:8200',
+                      'role_id': '$AR_ROLE_ID',
+                      'secret_id': '$AR_SECRET_ID'
+                  }
+              }))
+              ")
+                VAULT_AR_CRED_ID=$(ensure_resource "credentials" "Vault AppRole - AAP Playbook" "$VAULT_AR_CRED_PAYLOAD" | tail -1)
+
+                # Attach to PAT job template
+                curl -sk -X POST -u "admin:$AAP_ADMIN_PASSWORD" \
+                  "$AAP_URL/api/controller/v2/job_templates/$PAT_JT_ID/credentials/" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"id\": $VAULT_AR_CRED_ID}" > /dev/null 2>&1 || true
+                echo "Attached Vault AppRole credential to PAT job template"
+              else
+                echo "WARNING: vault-approle-aap-playbook K8s secret not found, skipping Vault AppRole credential"
+              fi
+
               echo "=== OpenShift credential for CaC ==="
 
               SA_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
