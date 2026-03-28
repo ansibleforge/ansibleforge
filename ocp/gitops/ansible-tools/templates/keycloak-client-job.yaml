@@ -29,12 +29,14 @@ spec:
               CLIENT_SECRET=$(cat /secrets/oauth2-proxy/client-secret)
 
               # Get admin token
-              KC_ADMIN_PASS=$(oc get secret keycloak-initial-admin -n keycloak -o jsonpath='{.data.password}' | base64 -d)
+              SA_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              CACERT="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+              KC_ADMIN_PASS=$(curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                "https://kubernetes.default.svc/api/v1/namespaces/keycloak/secrets/keycloak-initial-admin" \
+                | sed 's/.*"password":"\([^"]*\)".*/\1/' | base64 -d)
 
               TOKEN=$(curl -sk -X POST "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
-                -d "grant_type=password&client_id=admin-cli&username=admin&password=${KC_ADMIN_PASS}" \
-                | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null) \
-              || TOKEN=$(curl -sk -X POST "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
                 -d "grant_type=password&client_id=admin-cli&username=admin&password=${KC_ADMIN_PASS}" \
                 | sed 's/.*"access_token":"\([^"]*\)".*/\1/')
 
