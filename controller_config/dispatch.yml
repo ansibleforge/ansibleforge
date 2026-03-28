@@ -13,8 +13,8 @@
     assign_default_ee_to_jt: false
     assign_galaxy_credentials_to_org: false
     force_rhdh_token: false
-    k8s_host: "{{ lookup('env', 'K8S_BEARER_TOKEN_HOST') | default(lookup('env', 'K8S_HOST'), true) | default('https://kubernetes.default.svc', true) }}"
-    k8s_token: "{{ lookup('env', 'K8S_BEARER_TOKEN_BEARER_TOKEN') | default(lookup('env', 'K8S_BEARER_TOKEN'), true) | default('', true) }}"
+    k8s_host: "{{ lookup('env', 'K8S_HOST') | default('https://kubernetes.default.svc', true) }}"
+    k8s_token: "{{ lookup('env', 'K8S_TOKEN') | default('', true) }}"
   pre_tasks:
     - name: Validate controller connection
       ansible.builtin.assert:
