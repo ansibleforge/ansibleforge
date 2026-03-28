@@ -72,6 +72,15 @@
       register: new_token
       no_log: true
 
+    - name: Check for service account token
+      ansible.builtin.stat:
+        path: /var/run/secrets/kubernetes.io/serviceaccount/token
+      register: sa_token_file
+
+    - name: Show SA token status
+      ansible.builtin.debug:
+        msg: "SA token exists: {{ sa_token_file.stat.exists | default(false) }}"
+
     - name: Authenticate to Vault via Kubernetes auth
       ansible.builtin.uri:
         url: "{{ vault_addr }}/v1/auth/kubernetes/login"
@@ -82,7 +91,6 @@
           jwt: "{{ lookup('file', '/var/run/secrets/kubernetes.io/serviceaccount/token') }}"
         status_code: [200]
       register: vault_login
-      no_log: true
 
     - name: Store PAT in Vault at user path
       ansible.builtin.uri:
