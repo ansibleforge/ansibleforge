@@ -1,8 +1,0 @@
----
-controller_roles:
-  - team: Admins
-    organization: Default
-    role: member
-  - team: Operators
-    organization: Default
-    role: member
