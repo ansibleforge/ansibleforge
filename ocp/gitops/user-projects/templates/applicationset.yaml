@@ -15,7 +15,7 @@ spec:
     metadata:
       name: '{{`{{ .username }}`}}-devspace'
     spec:
-      project: '{{`{{ .username }}`}}'
+      project: default
       source:
         repoURL: {{ .Values.repoURL }}
         targetRevision: {{ .Values.targetRevision }}
