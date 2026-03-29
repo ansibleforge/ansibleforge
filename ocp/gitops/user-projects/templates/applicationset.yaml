@@ -7,11 +7,10 @@ spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
   generators:
-    - list:
-        elements:
-          {{- range .Values.users }}
-          - username: {{ . }}
-          {{- end }}
+    - plugin:
+        configMapRef:
+          name: devspaces-user-discovery
+        requeueAfterSeconds: 60
   template:
     metadata:
       name: '{{`{{ .username }}`}}-devspace'

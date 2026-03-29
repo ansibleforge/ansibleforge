@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devspaces-user-discovery
+  namespace: openshift-gitops
+data:
+  baseUrl: "http://devspaces-user-discovery.openshift-gitops.svc"
+  token: "argocd"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: devspaces-user-discovery
+  namespace: openshift-gitops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: devspaces-user-discovery
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: devspaces-user-discovery
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: devspaces-user-discovery
+subjects:
+  - kind: ServiceAccount
+    name: devspaces-user-discovery
+    namespace: openshift-gitops
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devspaces-user-discovery
+  namespace: openshift-gitops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devspaces-user-discovery
+  template:
+    metadata:
+      labels:
+        app: devspaces-user-discovery
+    spec:
+      serviceAccountName: devspaces-user-discovery
+      containers:
+        - name: plugin
+          image: registry.access.redhat.com/ubi9/python-39:latest
+          command: ["python3", "-c"]
+          args:
+            - |
+              import http.server, json, ssl, urllib.request, os
+
+              CA = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+              TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+              API = "https://kubernetes.default.svc/api/v1/namespaces"
+              SUFFIX = "-devspaces"
+
+              def get_users():
+                  with open(TOKEN_PATH) as f:
+                      token = f.read()
+                  ctx = ssl.create_default_context(cafile=CA)
+                  req = urllib.request.Request(API, headers={"Authorization": f"Bearer {token}"})
+                  with urllib.request.urlopen(req, context=ctx) as resp:
+                      namespaces = json.load(resp)["items"]
+                  users = []
+                  for ns in namespaces:
+                      name = ns["metadata"]["name"]
+                      if name.endswith(SUFFIX):
+                          users.append({"username": name[:-len(SUFFIX)]})
+                  return users
+
+              class Handler(http.server.BaseHTTPRequestHandler):
+                  def do_POST(self):
+                      try:
+                          users = get_users()
+                      except Exception as e:
+                          self.send_response(500)
+                          self.end_headers()
+                          self.wfile.write(json.dumps({"error": str(e)}).encode())
+                          return
+                      body = json.dumps({"output": {"parameters": users}})
+                      self.send_response(200)
+                      self.send_header("Content-Type", "application/json")
+                      self.end_headers()
+                      self.wfile.write(body.encode())
+
+                  def log_message(self, fmt, *args):
+                      return  # suppress access logs
+
+              http.server.HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 128Mi
+              cpu: 100m
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devspaces-user-discovery
+  namespace: openshift-gitops
+spec:
+  selector:
+    app: devspaces-user-discovery
+  ports:
+    - port: 80
+      targetPort: 8080
