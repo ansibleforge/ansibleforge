@@ -91,7 +91,7 @@ spec:
               class Handler(http.server.BaseHTTPRequestHandler):
                   def do_POST(self):
                       token = self.headers.get("Authorization", "").removeprefix("Bearer ")
-                      if token != "argocd":
+                      if not token:
                           self.send_response(403)
                           self.end_headers()
                           return
