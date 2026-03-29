@@ -63,6 +63,7 @@ spec:
               TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
               API = "https://kubernetes.default.svc/api/v1/namespaces"
               SUFFIX = "-devspaces"
+              EXCLUDE = {"openshift-devspaces"}
 
               def get_users():
                   with open(TOKEN_PATH) as f:
@@ -74,7 +75,7 @@ spec:
                   users = []
                   for ns in namespaces:
                       name = ns["metadata"]["name"]
-                      if name.endswith(SUFFIX):
+                      if name.endswith(SUFFIX) and name not in EXCLUDE:
                           users.append({"username": name[:-len(SUFFIX)]})
                   return users
 
