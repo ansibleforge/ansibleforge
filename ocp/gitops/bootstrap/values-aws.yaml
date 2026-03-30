@@ -45,6 +45,8 @@ components:
           value: "true"
         - name: aws.accountId
           value: "171109435201"
+        - name: aws.samlProviderSuffix
+          value: "spark"
 
   devspaces:
     helm:
@@ -60,7 +62,7 @@ components:
         - name: aws.roleArn
           value: "arn:aws:iam::171109435201:role/KeycloakAdminAccess"
         - name: aws.providerArn
-          value: "arn:aws:iam::171109435201:saml-provider/keycloak-sso"
+          value: "arn:aws:iam::171109435201:saml-provider/keycloak-sso-spark"
 
   cert-manager:
     enabled: true

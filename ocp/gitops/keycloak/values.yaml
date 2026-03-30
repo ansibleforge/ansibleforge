@@ -20,3 +20,6 @@ github:
 aws:
   saml: false
   accountId: ""
+  # SAML provider name suffix in AWS IAM (e.g. "spark" -> keycloak-sso-spark)
+  # Each cluster needs its own IAM SAML provider for unique signing keys.
+  samlProviderSuffix: ""

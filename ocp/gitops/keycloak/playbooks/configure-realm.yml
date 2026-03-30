@@ -750,7 +750,7 @@
                   attribute.nameformat: Basic
                   attribute.name: "https://aws.amazon.com/SAML/Attributes/Role"
                   friendly.name: AWS Role
-                  attribute.value: "arn:aws:iam::{{ aws_account_id }}:role/KeycloakAdminAccess,arn:aws:iam::{{ aws_account_id }}:saml-provider/keycloak-sso"
+                  attribute.value: "arn:aws:iam::{{ aws_account_id }}:role/KeycloakAdminAccess,arn:aws:iam::{{ aws_account_id }}:saml-provider/keycloak-sso{{ '-' + aws_saml_provider_suffix if aws_saml_provider_suffix else '' }}"
             state: present
 
     # ── Cross-Namespace Secret Distribution ─────────────────────────

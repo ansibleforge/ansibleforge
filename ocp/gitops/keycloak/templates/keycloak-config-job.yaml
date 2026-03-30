@@ -36,7 +36,8 @@ spec:
                 "github_team": {{ .Values.github.team | default "" | quote }},
                 "gitlab_broker": {{ .Values.gitlab.broker }},
                 "aws_saml": {{ .Values.aws.saml }},
-                "aws_account_id": {{ .Values.aws.accountId | default "" | quote }}
+                "aws_account_id": {{ .Values.aws.accountId | default "" | quote }},
+                "aws_saml_provider_suffix": {{ .Values.aws.samlProviderSuffix | default "" | quote }}
               }
           env:
             - name: HOME
