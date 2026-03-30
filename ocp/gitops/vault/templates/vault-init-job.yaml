@@ -1,0 +1,84 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 5
+  activeDeadlineSeconds: 120
+  template:
+    spec:
+      serviceAccountName: vault-unseal
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+
+              VAULT_ADDR="http://vault.{{ .Values.namespace }}.svc:8200"
+              SECRET_NAME="vault-unseal-keys"
+              SA_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              API="https://kubernetes.default.svc"
+              CACERT="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+              NS="{{ .Values.namespace }}"
+
+              # Wait for vault to be reachable
+              for i in $(seq 1 30); do
+                if curl -sf "${VAULT_ADDR}/v1/sys/health" -o /dev/null 2>/dev/null || \
+                   curl -sf "${VAULT_ADDR}/v1/sys/seal-status" -o /dev/null 2>/dev/null; then
+                  break
+                fi
+                echo "Waiting for Vault to be reachable..."
+                sleep 2
+              done
+
+              # Get seal status
+              SEAL_STATUS=$(curl -sf "${VAULT_ADDR}/v1/sys/seal-status" 2>/dev/null) || {
+                echo "Vault not reachable, exiting"
+                exit 1
+              }
+
+              INITIALIZED=$(echo "${SEAL_STATUS}" | grep -o '"initialized":[a-z]*' | cut -d: -f2)
+
+              if [ "${INITIALIZED}" = "true" ]; then
+                echo "Vault is already initialized, nothing to do"
+                exit 0
+              fi
+
+              echo "Initializing Vault with KMS auto-unseal..."
+              INIT_RESPONSE=$(curl -sf "${VAULT_ADDR}/v1/sys/init" \
+                -X PUT \
+                -H "Content-Type: application/json" \
+                -d '{"recovery_shares":1,"recovery_threshold":1}')
+
+              RECOVERY_KEY=$(echo "${INIT_RESPONSE}" | grep -o '"recovery_keys":\["[^"]*"\]' | grep -o '\["[^"]*"\]' | tr -d '[]"')
+              ROOT_TOKEN=$(echo "${INIT_RESPONSE}" | grep -o '"root_token":"[^"]*"' | cut -d'"' -f4)
+
+              # Helper: base64 encode (portable)
+              b64() { echo -n "$1" | base64 | tr -d '\n'; }
+
+              # Store recovery key and root token in K8s secret
+              DATA="{\"recovery-key-0\":\"$(b64 "${RECOVERY_KEY}")\",\"root-token\":\"$(b64 "${ROOT_TOKEN}")\"}"
+
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -X POST "${API}/api/v1/namespaces/${NS}/secrets" \
+                -d "{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"${SECRET_NAME}\",\"namespace\":\"${NS}\"},\"type\":\"Opaque\",\"data\":${DATA}}")
+
+              if [ "${HTTP_CODE}" = "409" ]; then
+                curl -sf --cacert "${CACERT}" \
+                  -H "Authorization: Bearer ${SA_TOKEN}" \
+                  -H "Content-Type: application/strategic-merge-patch+json" \
+                  -X PATCH "${API}/api/v1/namespaces/${NS}/secrets/${SECRET_NAME}" \
+                  -d "{\"data\":${DATA}}" > /dev/null
+              fi
+
+              echo "Vault initialized — KMS will auto-unseal on startup"
