@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "bierner.markdown-mermaid",
+    "redhat.ansible",
+    "redhat.vscode-yaml"
+  ]
+}
