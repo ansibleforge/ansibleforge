@@ -6,3 +6,12 @@ skip_list:
   - yaml[line-length]
 mock_modules:
   - redhat.openshift.openshift_build
+exclude_paths:
+  - docs/
+  - infra/
+  - ocp/terraform/
+  - site/
+  - containers/
+  - helm/
+
+
