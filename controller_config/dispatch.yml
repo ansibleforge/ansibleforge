@@ -129,19 +129,36 @@
       register: _eda_tokens
 
     - name: Create EDA controller token if missing
-      ansible.builtin.uri:
-        url: "{{ eda_host }}/api/eda/v1/users/me/awx-tokens/"
-        method: POST
-        user: "{{ eda_username }}"
-        password: "{{ eda_password }}"
-        force_basic_auth: true
-        validate_certs: "{{ eda_validate_certs }}"
-        body_format: json
-        body:
-          name: EDA to Controller
-          description: Token for EDA rulebook activations to trigger controller workflows
-        status_code: [200, 201]
       when: (_eda_tokens.json.count | default(0)) == 0
+      block:
+        - name: Generate controller personal access token for EDA
+          ansible.builtin.uri:
+            url: "{{ eda_host }}/api/controller/v2/tokens/"
+            method: POST
+            user: "{{ eda_username }}"
+            password: "{{ eda_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ eda_validate_certs }}"
+            body_format: json
+            body:
+              scope: write
+              description: EDA to Controller
+            status_code: [201]
+          register: _controller_token
+
+        - name: Register controller token with EDA
+          ansible.builtin.uri:
+            url: "{{ eda_host }}/api/eda/v1/users/me/awx-tokens/"
+            method: POST
+            user: "{{ eda_username }}"
+            password: "{{ eda_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ eda_validate_certs }}"
+            body_format: json
+            body:
+              name: EDA to Controller
+              token: "{{ _controller_token.json.token }}"
+            status_code: [200, 201]
   roles:
     - infra.eda_configuration.dispatch
 
