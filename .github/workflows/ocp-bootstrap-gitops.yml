@@ -220,6 +220,49 @@ jobs:
             --from-literal=secret_key="${AAP_AWS_SECRET_KEY}" \
             --dry-run=client -o yaml | oc apply -f -
 
+      - name: Deploy Vault KMS stack and push credentials
+        run: |
+          oc create namespace vault --dry-run=client -o yaml | oc apply -f -
+          STACK_NAME="vault-kms-${{ inputs.cluster_name }}"
+
+          aws cloudformation deploy \
+            --stack-name "${STACK_NAME}" \
+            --template-file infra/aws/vault-kms.cfn.yaml \
+            --parameter-overrides ClusterName=${{ inputs.cluster_name }} \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+          KMS_KEY_ID=$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='KmsKeyId'].OutputValue" \
+            --output text)
+          IAM_USER=$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='UserName'].OutputValue" \
+            --output text)
+
+          # Rotate: delete old keys, create new (same pattern as AAP IAM user)
+          OLD_KEYS=$(aws iam list-access-keys --user-name "${IAM_USER}" \
+            --query 'AccessKeyMetadata[*].AccessKeyId' --output text)
+          for KEY in $OLD_KEYS; do
+            aws iam delete-access-key --user-name "${IAM_USER}" --access-key-id "$KEY"
+          done
+          NEW_KEY=$(aws iam create-access-key --user-name "${IAM_USER}" --output json)
+          KMS_ACCESS_KEY=$(echo "$NEW_KEY" | python3 -c "import sys,json; print(json.load(sys.stdin)['AccessKey']['AccessKeyId'])")
+          KMS_SECRET_KEY=$(echo "$NEW_KEY" | python3 -c "import sys,json; print(json.load(sys.stdin)['AccessKey']['SecretAccessKey'])")
+          echo "::add-mask::${KMS_ACCESS_KEY}"
+          echo "::add-mask::${KMS_SECRET_KEY}"
+
+          oc create secret generic vault-kms-credentials \
+            --namespace=vault \
+            --from-literal=AWS_ACCESS_KEY_ID="${KMS_ACCESS_KEY}" \
+            --from-literal=AWS_SECRET_ACCESS_KEY="${KMS_SECRET_KEY}" \
+            --from-literal=VAULT_AWSKMS_SEAL_KEY_ID="${KMS_KEY_ID}" \
+            --from-literal=AWS_DEFAULT_REGION="${{ inputs.aws_region || 'us-east-2' }}" \
+            --dry-run=client -o yaml | oc apply -f -
+
+          echo "Vault KMS key: ${KMS_KEY_ID}"
+
       - name: Discover cluster domain and Route53 zone
         run: |
           CLUSTER_DOMAIN=$(oc get ingress.config.openshift.io cluster -o jsonpath='{.spec.domain}')

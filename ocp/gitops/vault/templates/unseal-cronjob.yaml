@@ -51,12 +51,13 @@ spec:
 
                   INITIALIZED=$(echo "${SEAL_STATUS}" | grep -o '"initialized":[a-z]*' | cut -d: -f2)
                   SEALED=$(echo "${SEAL_STATUS}" | grep -o '"sealed":[a-z]*' | cut -d: -f2)
+                  MIGRATION=$(echo "${SEAL_STATUS}" | grep -o '"migration":[a-z]*' | cut -d: -f2)
 
-                  echo "Vault status: initialized=${INITIALIZED}, sealed=${SEALED}"
+                  echo "Vault status: initialized=${INITIALIZED}, sealed=${SEALED}, migration=${MIGRATION}"
 
                   # If already unsealed, nothing to do
                   if [ "${SEALED}" = "false" ]; then
-                    echo "Vault is already unsealed"
+                    echo "Vault is already unsealed (KMS auto-unseal active)"
                     exit 0
                   fi
 
@@ -89,41 +90,54 @@ spec:
                   # Helper: base64 encode (portable)
                   b64() { echo -n "$1" | base64 | tr -d '\n'; }
 
-                  # Initialize if needed
+                  # Initialize if needed (recovery keys are generated for KMS seal)
                   if [ "${INITIALIZED}" = "false" ]; then
-                    echo "Initializing Vault..."
+                    echo "Initializing Vault with KMS auto-unseal..."
                     INIT_RESPONSE=$(curl -sf "${VAULT_ADDR}/v1/sys/init" \
                       -X PUT \
                       -H "Content-Type: application/json" \
-                      -d '{"secret_shares":1,"secret_threshold":1}')
+                      -d '{"recovery_shares":1,"recovery_threshold":1}')
 
-                    UNSEAL_KEY=$(echo "${INIT_RESPONSE}" | grep -o '"keys":\["[^"]*"\]' | grep -o '\["[^"]*"\]' | tr -d '[]"')
+                    RECOVERY_KEY=$(echo "${INIT_RESPONSE}" | grep -o '"recovery_keys":\["[^"]*"\]' | grep -o '\["[^"]*"\]' | tr -d '[]"')
                     ROOT_TOKEN=$(echo "${INIT_RESPONSE}" | grep -o '"root_token":"[^"]*"' | cut -d'"' -f4)
 
-                    echo "Storing unseal keys in Secret/${SECRET_NAME}"
-                    DATA="{\"unseal-key-0\":\"$(b64 "${UNSEAL_KEY}")\",\"root-token\":\"$(b64 "${ROOT_TOKEN}")\"}"
+                    echo "Storing recovery keys in Secret/${SECRET_NAME}"
+                    DATA="{\"recovery-key-0\":\"$(b64 "${RECOVERY_KEY}")\",\"root-token\":\"$(b64 "${ROOT_TOKEN}")\"}"
                     save_secret "${DATA}"
+
+                    echo "Vault initialized — KMS will auto-unseal on startup"
+                    exit 0
                   fi
 
-                  # Read unseal key from secret
-                  SECRET_DATA=$(get_secret) || {
-                    echo "ERROR: Vault is sealed but no unseal keys found in Secret/${SECRET_NAME}"
-                    exit 1
-                  }
+                  # Seal migration: Vault is sealed and in migration mode
+                  # This happens once when transitioning from Shamir to KMS auto-unseal
+                  if [ "${MIGRATION}" = "true" ]; then
+                    echo "Vault is in seal migration mode (Shamir → KMS)"
+                    SECRET_DATA=$(get_secret) || {
+                      echo "ERROR: Migration requires unseal key but no Secret/${SECRET_NAME} found"
+                      exit 1
+                    }
 
-                  UNSEAL_KEY=$(echo "${SECRET_DATA}" | grep -o '"unseal-key-0": *"[^"]*"' | cut -d'"' -f4 | base64 -d)
+                    UNSEAL_KEY=$(echo "${SECRET_DATA}" | grep -o '"unseal-key-0": *"[^"]*"' | cut -d'"' -f4 | base64 -d)
 
-                  echo "Unsealing Vault..."
-                  UNSEAL_RESULT=$(curl -s -w "\n%{http_code}" "${VAULT_ADDR}/v1/sys/unseal" \
-                    -X PUT \
-                    -H "Content-Type: application/json" \
-                    -d "{\"key\":\"${UNSEAL_KEY}\"}")
-                  UNSEAL_HTTP=$(echo "${UNSEAL_RESULT}" | tail -1)
-                  UNSEAL_BODY=$(echo "${UNSEAL_RESULT}" | sed '$d')
+                    echo "Performing migration unseal..."
+                    RESULT=$(curl -s -w "\n%{http_code}" "${VAULT_ADDR}/v1/sys/unseal" \
+                      -X PUT \
+                      -H "Content-Type: application/json" \
+                      -d "{\"key\":\"${UNSEAL_KEY}\",\"migrate\":true}")
+                    HTTP=$(echo "${RESULT}" | tail -1)
+                    BODY=$(echo "${RESULT}" | sed '$d')
 
-                  if [ "${UNSEAL_HTTP}" -ge 200 ] && [ "${UNSEAL_HTTP}" -lt 300 ]; then
-                    echo "Vault unsealed successfully"
-                  else
-                    echo "ERROR: Unseal returned HTTP ${UNSEAL_HTTP}: ${UNSEAL_BODY}"
-                    exit 1
+                    if [ "${HTTP}" -ge 200 ] && [ "${HTTP}" -lt 300 ]; then
+                      echo "Seal migration complete — Vault is now using KMS auto-unseal"
+                    else
+                      echo "ERROR: Migration unseal returned HTTP ${HTTP}: ${BODY}"
+                      exit 1
+                    fi
+                    exit 0
                   fi
+
+                  # Sealed but not migrating — likely KMS connectivity issue
+                  echo "WARNING: Vault is sealed but not in migration mode."
+                  echo "Check KMS connectivity and vault-kms-credentials secret."
+                  exit 1

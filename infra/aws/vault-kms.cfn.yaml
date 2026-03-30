@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: KMS key and scoped IAM user for Vault auto-unseal
+
+Parameters:
+  ClusterName:
+    Type: String
+    Description: Cluster name (used to namespace resources)
+
+Resources:
+  VaultKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub "Vault auto-unseal key for ${ClusterName}"
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowRootAccountFullAccess
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+          - Sid: AllowVaultUnsealUser
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt VaultKmsUser.Arn
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:DescribeKey
+            Resource: "*"
+      Tags:
+        - Key: cluster
+          Value: !Ref ClusterName
+
+  VaultKmsKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/vault-unseal-${ClusterName}"
+      TargetKeyId: !Ref VaultKmsKey
+
+  VaultKmsUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "vault-kms-${ClusterName}"
+
+  VaultKmsUserPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: VaultKmsAccess
+      Users:
+        - !Ref VaultKmsUser
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: VaultUnseal
+            Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:DescribeKey
+            Resource: !GetAtt VaultKmsKey.Arn
+
+Outputs:
+  KmsKeyId:
+    Description: KMS key ID for Vault seal stanza
+    Value: !Ref VaultKmsKey
+  KmsKeyArn:
+    Description: KMS key ARN
+    Value: !GetAtt VaultKmsKey.Arn
+  UserName:
+    Description: IAM user name for key rotation in workflows
+    Value: !Ref VaultKmsUser
