@@ -1,6 +1,8 @@
 ---
 offline: true
 skip_list:
-  - fqcn
   - name[template]
-  - role-name
+  - ignore-errors
+  - yaml[line-length]
+mock_modules:
+  - redhat.openshift.openshift_build
