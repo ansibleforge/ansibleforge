@@ -9,6 +9,4 @@ controller_templates:
     execution_environment: "EE AnsibleForge"
     credentials:
       - "AAP Controller Admin"
-    extra_vars:
-      cluster_domain: "apps.cluster-mp7gr.dynamic.redhatworkshops.io"
     ask_variables_on_launch: true

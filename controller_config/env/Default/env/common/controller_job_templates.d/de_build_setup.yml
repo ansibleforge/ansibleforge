@@ -12,6 +12,5 @@ controller_templates:
       - "Automation Hub Token"
       - "OpenShift - Shared Builds"
     ask_variables_on_launch: true
-    extra_vars:
-      cluster_domain: "apps.ocp.fire.ansibleforge.dev"
+    extra_vars: {}
     description: "Build the AnsibleForge Decision Environment for EDA"

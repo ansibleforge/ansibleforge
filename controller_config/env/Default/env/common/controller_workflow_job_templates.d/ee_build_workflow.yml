@@ -13,7 +13,7 @@ controller_workflows:
           variable: cluster_domain
           type: text
           required: true
-          default: "apps.cluster-mp7gr.dynamic.redhatworkshops.io"
+          default: ""
         - question_name: Image Tag
           variable: image_tag
           type: text

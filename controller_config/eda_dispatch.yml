@@ -4,6 +4,7 @@
   connection: local
   gather_facts: false
   vars:
+    cluster_domain: "{{ lookup('env', 'CONTROLLER_HOST') | default('', true) | regex_replace('^https?://aap-aap\\.', '') }}"
     eda_host: "{{ lookup('env', 'EDA_HOST') | default('https://aap-aap.' ~ cluster_domain, true) }}"
     eda_username: "{{ lookup('env', 'EDA_USERNAME') | default('admin', true) }}"
     eda_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
