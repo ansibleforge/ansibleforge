@@ -195,10 +195,32 @@ jobs:
             --credentials-requests-dir=credreqs \
             --output-dir=install-dir
 
+      - name: Check if cluster already exists
+        id: check_cluster
+        run: |
+          if aws secretsmanager get-secret-value \
+            --secret-id "/ocp/clusters/${{ inputs.cluster_name }}/kubeconfig" \
+            --query SecretString --output text > /tmp/kubeconfig 2>/dev/null; then
+            echo "::add-mask::$(cat /tmp/kubeconfig)"
+            export KUBECONFIG=/tmp/kubeconfig
+            if oc cluster-info &>/dev/null; then
+              echo "Cluster already exists and is reachable — skipping provision"
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::Kubeconfig found in Secrets Manager but cluster is unreachable"
+              exit 1
+            fi
+          else
+            echo "No existing cluster found — provisioning"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Provision cluster
+        if: steps.check_cluster.outputs.exists != 'true'
         run: openshift-install create cluster --dir=install-dir --log-level=info 2>&1
 
       - name: Store cluster credentials in Secrets Manager
+        if: steps.check_cluster.outputs.exists != 'true'
         run: |
           KUBECONFIG_VAL=$(cat install-dir/auth/kubeconfig)
           KUBEADMIN_VAL=$(cat install-dir/auth/kubeadmin-password)

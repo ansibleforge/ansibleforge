@@ -53,6 +53,16 @@ variable "cluster_name" {
   description = "Cluster name (e.g. forge). Creates <cluster_name>.ansibleforge.dev zone."
 }
 
+variable "cluster_vpc_id" {
+  type        = string
+  default     = ""
+  description = "VPC ID of the IPI-provisioned cluster. Set post-install to create EFS mount targets."
+}
+
+# ---------------------------------------------------------------------------
+# DNS
+# ---------------------------------------------------------------------------
+
 # Route 53 public hosted zone for the cluster subdomain
 resource "aws_route53_zone" "cluster" {
   name = "${var.cluster_name}.${var.base_domain}"
@@ -69,10 +79,86 @@ resource "cloudflare_record" "ns" {
   ttl     = 300
 }
 
+# ---------------------------------------------------------------------------
+# EFS — all resources created during bootstrap once cluster_vpc_id is known
+# ---------------------------------------------------------------------------
+
+resource "aws_efs_file_system" "cluster" {
+  count          = var.cluster_vpc_id != "" ? 1 : 0
+  creation_token = "${var.cluster_name}-efs"
+  encrypted      = true
+
+  tags = {
+    Name = "${var.cluster_name}-efs"
+  }
+}
+
+data "aws_subnets" "private" {
+  count = var.cluster_vpc_id != "" ? 1 : 0
+
+  filter {
+    name   = "vpc-id"
+    values = [var.cluster_vpc_id]
+  }
+
+  tags = {
+    "kubernetes.io/role/internal-elb" = "1"
+  }
+}
+
+data "aws_security_groups" "worker" {
+  count = var.cluster_vpc_id != "" ? 1 : 0
+
+  filter {
+    name   = "vpc-id"
+    values = [var.cluster_vpc_id]
+  }
+
+  filter {
+    name   = "tag:Name"
+    values = ["${var.cluster_name}*-worker-sg"]
+  }
+}
+
+resource "aws_security_group" "efs" {
+  count = var.cluster_vpc_id != "" ? 1 : 0
+
+  name        = "${var.cluster_name}-efs"
+  description = "Allow NFS from cluster workers to EFS"
+  vpc_id      = var.cluster_vpc_id
+
+  ingress {
+    from_port       = 2049
+    to_port         = 2049
+    protocol        = "tcp"
+    security_groups = data.aws_security_groups.worker[0].ids
+  }
+
+  tags = {
+    Name = "${var.cluster_name}-efs"
+  }
+}
+
+resource "aws_efs_mount_target" "cluster" {
+  for_each = var.cluster_vpc_id != "" ? toset(data.aws_subnets.private[0].ids) : toset([])
+
+  file_system_id  = aws_efs_file_system.cluster[0].id
+  subnet_id       = each.value
+  security_groups = [aws_security_group.efs[0].id]
+}
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+
 output "route53_zone_id" {
   value = aws_route53_zone.cluster.zone_id
 }
 
 output "route53_name_servers" {
   value = aws_route53_zone.cluster.name_servers
+}
+
+output "efs_filesystem_id" {
+  value = var.cluster_vpc_id != "" ? aws_efs_file_system.cluster[0].id : ""
 }

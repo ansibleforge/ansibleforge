@@ -63,6 +63,8 @@ jobs:
           echo "::add-mask::$(cat /tmp/kubeconfig)"
           echo "KUBECONFIG=/tmp/kubeconfig" >> "$GITHUB_ENV"
 
+      - uses: hashicorp/setup-terraform@v3
+
       - name: Download oc
         run: |
           curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz | tar -xz -C /usr/local/bin oc kubectl
@@ -278,6 +280,25 @@ jobs:
           echo "Cluster domain: ${CLUSTER_DOMAIN}"
           echo "Route53 zone: ${HOSTED_ZONE_ID}"
 
+      - name: Discover cluster VPC and create EFS mount targets
+        env:
+          TF_VAR_cluster_name: ${{ inputs.cluster_name }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          INFRA_ID=$(oc get infrastructure cluster -o jsonpath='{.status.infrastructureName}')
+          VPC_ID=$(aws ec2 describe-vpcs \
+            --filters "Name=tag:kubernetes.io/cluster/${INFRA_ID},Values=owned" \
+            --query "Vpcs[0].VpcId" --output text)
+          echo "Cluster VPC: ${VPC_ID}"
+
+          cd ocp/terraform/dns
+          terraform init -backend-config="key=dns/${{ inputs.cluster_name }}/terraform.tfstate"
+          terraform apply -auto-approve -var="cluster_vpc_id=${VPC_ID}"
+
+          EFS_ID=$(terraform output -raw efs_filesystem_id)
+          echo "EFS_FILESYSTEM_ID=${EFS_ID}" >> "$GITHUB_ENV"
+          echo "EFS filesystem: ${EFS_ID}"
+
       - name: Create bootstrap Application
         run: |
           cat <<EOF | oc apply -f -
@@ -304,6 +325,10 @@ jobs:
                     value: route53.hostedZoneID
                   - name: "components.ingress-certs.helm.parameters[0].value"
                     value: "${HOSTED_ZONE_ID}"
+                  - name: "components.efs.helm.parameters[0].name"
+                    value: efs.filesystemId
+                  - name: "components.efs.helm.parameters[0].value"
+                    value: "${EFS_FILESYSTEM_ID}"
             destination:
               server: https://kubernetes.default.svc
             syncPolicy:
