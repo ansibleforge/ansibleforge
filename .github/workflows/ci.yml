@@ -42,6 +42,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install Ansible collections
+        run: |
+          ansible-galaxy collection install -r containers/ee-community-ansibleforge/requirements.yml \
+            --ignore-errors --force
+
       - name: Run ansible-lint
         uses: ansible/ansible-lint@v25
 

@@ -1,4 +1,6 @@
 ---
 offline: true
 skip_list:
+  - fqcn
   - name[template]
+  - role-name
