@@ -1,12 +1,4 @@
 ---
 controller_templates:
   - name: "CaC - EDA Dispatch"
-    job_type: run
-    organization: Default
-    project: AnsibleForge
-    playbook: controller_config/eda_dispatch.yml
-    inventory: Localhost
-    execution_environment: "EE AnsibleForge"
-    credentials:
-      - "AAP Controller Admin"
-    ask_variables_on_launch: true
+    state: absent
