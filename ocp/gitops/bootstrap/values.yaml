@@ -260,6 +260,23 @@ components:
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
 
+  site:
+    enabled: true
+    syncWave: "3"
+    path: ocp/gitops/site
+    destination:
+      namespace: site
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true
+    ignoreDifferences:
+      - group: ""
+        kind: Secret
+        jqPathExpressions:
+          - .data
+          - .stringData
+
   ansible-tools:
     enabled: true
     syncWave: "3"

@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: site
+  namespace: site
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  selector:
+    app: site
+  ports:
+    - name: proxy
+      port: 4180
+      targetPort: 4180
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: site
+  namespace: site
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  host: site.{{ .Values.clusterDomain }}
+  to:
+    kind: Service
+    name: site
+  port:
+    targetPort: proxy
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

@@ -123,3 +123,26 @@ spec:
       name: tools-community-ansibleforge:latest
   triggers:
   - type: ConfigChange
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: bc-site-ansibleforge
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  source:
+    git:
+      uri: {{ .Values.sourceRepo }}
+      ref: {{ .Values.sourceRevision }}
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: containers/site-ansibleforge/Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: site-ansibleforge:latest
+  triggers:
+  - type: ConfigChange

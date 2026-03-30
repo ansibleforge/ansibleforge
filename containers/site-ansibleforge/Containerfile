@@ -1,0 +1,22 @@
+# Stage 1: Build React site
+FROM registry.access.redhat.com/ubi9/nodejs-20:latest AS react-build
+USER 0
+WORKDIR /opt/app-root/src
+COPY site/package*.json ./
+RUN npm ci
+COPY site/ ./
+RUN VITE_BASE=/ npx vite build --base /
+
+# Stage 2: Build MkDocs
+FROM registry.access.redhat.com/ubi9/python-312:latest AS docs-build
+USER 0
+WORKDIR /opt/app-root/src
+COPY docs/ ./
+RUN pip install --no-cache-dir mkdocs-material && \
+    mkdocs build -d /opt/app-root/src/site
+
+# Stage 3: Serve with httpd
+FROM registry.access.redhat.com/ubi9/httpd-24:latest
+COPY --from=react-build /opt/app-root/src/dist/ /var/www/html/
+COPY --from=docs-build /opt/app-root/src/site/ /var/www/html/docs/
+EXPOSE 8080

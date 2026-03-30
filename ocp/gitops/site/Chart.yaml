@@ -1,0 +1,4 @@
+apiVersion: v2
+name: site
+version: 0.1.0
+description: AnsibleForge documentation site with Keycloak SSO

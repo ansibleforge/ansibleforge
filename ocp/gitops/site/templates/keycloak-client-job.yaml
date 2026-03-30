@@ -1,0 +1,130 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: site-keycloak-client
+  namespace: site
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: site-admin
+      containers:
+        - name: register-client
+          image: registry.redhat.io/ubi9/ubi-minimal:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+
+              KEYCLOAK_URL="https://keycloak.{{ .Values.clusterDomain }}"
+              REALM="sso"
+              CLIENT_ID="site"
+              REDIRECT_URI="https://site.{{ .Values.clusterDomain }}/oauth2/callback"
+              CLIENT_SECRET=$(cat /secrets/oauth2-proxy/client-secret)
+
+              # Get admin token
+              SA_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              CACERT="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+              KC_ADMIN_PASS=$(curl -sf --cacert "${CACERT}" \
+                -H "Authorization: Bearer ${SA_TOKEN}" \
+                "https://kubernetes.default.svc/api/v1/namespaces/keycloak/secrets/keycloak-initial-admin" \
+                | sed 's/.*"password":"\([^"]*\)".*/\1/' | base64 -d)
+
+              TOKEN=$(curl -sk -X POST "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
+                -d "grant_type=password&client_id=admin-cli&username=admin&password=${KC_ADMIN_PASS}" \
+                | sed 's/.*"access_token":"\([^"]*\)".*/\1/')
+
+              # Check if client exists
+              EXISTING=$(curl -sk -o /dev/null -w '%{http_code}' \
+                -H "Authorization: Bearer ${TOKEN}" \
+                "${KEYCLOAK_URL}/admin/realms/${REALM}/clients?clientId=${CLIENT_ID}")
+
+              CLIENT_JSON=$(cat <<ENDJSON
+              {
+                "clientId": "${CLIENT_ID}",
+                "enabled": true,
+                "protocol": "openid-connect",
+                "publicClient": false,
+                "standardFlowEnabled": true,
+                "directAccessGrantsEnabled": false,
+                "secret": "${CLIENT_SECRET}",
+                "redirectUris": ["${REDIRECT_URI}"],
+                "webOrigins": ["https://site.{{ .Values.clusterDomain }}"],
+                "defaultClientScopes": ["profile", "email", "roles", "web-origins"],
+                "optionalClientScopes": ["groups"],
+                "protocolMappers": [{
+                  "name": "groups",
+                  "protocol": "openid-connect",
+                  "protocolMapper": "oidc-group-membership-mapper",
+                  "config": {
+                    "claim.name": "groups",
+                    "full.path": "false",
+                    "id.token.claim": "true",
+                    "access.token.claim": "true",
+                    "userinfo.token.claim": "true"
+                  }
+                }]
+              }
+              ENDJSON
+              )
+
+              # Get existing client ID (UUID)
+              CLIENT_UUID=$(curl -sk \
+                -H "Authorization: Bearer ${TOKEN}" \
+                "${KEYCLOAK_URL}/admin/realms/${REALM}/clients?clientId=${CLIENT_ID}" \
+                | sed 's/.*"id":"\([^"]*\)".*/\1/')
+
+              if [ "${CLIENT_UUID}" = "[]" ] || [ -z "${CLIENT_UUID}" ]; then
+                echo "Creating Keycloak client ${CLIENT_ID}..."
+                curl -sk -X POST \
+                  -H "Authorization: Bearer ${TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -d "${CLIENT_JSON}" \
+                  "${KEYCLOAK_URL}/admin/realms/${REALM}/clients"
+                echo "Client created."
+              else
+                echo "Updating Keycloak client ${CLIENT_ID} (${CLIENT_UUID})..."
+                curl -sk -X PUT \
+                  -H "Authorization: Bearer ${TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -d "${CLIENT_JSON}" \
+                  "${KEYCLOAK_URL}/admin/realms/${REALM}/clients/${CLIENT_UUID}"
+                echo "Client updated."
+              fi
+          volumeMounts:
+            - name: oauth-secret
+              mountPath: /secrets/oauth2-proxy
+              readOnly: true
+      volumes:
+        - name: oauth-secret
+          secret:
+            secretName: oauth2-proxy
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: site-admin
+  namespace: site
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: site-keycloak-reader
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-reader
+subjects:
+  - kind: ServiceAccount
+    name: site-admin
+    namespace: site
