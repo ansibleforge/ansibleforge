@@ -27,14 +27,9 @@ COPY epel.repo /etc/yum.repos.d/epel.repo
 WORKDIR /tmp
 COPY requirements.txt .
 
-# Create user and configure rootless podman
+# Create user
 RUN useradd -m -u 10001 -g 0 user \
-    && chmod -R g=u /home/user \
-    && echo '10001:100000:65536' >> /etc/subuid \
-    && echo '10001:100000:65536' >> /etc/subgid \
-    && mkdir -p /home/user/.config/containers \
-    && printf '[storage]\ndriver = "overlay"\n\n[storage.options.overlay]\nmount_program = "/usr/bin/fuse-overlayfs"\n' > /home/user/.config/containers/storage.conf \
-    && chown -R 10001:0 /home/user/.config
+    && chmod -R g=u /home/user
 
 # Install OS packages
 # hadolint ignore=DL3041
@@ -45,7 +40,6 @@ RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc \
     && dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' --enablerepo='epel' install -y \
        gcc gcc-c++ make \
        jq wget unzip vim \
-       podman fuse-overlayfs slirp4netns \
        1password-cli \
        gh \
        iputils bind-utils nmap procps-ng \
