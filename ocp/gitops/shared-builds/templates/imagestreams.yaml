@@ -34,17 +34,6 @@ spec:
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
-  name: tools-community-ansibleforge
-  namespace: {{ .Values.namespace }}
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-spec:
-  lookupPolicy:
-    local: true
----
-apiVersion: image.openshift.io/v1
-kind: ImageStream
-metadata:
   name: site-ansibleforge
   namespace: {{ .Values.namespace }}
   annotations:

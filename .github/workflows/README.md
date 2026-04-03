@@ -27,7 +27,7 @@
 
 | Workflow | Trigger | Description |
 |----------|---------|-------------|
-| **Container: Build and Push** | Push to `containers/` / Manual | Builds `ee-community-ansibleforge` and `tools-community-ansibleforge` images and pushes to `ghcr.io`. No Red Hat registry auth required |
+| **Container: Build and Push** | Push to `containers/` / Manual | Builds `ee-community-ansibleforge` and other images and pushes to `ghcr.io` |
 
 ## Secrets & Variables
 

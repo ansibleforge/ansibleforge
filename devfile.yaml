@@ -12,7 +12,7 @@ variables:
 components:
   - name: tools
     container:
-      image: ghcr.io/hfenner/tools-community-ansibleforge:latest
+      image: ghcr.io/hfenner/tools-ansibleforge:latest
       memoryRequest: 512M
       memoryLimit: 4Gi
       cpuRequest: 500m
