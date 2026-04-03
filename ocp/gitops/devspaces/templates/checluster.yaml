@@ -30,7 +30,7 @@ spec:
     maxNumberOfRunningWorkspacesPerUser: -1
     secondsOfInactivityBeforeIdling: -1
     storage:
-      pvcStrategy: ephemeral
+      pvcStrategy: per-user
     defaultNamespace:
       autoProvision: true
   networking: {}
