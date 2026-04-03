@@ -1,8 +1,5 @@
 # Stage 1: Install Ansible collections (token never appears in final image)
-FROM registry.access.redhat.com/ubi9/ubi:latest AS galaxy
-RUN dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' install -y python3.11-pip \
-    && pip3.11 install --no-cache-dir ansible-core \
-    && dnf clean all
+FROM registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest AS galaxy
 WORKDIR /tmp
 COPY requirements.yaml .
 COPY ansible.cfg /tmp/ansible.cfg
