@@ -134,6 +134,29 @@ jobs:
           mkdir -p ~/.docker
           echo '${{ secrets.OCP_PULL_SECRET }}' > ~/.docker/config.json
 
+      - name: Generate ansible.cfg for Red Hat Automation Hub
+        env:
+          AUTOMATIONHUB_TOKEN: ${{ secrets.AUTOMATIONHUB_TOKEN }}
+        shell: bash
+        run: |
+          {
+            echo "[galaxy]"
+            echo "server_list = certified, validated, galaxy"
+            echo ""
+            echo "[galaxy_server.certified]"
+            echo "url=https://console.redhat.com/api/automation-hub/content/published/"
+            echo "auth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token"
+            echo "token=${AUTOMATIONHUB_TOKEN}"
+            echo ""
+            echo "[galaxy_server.validated]"
+            echo "url=https://console.redhat.com/api/automation-hub/content/validated/"
+            echo "auth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token"
+            echo "token=${AUTOMATIONHUB_TOKEN}"
+            echo ""
+            echo "[galaxy_server.galaxy]"
+            echo "url=https://galaxy.ansible.com/"
+          } > containers/ee-ansibleforge/ansible.cfg
+
       - name: Install ansible-builder
         run: pip install ansible-builder
 
