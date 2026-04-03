@@ -73,8 +73,26 @@ jobs:
       - name: Generate ansible.cfg for Red Hat Automation Hub
         env:
           AUTOMATIONHUB_TOKEN: ${{ secrets.AUTOMATIONHUB_TOKEN }}
-        run: |-
-          printf '[galaxy]\nserver_list = certified, validated, galaxy\n\n[galaxy_server.certified]\nurl=https://console.redhat.com/api/automation-hub/content/published/\nauth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token\ntoken=%s\n\n[galaxy_server.validated]\nurl=https://console.redhat.com/api/automation-hub/content/validated/\nauth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token\ntoken=%s\n\n[galaxy_server.galaxy]\nurl=https://galaxy.ansible.com/\n' "${AUTOMATIONHUB_TOKEN}" "${AUTOMATIONHUB_TOKEN}" > /tmp/ansible.cfg
+        shell: bash
+        run: |
+          {
+            echo "[galaxy]"
+            echo "server_list = certified, validated, galaxy"
+            echo ""
+            echo "[galaxy_server.certified]"
+            echo "url=https://console.redhat.com/api/automation-hub/content/published/"
+            echo "auth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token"
+            echo "token=${AUTOMATIONHUB_TOKEN}"
+            echo ""
+            echo "[galaxy_server.validated]"
+            echo "url=https://console.redhat.com/api/automation-hub/content/validated/"
+            echo "auth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token"
+            echo "token=${AUTOMATIONHUB_TOKEN}"
+            echo ""
+            echo "[galaxy_server.galaxy]"
+            echo "url=https://galaxy.ansible.com/"
+          } > /tmp/ansible.cfg
+          head -1 /tmp/ansible.cfg
 
       - name: Log in to ghcr.io
         uses: docker/login-action@v4
