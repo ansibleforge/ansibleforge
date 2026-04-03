@@ -55,9 +55,9 @@ RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc \
 # hadolint ignore=DL3013
 RUN pip3.11 install --no-cache-dir awxkit ansible-dev-tools -r requirements.txt
 
-# Install Node packages
-# hadolint ignore=DL3016
-RUN npm install -g @anthropic-ai/claude-code
+# Install Claude Code
+RUN curl -fsSL https://claude.ai/install.sh | bash \
+    && cp /root/.local/bin/claude /usr/local/bin/claude
 
 # Copy binaries from official images
 COPY --from=aws /usr/local/aws-cli/ /usr/local/aws-cli/
