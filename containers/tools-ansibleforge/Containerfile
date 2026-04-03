@@ -12,6 +12,7 @@ FROM hashicorp/terraform:latest AS terraform
 FROM hashicorp/vault:latest AS vault
 FROM registry.redhat.io/openshift4/ose-cli:latest AS ose-cli
 FROM alpine/helm:latest AS helm
+FROM mcr.microsoft.com/powershell:latest AS pwsh
 
 # Stage 3: Final image
 FROM registry.access.redhat.com/ubi9/ubi:latest
@@ -22,7 +23,6 @@ USER 0
 
 COPY 1password.repo /etc/yum.repos.d/1password.repo
 COPY github.repo /etc/yum.repos.d/github.repo
-COPY microsoft-prod.repo /etc/yum.repos.d/microsoft-prod.repo
 COPY epel.repo /etc/yum.repos.d/epel.repo
 
 WORKDIR /tmp
@@ -35,7 +35,6 @@ RUN useradd -m -u 10001 -g 0 user \
 # Install OS packages
 # hadolint ignore=DL3041
 RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc \
-    && rpm --import https://packages.microsoft.com/keys/microsoft.asc \
     && dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' module enable nodejs:20 -y \
     && (dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' check-update -y || true) \
     && dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' --enablerepo='epel' install -y \
@@ -48,9 +47,6 @@ RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc \
        python3.11-pip python3.11-devel \
        openldap-devel openldap-clients \
        krb5-workstation \
-    && dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' install -y \
-       --enablerepo=packages-microsoft-com-prod \
-       powershell \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
@@ -70,6 +66,9 @@ COPY --from=vault /bin/vault /usr/local/bin/vault
 COPY --from=ose-cli /usr/bin/oc /usr/local/bin/oc
 COPY --from=ose-cli /usr/bin/kubectl /usr/local/bin/kubectl
 COPY --from=helm /usr/bin/helm /usr/local/bin/helm
+COPY --from=pwsh /opt/microsoft/powershell /opt/microsoft/powershell
+RUN ln -s /opt/microsoft/powershell/pwsh /usr/local/bin/pwsh \
+    && ln -s /opt/microsoft/powershell/pwsh /usr/local/bin/powershell
 
 # Download remaining binaries without official images
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
