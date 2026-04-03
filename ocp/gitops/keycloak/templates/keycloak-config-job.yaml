@@ -22,7 +22,7 @@ spec:
       serviceAccountName: keycloak-config
       containers:
         - name: configure-keycloak
-          image: image-registry.openshift-image-registry.svc:5000/shared-builds/ee-community-ansibleforge:latest
+          image: image-registry.openshift-image-registry.svc:5000/shared-builds/ee-ansibleforge:latest
           command:
             - ansible-playbook
             - /playbooks/configure-realm.yml

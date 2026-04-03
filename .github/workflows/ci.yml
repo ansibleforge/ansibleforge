@@ -44,7 +44,7 @@ jobs:
 
       - name: Install Ansible collections
         run: |
-          ansible-galaxy collection install -r containers/ee-community-ansibleforge/requirements.yml \
+          ansible-galaxy collection install -r containers/ee-ansibleforge/requirements.yml \
             --ignore-errors --force
 
       - name: Run ansible-lint

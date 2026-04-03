@@ -27,7 +27,7 @@
 
 | Workflow | Trigger | Description |
 |----------|---------|-------------|
-| **Container: Build and Push** | Push to `containers/` / Manual | Builds `ee-community-ansibleforge` and other images and pushes to `ghcr.io` |
+| **Container: Build and Push** | Push to `containers/` / Manual | Builds `tools-ansibleforge` and other images and pushes to `ghcr.io` |
 
 ## Secrets & Variables
 

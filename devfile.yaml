@@ -28,7 +28,7 @@ components:
           exposure: none
   - name: ee
     container:
-      image: ghcr.io/hfenner/ee-community-ansibleforge:latest
+      image: ghcr.io/hfenner/ee-ansibleforge:latest
       memoryRequest: 256M
       memoryLimit: 2Gi
       cpuRequest: 250m
