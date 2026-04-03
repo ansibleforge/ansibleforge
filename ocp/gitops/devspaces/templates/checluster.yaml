@@ -19,12 +19,7 @@ spec:
       podSecurityContext:
         fsGroup: 1000
         fsGroupChangePolicy: Always
-    containerRunConfiguration:
-      openShiftSecurityContextConstraint: nested-container-runasany
-      workspacesPodAnnotations:
-        io.kubernetes.cri-o.Devices: /dev/fuse,/dev/net/tun
-        io.openshift.podman-fuse: ""
-    disableContainerRunCapabilities: false
+    disableContainerRunCapabilities: true
     startTimeoutSeconds: 600
     maxNumberOfWorkspacesPerUser: -1
     maxNumberOfRunningWorkspacesPerUser: -1
