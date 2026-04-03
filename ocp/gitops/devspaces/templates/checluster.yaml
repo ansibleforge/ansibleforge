@@ -31,6 +31,8 @@ spec:
     secondsOfInactivityBeforeIdling: -1
     storage:
       pvcStrategy: per-user
+      perUserStrategyPvcConfig:
+        storageClass: efs-sc
     defaultNamespace:
       autoProvision: true
   networking: {}
