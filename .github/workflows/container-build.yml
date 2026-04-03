@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "containers/tools-ansibleforge/**"
+      - "containers/ee-ansibleforge/**"
       - "keycloak-extensions/github-org-mapper/**"
       - "containers/devfile-registry/**"
       - "devfile.yaml"
@@ -17,6 +18,7 @@ on:
         type: choice
         options:
           - tools-ansibleforge
+          - ee-ansibleforge
           - keycloak-github-org-mapper
           - devfile-registry
           - all
@@ -35,6 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tools-ansibleforge: ${{ steps.changes.outputs.tools-ansibleforge }}
+      ee-ansibleforge: ${{ steps.changes.outputs.ee-ansibleforge }}
       keycloak-github-org-mapper: ${{ steps.changes.outputs.keycloak-github-org-mapper }}
       devfile-registry: ${{ steps.changes.outputs.devfile-registry }}
     steps:
@@ -45,6 +48,8 @@ jobs:
           filters: |
             tools-ansibleforge:
               - 'containers/tools-ansibleforge/**'
+            ee-ansibleforge:
+              - 'containers/ee-ansibleforge/**'
             keycloak-github-org-mapper:
               - 'keycloak-extensions/github-org-mapper/**'
             devfile-registry:
@@ -109,6 +114,49 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/tools-ansibleforge:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/tools-ansibleforge:${{ github.sha }}
+
+  build-ee-ansibleforge:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: >-
+      always() && !failure() && (
+        github.event_name == 'workflow_dispatch' && (inputs.image == 'ee-ansibleforge' || inputs.image == 'all') ||
+        github.event_name == 'push' && needs.detect-changes.outputs.ee-ansibleforge == 'true'
+      )
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Red Hat registries
+        run: |
+          mkdir -p ~/.docker
+          echo '${{ secrets.OCP_PULL_SECRET }}' > ~/.docker/config.json
+
+      - name: Install ansible-builder
+        run: pip install ansible-builder
+
+      - name: Generate build context
+        working-directory: containers/ee-ansibleforge
+        run: ansible-builder create --file execution-environment.yaml
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ee-ansibleforge
+        uses: docker/build-push-action@v7
+        with:
+          context: containers/ee-ansibleforge/context
+          file: containers/ee-ansibleforge/context/Containerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ee-ansibleforge:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ee-ansibleforge:${{ github.sha }}
 
   build-keycloak-github-org-mapper:
     runs-on: ubuntu-latest
