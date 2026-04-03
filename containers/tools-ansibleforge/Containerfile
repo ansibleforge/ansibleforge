@@ -13,6 +13,7 @@ FROM hashicorp/vault:latest AS vault
 FROM registry.redhat.io/openshift4/ose-cli:latest AS ose-cli
 FROM alpine/helm:latest AS helm
 FROM mcr.microsoft.com/powershell:latest AS pwsh
+FROM vmware/govc:latest AS govc
 
 # Stage 3: Final image
 FROM registry.access.redhat.com/ubi9/ubi:latest
@@ -70,10 +71,11 @@ COPY --from=pwsh /opt/microsoft/powershell /opt/microsoft/powershell
 RUN ln -s /opt/microsoft/powershell/pwsh /usr/local/bin/pwsh \
     && ln -s /opt/microsoft/powershell/pwsh /usr/local/bin/powershell
 
+COPY --from=govc /govc /usr/local/bin/govc
+
 # Download remaining binaries without official images
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN curl -L -o - "https://github.com/vmware/govmomi/releases/latest/download/govc_$(uname -s)_$(uname -m).tar.gz" | tar -C /usr/local/bin -xvzf - govc \
-    && curl -sL "https://code.visualstudio.com/sha/download?build=stable&os=cli-alpine-x64" -o /tmp/vscode-cli.tar.gz \
+RUN curl -sL "https://code.visualstudio.com/sha/download?build=stable&os=cli-alpine-x64" -o /tmp/vscode-cli.tar.gz \
     && tar -xzf /tmp/vscode-cli.tar.gz -C /usr/local/bin/ \
     && rm /tmp/vscode-cli.tar.gz
 
