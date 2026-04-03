@@ -116,7 +116,7 @@ data "aws_security_groups" "worker" {
 
   filter {
     name   = "tag:Name"
-    values = ["${var.cluster_name}*-worker-sg"]
+    values = ["*-node", "*-worker-sg"]
   }
 }
 
