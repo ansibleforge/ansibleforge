@@ -9,90 +9,87 @@ COPY ansible.cfg /tmp/ansible.cfg
 RUN ANSIBLE_CONFIG=/tmp/ansible.cfg \
     ansible-galaxy collection install -r requirements.yaml -p /collections
 
-# Stage 2: Final image
+# Stage 2: Copy binaries from official images
+FROM public.ecr.aws/aws-cli/aws-cli:latest AS aws
+FROM hashicorp/terraform:latest AS terraform
+FROM hashicorp/vault:latest AS vault
+FROM registry.redhat.io/openshift4/ose-cli:latest AS ose-cli
+
+# Stage 3: Final image
 FROM registry.access.redhat.com/ubi9/ubi:latest
 
 ARG PYV=3.11
 
-
 USER 0
 
 COPY 1password.repo /etc/yum.repos.d/1password.repo
-COPY hashicorp.repo /etc/yum.repos.d/hashicorp.repo
 COPY github.repo /etc/yum.repos.d/github.repo
 COPY microsoft-prod.repo /etc/yum.repos.d/microsoft-prod.repo
 COPY epel.repo /etc/yum.repos.d/epel.repo
 
 WORKDIR /tmp
 COPY requirements.txt .
-COPY requirements.yaml .
 
+# Create user and configure rootless podman
 RUN useradd -m -u 10001 -g 0 user \
-    &&  chmod -R g=u /home/user
-
-# Rootless podman in Dev Spaces runs as UID 10001. Provide uid/gid ranges and
-# default to fuse-overlayfs to avoid kernel overlay mount permission failures.
-RUN echo '10001:100000:65536' >> /etc/subuid \
+    && chmod -R g=u /home/user \
+    && echo '10001:100000:65536' >> /etc/subuid \
     && echo '10001:100000:65536' >> /etc/subgid \
     && mkdir -p /home/user/.config/containers \
-    && printf '[storage]\ndriver = \"overlay\"\n\n[storage.options.overlay]\nmount_program = \"/usr/bin/fuse-overlayfs\"\n' > /home/user/.config/containers/storage.conf \
+    && printf '[storage]\ndriver = "overlay"\n\n[storage.options.overlay]\nmount_program = "/usr/bin/fuse-overlayfs"\n' > /home/user/.config/containers/storage.conf \
     && chown -R 10001:0 /home/user/.config
 
+# Install OS packages
 # hadolint ignore=DL3041
 RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc \
     && rpm --import https://packages.microsoft.com/keys/microsoft.asc \
     && dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' module enable nodejs:20 -y \
     && (dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' check-update -y || true) \
     && dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' --enablerepo='epel' install -y \
-       gcc \
-       gcc-c++ \
-       make \
-       jq \
-       wget \
-       podman \
-       fuse-overlayfs \
-       slirp4netns \
+       gcc gcc-c++ make \
+       jq wget unzip vim \
+       podman fuse-overlayfs slirp4netns \
        1password-cli \
-       unzip \
-       terraform \
-       vault \
        gh \
-       vim \
-       iputils \
-       bind-utils \
-       nmap \
-       nodejs \
-       npm \
-       python3.11-pip \
-       procps-ng \
-       python3.11-devel \
-       openldap-devel \
-       openldap-clients \
+       iputils bind-utils nmap procps-ng \
+       nodejs npm \
+       python3.11-pip python3.11-devel \
+       openldap-devel openldap-clients \
        krb5-workstation \
     && dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' install -y \
        --enablerepo=packages-microsoft-com-prod \
        powershell \
     && dnf clean all \
     && rm -rf /var/cache/dnf
+
+# Install Python packages
 # hadolint ignore=DL3013
-RUN pip3.11 install --no-cache-dir awxkit ansible-dev-tools
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
-    && unzip awscliv2.zip \
-    && ./aws/install \
-    && rm awscliv2.zip \
-    && rm -rf ./aws
-RUN pip3.11 install --no-cache-dir -r requirements.txt
+RUN pip3.11 install --no-cache-dir awxkit ansible-dev-tools -r requirements.txt
+
+# Install Node packages
 # hadolint ignore=DL3016
 RUN npm install -g @anthropic-ai/claude-code
+
+# Copy binaries from official images
+COPY --from=aws /usr/local/aws-cli/ /usr/local/aws-cli/
+RUN ln -s /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws
+COPY --from=terraform /bin/terraform /usr/local/bin/terraform
+COPY --from=vault /bin/vault /usr/local/bin/vault
+COPY --from=ose-cli /usr/bin/oc /usr/local/bin/oc
+COPY --from=ose-cli /usr/bin/kubectl /usr/local/bin/kubectl
+
+# Download remaining binaries without official images
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN curl -L -o - "https://github.com/vmware/govmomi/releases/latest/download/govc_$(uname -s)_$(uname -m).tar.gz" | tar -C /usr/local/bin -xvzf - govc
-RUN curl -L -o - "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz" | tar -C /usr/local/bin -xvzf - oc kubectl
-RUN curl -L https://mirror.openshift.com/pub/openshift-v4/clients/helm/latest/helm-linux-amd64 -o /usr/local/bin/helm \
-    && chmod +x /usr/local/bin/helm
-RUN curl -sL "https://code.visualstudio.com/sha/download?build=stable&os=cli-alpine-x64" -o /tmp/vscode-cli.tar.gz \
+RUN curl -L -o - "https://github.com/vmware/govmomi/releases/latest/download/govc_$(uname -s)_$(uname -m).tar.gz" | tar -C /usr/local/bin -xvzf - govc \
+    && curl -L https://mirror.openshift.com/pub/openshift-v4/clients/helm/latest/helm-linux-amd64 -o /usr/local/bin/helm \
+    && chmod +x /usr/local/bin/helm \
+    && curl -sL "https://code.visualstudio.com/sha/download?build=stable&os=cli-alpine-x64" -o /tmp/vscode-cli.tar.gz \
     && tar -xzf /tmp/vscode-cli.tar.gz -C /usr/local/bin/ \
     && rm /tmp/vscode-cli.tar.gz
+
+# Copy Ansible collections from galaxy stage
 COPY --from=galaxy /collections /collections
+
 RUN mkdir -p /opt/ansible
 COPY --chmod=755 vault_env_reader.sh /opt/ansible/vault_env_reader.sh
 
