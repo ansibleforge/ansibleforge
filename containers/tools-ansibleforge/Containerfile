@@ -1,3 +1,15 @@
+# Stage 1: Install Ansible collections (token never appears in final image)
+FROM registry.access.redhat.com/ubi9/ubi:latest AS galaxy
+RUN dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' install -y python3.11-pip \
+    && pip3.11 install --no-cache-dir ansible-core \
+    && dnf clean all
+WORKDIR /tmp
+COPY requirements.yaml .
+COPY ansible.cfg /tmp/ansible.cfg
+RUN ANSIBLE_CONFIG=/tmp/ansible.cfg \
+    ansible-galaxy collection install -r requirements.yaml -p /collections
+
+# Stage 2: Final image
 FROM registry.access.redhat.com/ubi9/ubi:latest
 
 ARG PYV=3.11
@@ -80,11 +92,7 @@ RUN curl -L https://mirror.openshift.com/pub/openshift-v4/clients/helm/latest/he
 RUN curl -sL "https://code.visualstudio.com/sha/download?build=stable&os=cli-alpine-x64" -o /tmp/vscode-cli.tar.gz \
     && tar -xzf /tmp/vscode-cli.tar.gz -C /usr/local/bin/ \
     && rm /tmp/vscode-cli.tar.gz
-RUN --mount=type=secret,id=ansible_cfg \
-    cp /run/secrets/ansible_cfg /tmp/ansible.cfg \
-    && ANSIBLE_CONFIG=/tmp/ansible.cfg \
-    ansible-galaxy collection install -r requirements.yaml -p /collections \
-    && rm -f /tmp/ansible.cfg
+COPY --from=galaxy /collections /collections
 RUN mkdir -p /opt/ansible
 COPY --chmod=755 vault_env_reader.sh /opt/ansible/vault_env_reader.sh
 

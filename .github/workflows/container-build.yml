@@ -91,8 +91,7 @@ jobs:
             echo ""
             echo "[galaxy_server.galaxy]"
             echo "url=https://galaxy.ansible.com/"
-          } > /tmp/ansible.cfg
-          head -1 /tmp/ansible.cfg
+          } > containers/tools-ansibleforge/ansible.cfg
 
       - name: Log in to ghcr.io
         uses: docker/login-action@v4
@@ -107,8 +106,6 @@ jobs:
           context: containers/tools-ansibleforge
           file: containers/tools-ansibleforge/Containerfile
           push: true
-          secrets: |
-            ansible_cfg=/tmp/ansible.cfg
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/tools-ansibleforge:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/tools-ansibleforge:${{ github.sha }}
