@@ -81,14 +81,8 @@ RUN curl -sL "https://code.visualstudio.com/sha/download?build=stable&os=cli-alp
     && tar -xzf /tmp/vscode-cli.tar.gz -C /usr/local/bin/ \
     && rm /tmp/vscode-cli.tar.gz
 RUN --mount=type=secret,id=ansible_cfg \
-    if [ "$LOCAL_BUILD" = "true" ]; then \
-      cp /run/secrets/ansible_cfg /tmp/ansible.cfg \
-      && ANSIBLE_CONFIG=/tmp/ansible.cfg \
-      ansible-galaxy collection install -r requirements.yaml -p /collections; \
-    else \
-      ANSIBLE_CONFIG=/tmp/anstmp/ansible.cfg \
-      ansible-galaxy collection install -r requirements.yaml -p /collections; \
-    fi
+    ANSIBLE_CONFIG=/run/secrets/ansible_cfg \
+    ansible-galaxy collection install -r requirements.yaml -p /collections
 RUN mkdir -p /opt/ansible
 COPY --chmod=755 vault_env_reader.sh /opt/ansible/vault_env_reader.sh
 

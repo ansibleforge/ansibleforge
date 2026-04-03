@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "containers/tools-ansibleforge/**"
       - "containers/ee-community-ansibleforge/**"
       - "keycloak-extensions/github-org-mapper/**"
       - "containers/devfile-registry/**"
@@ -16,6 +17,7 @@ on:
         required: true
         type: choice
         options:
+          - tools-ansibleforge
           - ee-community-ansibleforge
           - keycloak-github-org-mapper
           - devfile-registry
@@ -34,6 +36,7 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
+      tools-ansibleforge: ${{ steps.changes.outputs.tools-ansibleforge }}
       ee-community-ansibleforge: ${{ steps.changes.outputs.ee-community-ansibleforge }}
       keycloak-github-org-mapper: ${{ steps.changes.outputs.keycloak-github-org-mapper }}
       devfile-registry: ${{ steps.changes.outputs.devfile-registry }}
@@ -43,6 +46,8 @@ jobs:
         id: changes
         with:
           filters: |
+            tools-ansibleforge:
+              - 'containers/tools-ansibleforge/**'
             ee-community-ansibleforge:
               - 'containers/ee-community-ansibleforge/**'
             keycloak-github-org-mapper:
@@ -50,6 +55,60 @@ jobs:
             devfile-registry:
               - 'containers/devfile-registry/**'
               - 'devfile.yaml'
+
+  build-tools-ansibleforge:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: >-
+      always() && !failure() && (
+        github.event_name == 'workflow_dispatch' && (inputs.image == 'tools-ansibleforge' || inputs.image == 'all') ||
+        github.event_name == 'push' && needs.detect-changes.outputs.tools-ansibleforge == 'true'
+      )
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate ansible.cfg for Red Hat Automation Hub
+        run: |
+          cat > /tmp/ansible.cfg << 'CFGEOF'
+          [galaxy]
+          server_list = certified, validated, galaxy
+
+          [galaxy_server.certified]
+          url=https://console.redhat.com/api/automation-hub/content/published/
+          auth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+          token=${{ secrets.AUTOMATIONHUB_TOKEN }}
+
+          [galaxy_server.validated]
+          url=https://console.redhat.com/api/automation-hub/content/validated/
+          auth_url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+          token=${{ secrets.AUTOMATIONHUB_TOKEN }}
+
+          [galaxy_server.galaxy]
+          url=https://galaxy.ansible.com/
+          CFGEOF
+          sed -i 's/^          //' /tmp/ansible.cfg
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push tools-ansibleforge
+        uses: docker/build-push-action@v7
+        with:
+          context: containers/tools-ansibleforge
+          file: containers/tools-ansibleforge/Containerfile
+          push: true
+          secrets: |
+            ansible_cfg=/tmp/ansible.cfg
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/tools-ansibleforge:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/tools-ansibleforge:${{ github.sha }}
 
   build-ee-community-ansibleforge:
     runs-on: ubuntu-latest
