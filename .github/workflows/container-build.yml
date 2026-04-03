@@ -70,6 +70,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Log in to Red Hat registries
+        run: |
+          mkdir -p ~/.docker
+          echo '${{ secrets.OCP_PULL_SECRET }}' > ~/.docker/config.json
+
       - name: Generate ansible.cfg for Red Hat Automation Hub
         env:
           AUTOMATIONHUB_TOKEN: ${{ secrets.AUTOMATIONHUB_TOKEN }}
