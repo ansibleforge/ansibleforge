@@ -14,6 +14,9 @@ dependencies:
     - gcc-c++
     - python3-devel
     - terraform
+  exclude:
+    system:
+      - openshift-clients
 options:
   package_manager_path: /usr/bin/microdnf
 additional_build_files:
@@ -25,10 +28,10 @@ additional_build_steps:
   prepend_galaxy:
     - ADD _build/configs/ansible.cfg /etc/ansible/ansible.cfg
   prepend_builder:
-    # Shim for openshift-clients repo
-    - ENV PKGMGR_OPTS="--nodocs --setopt=install_weak_deps=0 --setopt=rhocp-4.19-for-rhel-9-x86_64-rpms.enabled=true --setopt=ansible-automation-platform-2.6-for-rhel-9-x86_64-rpms.enabled=true"
+    - ENV PKGMGR_OPTS="--nodocs --setopt=install_weak_deps=0 --setopt=ansible-automation-platform-2.6-for-rhel-9-x86_64-rpms.enabled=true"
     - ADD _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
   prepend_final:
-    # Shim for openshift-clients repo
-    - ENV PKGMGR_OPTS="--nodocs --setopt=install_weak_deps=0 --setopt=rhocp-4.19-for-rhel-9-x86_64-rpms.enabled=true --setopt=ansible-automation-platform-2.6-for-rhel-9-x86_64-rpms.enabled=true"
+    - ENV PKGMGR_OPTS="--nodocs --setopt=install_weak_deps=0 --setopt=ansible-automation-platform-2.6-for-rhel-9-x86_64-rpms.enabled=true"
     - ADD _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
+    - COPY --from=registry.redhat.io/openshift4/ose-cli:latest /usr/bin/oc /usr/local/bin/oc
+    - COPY --from=registry.redhat.io/openshift4/ose-cli:latest /usr/bin/kubectl /usr/local/bin/kubectl
