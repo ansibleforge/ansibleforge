@@ -15,12 +15,6 @@ spec:
     devfileRegistry: {}
     pluginRegistry: {}
   devEnvironments:
-    security:
-      podSecurityContext:
-        fsGroup: 1000
-        fsGroupChangePolicy: Always
-    containerRunConfiguration:
-      openShiftSecurityContextConstraint: nested-container-runasany
     disableContainerRunCapabilities: true
     startTimeoutSeconds: 600
     maxNumberOfWorkspacesPerUser: -1
