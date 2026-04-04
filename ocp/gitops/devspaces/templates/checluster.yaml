@@ -21,9 +21,7 @@ spec:
     maxNumberOfRunningWorkspacesPerUser: -1
     secondsOfInactivityBeforeIdling: -1
     storage:
-      pvcStrategy: per-user
-      perUserStrategyPvcConfig:
-        storageClass: gp3-csi
+      pvcStrategy: per-workspace
     defaultNamespace:
       autoProvision: true
   networking: {}
