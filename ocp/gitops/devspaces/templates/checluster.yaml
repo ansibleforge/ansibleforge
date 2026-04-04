@@ -23,7 +23,7 @@ spec:
     storage:
       pvcStrategy: per-user
       perUserStrategyPvcConfig:
-        storageClass: efs-sc
+        storageClass: gp3-csi
     defaultNamespace:
       autoProvision: true
   networking: {}
