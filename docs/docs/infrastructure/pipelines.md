@@ -30,7 +30,7 @@ The `ee-ansibleforge` EE requires `ansible-builder create` to generate a build c
 
 1. Clone the `ansibleforge` repository
 2. Run `ansible-builder create` to generate `containers/ee-ansibleforge/context/`
-3. Trigger the `ee-ansibleforge` BuildConfig in `shared-builds`
+3. Trigger the `bc-ee-ansibleforge` BuildConfig in `shared-builds`
 4. Tag the resulting ImageStream on success
 
 ## Verify installation

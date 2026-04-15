@@ -24,7 +24,7 @@ helm/                 # RHDP Field Content Helm chart
 ## Development Environment
 
 The project runs in OpenShift DevSpaces with two containers:
-- **tools**: All development tooling (Ansible, Terraform, AWS CLI, Helm, oc, Claude Code)
+- **tools**: All development tooling (Ansible, Terraform, AWS CLI, Helm, oc, Claude Code, Codex CLI)
 - **ee**: Ansible Execution Environment for running playbooks
 
 Launch a workspace: `https://devspaces.apps.ocp.fire.ansibleforge.dev/#https://github.com/<username>/ansibleforge`

@@ -1,0 +1,42 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: ee-ansibleforge
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: bc-ee-ansibleforge
+spec:
+  source:
+    git:
+      uri: https://github.com/hfenner/ansibleforge.git
+      ref: main
+    contextDir: containers/ee-ansibleforge/context
+  strategy:
+    type: Docker
+    dockerStrategy:
+      volumes:
+        - name: etc-pki-entitlement
+          mounts:
+            - destinationPath: /etc/pki/entitlement
+          source:
+            type: Secret
+            secret:
+              secretName: etc-pki-entitlement
+        - name: ansible-config
+          mounts:
+            - destinationPath: /etc/ansible
+          source:
+            type: Secret
+            secret:
+              secretName: ansible-config
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: ee-ansibleforge:latest
+  triggers: []

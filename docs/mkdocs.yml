@@ -52,6 +52,9 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Implementation Slices:
+      - implementation/index.md
+      - Execution Environment BuildConfig: implementation/execution-environment-buildconfig.md
   - Containers:
       - containers/index.md
       - tools-ansibleforge: containers/tools-ansibleforge.md

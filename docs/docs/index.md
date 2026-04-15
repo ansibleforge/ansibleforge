@@ -12,7 +12,7 @@ It combines purpose-built developer containers, a custom Execution Environment, 
 - A browser-based [DevSpaces](infrastructure/devspaces.md) workspace pre-loaded with every Ansible tool, cloud CLI, and IDE extension you need
 - Vault secrets automatically injected into your workspace — no manual credential setup
 - Persistent storage and per-user namespace isolation
-- The [tools-ansibleforge](containers/tools-ansibleforge.md) container: Ansible dev tools, Terraform, AWS CLI, OpenShift CLI, Helm, Podman, PowerShell, Claude Code, and 30 Ansible collections
+- The [tools-ansibleforge](containers/tools-ansibleforge.md) container: Ansible dev tools, Terraform, AWS CLI, OpenShift CLI, Helm, Podman, PowerShell, Claude Code, Codex CLI, and 30 Ansible collections
 
 ### For operators
 

@@ -19,8 +19,10 @@ cd containers/ee-ansibleforge
 ansible-builder create
 
 # Build in OpenShift (via shared-builds BuildConfig)
-oc start-build ee-ansibleforge -n shared-builds --follow
+oc start-build bc-ee-ansibleforge -n shared-builds --follow
 ```
+
+See [Execution Environment BuildConfig](../implementation/execution-environment-buildconfig.md) for the reusable pattern used to add more EEs.
 
 ## System dependencies
 

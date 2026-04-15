@@ -1,6 +1,6 @@
 # Shared Builds
 
-**Chart:** `ocp/shared-builds/`
+**Chart:** `ocp/gitops/shared-builds/`
 **Namespace:** `shared-builds`
 
 ## Overview
@@ -11,10 +11,10 @@ The `shared-builds` namespace centralizes container image builds so all user wor
 
 | BuildConfig | Source | Output |
 |-------------|--------|--------|
-| `tools-ansibleforge` | `containers/tools-ansibleforge/` | DevSpaces workspace container |
-| `ee-ansibleforge` | `containers/ee-ansibleforge/context/` | Ansible Execution Environment |
+| `bc-tools-ansibleforge` | `containers/tools-ansibleforge/` | `tools-ansibleforge:latest` |
+| `bc-ee-ansibleforge` | `containers/ee-ansibleforge/context/` | `ee-ansibleforge:latest` |
 
-Both BuildConfigs pull source from this repository (`hfenner/ansibleforge`) and output to ImageStreams in the `shared-builds` namespace.
+BuildConfigs pull source from this repository (`hfenner/ansibleforge`) and output to ImageStreams in the `shared-builds` namespace.
 
 ## Cross-namespace image access
 
@@ -34,10 +34,10 @@ A CronJob copies RHEL entitlement certificates from `openshift-config-managed` i
 
 ```bash
 # Build the dev container
-oc start-build tools-ansibleforge -n shared-builds --follow
+oc start-build bc-tools-ansibleforge -n shared-builds --follow
 
 # Build the execution environment
-oc start-build ee-ansibleforge -n shared-builds --follow
+oc start-build bc-ee-ansibleforge -n shared-builds --follow
 
 # Watch all builds
 oc get builds -n shared-builds -w

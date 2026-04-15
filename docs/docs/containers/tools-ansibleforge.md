@@ -38,6 +38,7 @@ It includes everything needed to write, test, and ship Ansible automation — wi
 | `gh` | GitHub CLI |
 | `1password-cli` (`op`) | 1Password secret management |
 | `claude-code` | Anthropic Claude Code AI assistant |
+| `codex` | OpenAI Codex CLI AI coding assistant |
 | `powershell` | Cross-platform PowerShell for Windows automation |
 | `vim`, `jq`, `wget` | General utilities |
 

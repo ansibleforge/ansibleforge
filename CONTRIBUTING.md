@@ -12,7 +12,7 @@ Thanks for your interest in contributing! This guide will help you get started.
 
 This project is designed to run in OpenShift DevSpaces. The devfile provides:
 
-- **tools** container — Ansible, Terraform, AWS CLI, Helm, `oc`, Claude Code, and more
+- **tools** container — Ansible, Terraform, AWS CLI, Helm, `oc`, Claude Code, Codex CLI, and more
 - **ee** container — Ansible Execution Environment for running playbooks
 
 ### Project Layout
@@ -27,6 +27,10 @@ containers/         # Container/EE build definitions
 site/               # React marketing site (Vite)
 docs/               # MkDocs documentation
 ```
+
+### Implementation Slices
+
+Small, reviewable contributor tasks are documented under `docs/docs/implementation/`. Start with the Execution Environment BuildConfig slice when adding a new shared EE image.
 
 ## Making Changes
 
