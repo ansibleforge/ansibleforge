@@ -19,3 +19,6 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+
+# Claude Code per-user local settings (may contain personal permissions/tokens)
+.claude/settings.local.json
