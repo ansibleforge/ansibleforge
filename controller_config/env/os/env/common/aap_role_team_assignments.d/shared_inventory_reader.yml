@@ -1,0 +1,10 @@
+---
+# Grants the OS Operators team read+use on every inventory in the Shared
+# org, so they can build constructed inventories sourcing from Shared.
+aap_role_team_assignments:
+  - team: OS Operators
+    role_definition: Org Inventory Reader
+    assignment_objects:
+      - name: Shared
+        type: organizations
+    state: present

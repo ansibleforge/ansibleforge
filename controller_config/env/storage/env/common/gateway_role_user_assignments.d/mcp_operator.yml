@@ -1,0 +1,8 @@
+---
+# Grants the MCP service user the Org Operator role on the Storage org.
+# object_id resolved from org_id_by_name fact built in dispatch.yml.
+gateway_role_user_assignments:
+  - user: storage-mcp
+    role_definition: Org Operator
+    object_id: "{{ org_id_by_name['Storage'] }}"
+    state: present

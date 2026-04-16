@@ -1,0 +1,17 @@
+---
+# Per-org CaC sync JT. EDA dispatches to this JT when files under
+# controller_config/env/security/ change on main.
+controller_templates:
+  - name: Sync Security CaC
+    organization: Security
+    project: Security Platform
+    playbook: controller_config/dispatch.yml
+    inventory: Demo Inventory
+    job_type: run
+    credentials:
+      - Security Cancel Admin
+    extra_vars:
+      target_org: security
+    ask_variables_on_launch: false
+    survey_enabled: false
+    state: present

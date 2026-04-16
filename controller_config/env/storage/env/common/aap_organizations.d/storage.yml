@@ -1,0 +1,5 @@
+---
+aap_organizations:
+  - name: Storage
+    description: Storage — block, file, and object storage automation.
+    state: present

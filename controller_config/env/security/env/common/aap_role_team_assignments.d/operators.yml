@@ -1,0 +1,9 @@
+---
+# Grants the Security Operators team the Org Operator role on the Security org.
+aap_role_team_assignments:
+  - team: Security Operators
+    role_definition: Org Operator
+    assignment_objects:
+      - name: Security
+        type: organizations
+    state: present

@@ -1,0 +1,8 @@
+---
+# Grants the MCP service user the Org Operator role on the Security org.
+# object_id resolved from org_id_by_name fact built in dispatch.yml.
+gateway_role_user_assignments:
+  - user: security-mcp
+    role_definition: Org Operator
+    object_id: "{{ org_id_by_name['Security'] }}"
+    state: present

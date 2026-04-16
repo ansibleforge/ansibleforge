@@ -1,0 +1,17 @@
+---
+# Per-org CaC sync JT. EDA dispatches to this JT when files under
+# controller_config/env/identity/ change on main.
+controller_templates:
+  - name: Sync Identity CaC
+    organization: Identity
+    project: Identity Platform
+    playbook: controller_config/dispatch.yml
+    inventory: Demo Inventory
+    job_type: run
+    credentials:
+      - Identity Cancel Admin
+    extra_vars:
+      target_org: identity
+    ask_variables_on_launch: false
+    survey_enabled: false
+    state: present

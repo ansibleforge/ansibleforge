@@ -1,0 +1,61 @@
+---
+- name: Cancel an organization-owned job
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    controller_host: "{{ lookup('env', 'CONTROLLER_HOST') }}"
+    controller_token: "{{ lookup('env', 'CONTROLLER_OAUTH_TOKEN') }}"
+    controller_validate_certs: false
+  tasks:
+    - name: Validate inputs
+      ansible.builtin.assert:
+        that:
+          - org_name is defined and org_name | length > 0
+          - target_job_id is defined
+          - target_job_id | int > 0
+        fail_msg: >-
+          target_job_id (survey) and org_name (extra_var) are required.
+
+    - name: Look up target job
+      ansible.builtin.uri:
+        url: "{{ controller_host }}/api/controller/v2/jobs/{{ target_job_id | int }}/"
+        headers:
+          Authorization: "Bearer {{ controller_token }}"
+        validate_certs: "{{ controller_validate_certs }}"
+        return_content: true
+        status_code: [200, 404]
+      register: _job
+
+    - name: Fail if job not found
+      ansible.builtin.fail:
+        msg: "Job {{ target_job_id }} not found."
+      when: _job.status == 404
+
+    - name: Assert the job belongs to this organization
+      ansible.builtin.assert:
+        that:
+          - _job.json.summary_fields.organization.name == org_name
+        fail_msg: >-
+          Job {{ target_job_id }} belongs to organization
+          '{{ _job.json.summary_fields.organization.name | default('<unknown>') }}',
+          not '{{ org_name }}'. Refusing to cancel.
+
+    - name: Report and exit if job already finished
+      when: _job.json.finished is not none
+      block:
+        - name: Job already finished
+          ansible.builtin.debug:
+            msg: >-
+              Job {{ target_job_id }} already finished at
+              {{ _job.json.finished }} with status '{{ _job.json.status }}'.
+              Nothing to cancel.
+        - name: End play
+          ansible.builtin.meta: end_play
+
+    - name: Cancel the job
+      ansible.controller.job_cancel:
+        job_id: "{{ target_job_id | int }}"
+        controller_host: "{{ controller_host }}"
+        controller_oauthtoken: "{{ controller_token }}"
+        validate_certs: "{{ controller_validate_certs }}"

@@ -1,0 +1,5 @@
+---
+aap_organizations:
+  - name: Security
+    description: Security operations — hardening, compliance, vulnerability remediation.
+    state: present

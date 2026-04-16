@@ -1,0 +1,28 @@
+---
+# Wrap-cancel JT — Operators get awx.execute_jobtemplate via the Org Operator
+# role on the org, which cascades to all JTs in the org including this one.
+# org_name is hardcoded via extra_vars; the playbook asserts the target job's
+# org matches before cancelling.
+controller_templates:
+  - name: Cancel Identity Job
+    organization: Identity
+    project: Identity Platform
+    playbook: playbooks/aap/cancel_org_job.yml
+    inventory: Demo Inventory
+    job_type: run
+    credentials:
+      - Identity Cancel Admin
+    extra_vars:
+      org_name: Identity
+    ask_variables_on_launch: false
+    survey_enabled: true
+    survey_spec:
+      name: Cancel a Identity job
+      description: Provide the ID of a running job in the Identity org to cancel.
+      spec:
+        - question_name: Job ID
+          variable: target_job_id
+          type: integer
+          required: true
+          min: 1
+    state: present

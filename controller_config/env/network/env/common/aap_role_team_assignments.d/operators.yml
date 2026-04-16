@@ -1,0 +1,9 @@
+---
+# Grants the Network Operators team the Org Operator role on the Network org.
+aap_role_team_assignments:
+  - team: Network Operators
+    role_definition: Org Operator
+    assignment_objects:
+      - name: Network
+        type: organizations
+    state: present

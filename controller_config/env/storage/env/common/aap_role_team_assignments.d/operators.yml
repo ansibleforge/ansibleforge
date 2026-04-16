@@ -1,0 +1,9 @@
+---
+# Grants the Storage Operators team the Org Operator role on the Storage org.
+aap_role_team_assignments:
+  - team: Storage Operators
+    role_definition: Org Operator
+    assignment_objects:
+      - name: Storage
+        type: organizations
+    state: present

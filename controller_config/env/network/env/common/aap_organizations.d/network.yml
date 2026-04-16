@@ -1,0 +1,5 @@
+---
+aap_organizations:
+  - name: Network
+    description: Network engineering — switches, routers, load balancers, DNS.
+    state: present

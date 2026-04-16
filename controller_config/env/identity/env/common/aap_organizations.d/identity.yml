@@ -1,0 +1,5 @@
+---
+aap_organizations:
+  - name: Identity
+    description: Identity & access — IdM, AD, Keycloak, RBAC.
+    state: present

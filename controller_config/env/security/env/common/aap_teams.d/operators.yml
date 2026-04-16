@@ -1,0 +1,8 @@
+---
+aap_teams:
+  - name: Security Operators
+    description: >-
+      Operators with execute, sync, and EDA activation rights for the
+      Security organization.
+    organization: Security
+    state: present

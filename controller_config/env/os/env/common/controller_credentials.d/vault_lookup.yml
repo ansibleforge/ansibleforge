@@ -1,0 +1,16 @@
+---
+# HashiCorp Vault Secret Lookup credential for OS org. Used as the
+# input source for the OS Cancel Admin credential's oauth_token. Auth
+# method here is token-based; in production replace with k8s-SA auth backed
+# by Vault's Kubernetes auth method (per-org service account → per-org Vault
+# policy → per-org KV v2 mount).
+controller_credentials:
+  - name: OS Vault Lookup
+    description: Vault credential for OS secret retrieval.
+    organization: OS
+    credential_type: HashiCorp Vault Secret Lookup
+    inputs:
+      url: "{{ lookup('env', 'VAULT_ADDR') | default('http://vault.vault.svc.cluster.local:8200', true) }}"
+      api_version: v2
+      token: "{{ lookup('env', 'OS_VAULT_TOKEN') | default(lookup('env', 'VAULT_TOKEN'), true) | default('CHANGE_ME', true) }}"
+    state: present

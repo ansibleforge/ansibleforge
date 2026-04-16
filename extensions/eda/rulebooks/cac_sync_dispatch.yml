@@ -1,0 +1,129 @@
+---
+# Routes a GitHub push to controller_config/env/<org>/ to that org's
+# "Sync <Org> CaC" job template. One rulebook, one rule per org.
+# Uses the existing pg_listener / "github" channel set up for the EE-build
+# rulebook so we don't double up infrastructure.
+- name: CaC sync dispatch (per-org)
+  hosts: all
+  sources:
+    - ansible.eda.pg_listener:
+        dsn: "{{ EDA_PG_DSN }}"
+        channels:
+          - github
+  rules:
+    - name: Network CaC changed -> sync
+      condition: >-
+        event.meta.headers.X_GitHub_Event == "push" and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.commits is defined and
+        (
+          event.payload.commits is selectattr("modified", "search", "controller_config/env/network/")
+          or event.payload.commits is selectattr("added",    "search", "controller_config/env/network/")
+          or event.payload.commits is selectattr("removed",  "search", "controller_config/env/network/")
+        )
+      throttle:
+        once_within: 2 minutes
+        group_by_attributes:
+          - event.payload.ref
+      action:
+        run_job_template:
+          name: "Sync Network CaC"
+          organization: "Network"
+
+    - name: OS CaC changed -> sync
+      condition: >-
+        event.meta.headers.X_GitHub_Event == "push" and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.commits is defined and
+        (
+          event.payload.commits is selectattr("modified", "search", "controller_config/env/os/")
+          or event.payload.commits is selectattr("added",    "search", "controller_config/env/os/")
+          or event.payload.commits is selectattr("removed",  "search", "controller_config/env/os/")
+        )
+      throttle:
+        once_within: 2 minutes
+        group_by_attributes:
+          - event.payload.ref
+      action:
+        run_job_template:
+          name: "Sync OS CaC"
+          organization: "OS"
+
+    - name: Security CaC changed -> sync
+      condition: >-
+        event.meta.headers.X_GitHub_Event == "push" and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.commits is defined and
+        (
+          event.payload.commits is selectattr("modified", "search", "controller_config/env/security/")
+          or event.payload.commits is selectattr("added",    "search", "controller_config/env/security/")
+          or event.payload.commits is selectattr("removed",  "search", "controller_config/env/security/")
+        )
+      throttle:
+        once_within: 2 minutes
+        group_by_attributes:
+          - event.payload.ref
+      action:
+        run_job_template:
+          name: "Sync Security CaC"
+          organization: "Security"
+
+    - name: Identity CaC changed -> sync
+      condition: >-
+        event.meta.headers.X_GitHub_Event == "push" and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.commits is defined and
+        (
+          event.payload.commits is selectattr("modified", "search", "controller_config/env/identity/")
+          or event.payload.commits is selectattr("added",    "search", "controller_config/env/identity/")
+          or event.payload.commits is selectattr("removed",  "search", "controller_config/env/identity/")
+        )
+      throttle:
+        once_within: 2 minutes
+        group_by_attributes:
+          - event.payload.ref
+      action:
+        run_job_template:
+          name: "Sync Identity CaC"
+          organization: "Identity"
+
+    - name: Storage CaC changed -> sync
+      condition: >-
+        event.meta.headers.X_GitHub_Event == "push" and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.commits is defined and
+        (
+          event.payload.commits is selectattr("modified", "search", "controller_config/env/storage/")
+          or event.payload.commits is selectattr("added",    "search", "controller_config/env/storage/")
+          or event.payload.commits is selectattr("removed",  "search", "controller_config/env/storage/")
+        )
+      throttle:
+        once_within: 2 minutes
+        group_by_attributes:
+          - event.payload.ref
+      action:
+        run_job_template:
+          name: "Sync Storage CaC"
+          organization: "Storage"
+
+    - name: Shared CaC changed -> sync via Default platform JT
+      condition: >-
+        event.meta.headers.X_GitHub_Event == "push" and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.commits is defined and
+        (
+          event.payload.commits is selectattr("modified", "search", "controller_config/env/shared/")
+          or event.payload.commits is selectattr("added",    "search", "controller_config/env/shared/")
+          or event.payload.commits is selectattr("removed",  "search", "controller_config/env/shared/")
+        )
+      throttle:
+        once_within: 2 minutes
+        group_by_attributes:
+          - event.payload.ref
+      action:
+        run_job_template:
+          name: "CaC - Apply Controller Configuration"
+          organization: "Default"
+          job_args:
+            extra_vars:
+              target_org: shared

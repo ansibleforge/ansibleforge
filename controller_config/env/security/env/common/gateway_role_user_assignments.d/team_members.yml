@@ -1,0 +1,8 @@
+---
+# object_id resolved from team_id_by_name fact built in dispatch.yml after the
+# dispatcher runs (so the team's PK is known by the time this assignment runs).
+gateway_role_user_assignments:
+  - user: security-operator-1
+    role_definition: Team Member
+    object_id: "{{ team_id_by_name['Security Operators'] }}"
+    state: present

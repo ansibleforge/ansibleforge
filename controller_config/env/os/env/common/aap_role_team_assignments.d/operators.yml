@@ -1,0 +1,9 @@
+---
+# Grants the OS Operators team the Org Operator role on the OS org.
+aap_role_team_assignments:
+  - team: OS Operators
+    role_definition: Org Operator
+    assignment_objects:
+      - name: OS
+        type: organizations
+    state: present

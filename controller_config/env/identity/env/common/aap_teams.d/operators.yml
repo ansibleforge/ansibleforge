@@ -1,0 +1,8 @@
+---
+aap_teams:
+  - name: Identity Operators
+    description: >-
+      Operators with execute, sync, and EDA activation rights for the
+      Identity organization.
+    organization: Identity
+    state: present

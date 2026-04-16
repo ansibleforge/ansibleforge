@@ -1,0 +1,27 @@
+---
+# Service token used by the Cancel Security Job JT. Pre-attached to the JT
+# (no prompt) so Operators can launch the JT without holding 'use_credential'
+# on this credential. Token is sourced from Vault at apply time via the
+# Security Vault Lookup input source — this credential carries no plaintext
+# secret in git or in AAP.
+#
+# Required Vault path:
+#   secret/aap/security/cancel-admin
+# Required key:
+#   token  (an AAP OAuth token with admin permission on the Security org)
+controller_credentials:
+  - name: Security Cancel Admin
+    description: Service token for the Cancel Security Job JT. Sourced from Vault.
+    organization: Security
+    credential_type: Red Hat Ansible Automation Platform
+    inputs:
+      host: "{{ controller_hostname }}"
+      verify_ssl: false
+    input_sources:
+      - source_credential: Security Vault Lookup
+        target: oauth_token
+        metadata:
+          secret_path: "secret/aap/security/cancel-admin"
+          secret_key: "token"
+          secret_version: ""
+    state: present

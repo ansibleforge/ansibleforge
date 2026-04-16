@@ -1,0 +1,10 @@
+---
+# Demo placeholder users — real accounts go via Vault-backed passwords or SSO.
+aap_user_accounts:
+  - username: network-operator-1
+    first_name: Network
+    last_name: Operator1
+    email: network-operator-1@example.com
+    password: "{{ lookup('env', 'NETWORK_OPERATOR_DEFAULT_PASSWORD') | default('CHANGE_ME', true) }}"
+    is_superuser: false
+    state: present

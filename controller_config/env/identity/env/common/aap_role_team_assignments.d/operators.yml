@@ -1,0 +1,9 @@
+---
+# Grants the Identity Operators team the Org Operator role on the Identity org.
+aap_role_team_assignments:
+  - team: Identity Operators
+    role_definition: Org Operator
+    assignment_objects:
+      - name: Identity
+        type: organizations
+    state: present

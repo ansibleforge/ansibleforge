@@ -1,0 +1,5 @@
+---
+aap_organizations:
+  - name: OS
+    description: Operating systems — RHEL, Windows, patching, baseline config.
+    state: present

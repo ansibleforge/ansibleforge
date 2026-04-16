@@ -1,0 +1,11 @@
+---
+# MCP service account — token issued separately for the aap-mcp endpoint.
+# Keep this user distinct from human accounts so its token can be rotated independently.
+aap_user_accounts:
+  - username: os-mcp
+    first_name: OS
+    last_name: MCP
+    email: os-mcp@example.com
+    password: "{{ lookup('env', 'OS_MCP_PASSWORD') | default('CHANGE_ME', true) }}"
+    is_superuser: false
+    state: present

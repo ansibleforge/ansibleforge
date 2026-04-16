@@ -1,0 +1,8 @@
+---
+# Example shared inventory. Functional orgs reference this from their
+# constructed inventories. Add real hosts via separate per-source files.
+controller_inventories:
+  - name: Shared Hosts
+    description: Source-of-truth host list shared across functional orgs.
+    organization: Shared
+    state: present

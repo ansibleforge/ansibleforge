@@ -1,0 +1,9 @@
+---
+controller_hosts:
+  - name: localhost
+    inventory: Demo Inventory
+    description: Local execution target for cancel/sync playbooks.
+    variables:
+      ansible_connection: local
+      ansible_python_interpreter: "{{ '{{ ansible_playbook_python }}' }}"
+    state: present

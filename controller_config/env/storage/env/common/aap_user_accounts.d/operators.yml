@@ -1,0 +1,10 @@
+---
+# Demo placeholder users — real accounts go via Vault-backed passwords or SSO.
+aap_user_accounts:
+  - username: storage-operator-1
+    first_name: Storage
+    last_name: Operator1
+    email: storage-operator-1@example.com
+    password: "{{ lookup('env', 'STORAGE_OPERATOR_DEFAULT_PASSWORD') | default('CHANGE_ME', true) }}"
+    is_superuser: false
+    state: present

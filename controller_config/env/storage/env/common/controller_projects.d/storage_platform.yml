@@ -1,0 +1,11 @@
+---
+# Pulls the AnsibleForge repo so the Storage org has access to the
+# cancel_org_job and (optionally) other shared playbooks.
+controller_projects:
+  - name: Storage Platform
+    organization: Storage
+    scm_type: git
+    scm_url: "{{ lookup('env', 'ANSIBLEFORGE_REPO_URL') | default('https://github.com/hfenner/ansibleforge.git', true) }}"
+    scm_branch: main
+    scm_update_on_launch: true
+    state: present

@@ -1,0 +1,9 @@
+---
+# Localhost-only inventory used by the Cancel OS Job and Sync OS CaC JTs.
+# Both playbooks run on hosts: localhost — this gives the JT a valid inventory
+# without dragging real targets into the org.
+controller_inventories:
+  - name: Demo Inventory
+    description: Localhost inventory for cancel and sync job templates.
+    organization: OS
+    state: present

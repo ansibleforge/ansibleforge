@@ -1,0 +1,8 @@
+---
+aap_teams:
+  - name: OS Operators
+    description: >-
+      Operators with execute, sync, and EDA activation rights for the
+      OS organization.
+    organization: OS
+    state: present

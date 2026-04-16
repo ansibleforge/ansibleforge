@@ -1,0 +1,16 @@
+---
+# Resource-scoped role used to grant cross-org READ access to inventories
+# (so a Network/OS/Security/Identity/Storage Operators team can build
+# constructed inventories that reference inventories in the Shared org).
+# Scoped via assignment_objects: [{name: Shared, type: organizations}].
+aap_role_definitions:
+  - name: Org Inventory Reader
+    description: >-
+      View and use inventories within an organization. Intended for
+      cross-org constructed-inventory plumbing — assign per Operators
+      team scoped to the Shared organization.
+    content_type: awx.inventory
+    permissions:
+      - awx.view_inventory
+      - awx.use_inventory
+    state: present

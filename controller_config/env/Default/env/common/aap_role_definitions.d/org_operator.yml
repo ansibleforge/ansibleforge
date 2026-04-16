@@ -1,0 +1,39 @@
+---
+# Custom RBAC role applied to per-org Operators teams.
+# Cancel is not assignable in 2.6 — handled by the wrap-cancel JT pattern.
+aap_role_definitions:
+  - name: Org Operator
+    description: >-
+      Execute job and workflow templates, sync projects and inventories,
+      and manage EDA rulebook activations within a single organization.
+    content_type: shared.organization
+    permissions:
+      - shared.view_organization
+
+      - awx.view_jobtemplate
+      - awx.execute_jobtemplate
+      - awx.view_workflowjobtemplate
+      - awx.execute_workflowjobtemplate
+
+      - awx.view_project
+      - awx.update_project
+      - awx.use_project
+      - awx.view_inventory
+      - awx.update_inventory
+      - awx.use_inventory
+      - awx.view_credential
+      - awx.use_credential
+
+      - eda.view_project
+      - eda.sync_project
+      - eda.view_decisionenvironment
+      - eda.view_edacredential
+      - eda.view_rulebook
+      - eda.view_rulebookprocess
+      - eda.view_eventstream
+      - eda.view_auditrule
+      - eda.view_activation
+      - eda.enable_activation
+      - eda.disable_activation
+      - eda.restart_activation
+    state: present

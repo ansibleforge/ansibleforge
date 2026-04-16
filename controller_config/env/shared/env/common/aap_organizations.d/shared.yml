@@ -1,0 +1,8 @@
+---
+aap_organizations:
+  - name: Shared
+    description: >-
+      Shared resources visible to all functional org teams. Hosts inventories
+      that other orgs reference via constructed inventories. Credentials are
+      NOT shared — each functional org owns its own.
+    state: present

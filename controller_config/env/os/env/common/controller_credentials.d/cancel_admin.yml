@@ -1,0 +1,27 @@
+---
+# Service token used by the Cancel OS Job JT. Pre-attached to the JT
+# (no prompt) so Operators can launch the JT without holding 'use_credential'
+# on this credential. Token is sourced from Vault at apply time via the
+# OS Vault Lookup input source — this credential carries no plaintext
+# secret in git or in AAP.
+#
+# Required Vault path:
+#   secret/aap/os/cancel-admin
+# Required key:
+#   token  (an AAP OAuth token with admin permission on the OS org)
+controller_credentials:
+  - name: OS Cancel Admin
+    description: Service token for the Cancel OS Job JT. Sourced from Vault.
+    organization: OS
+    credential_type: Red Hat Ansible Automation Platform
+    inputs:
+      host: "{{ controller_hostname }}"
+      verify_ssl: false
+    input_sources:
+      - source_credential: OS Vault Lookup
+        target: oauth_token
+        metadata:
+          secret_path: "secret/aap/os/cancel-admin"
+          secret_key: "token"
+          secret_version: ""
+    state: present
