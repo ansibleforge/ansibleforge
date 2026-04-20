@@ -1,0 +1,6 @@
+# Repo files not needed in build context
+hashicorp.repo
+microsoft-prod.repo
+redhat-aap.repo
+redhat-rhocp.repo
+.gitignore

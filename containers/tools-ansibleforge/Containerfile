@@ -6,7 +6,22 @@ COPY ansible.cfg /tmp/ansible.cfg
 RUN ANSIBLE_CONFIG=/tmp/ansible.cfg \
     ansible-galaxy collection install -r requirements.yaml -p /collections
 
-# Stage 2: Copy binaries from official images
+# Stage 2: Build Python wheels (build deps stay in this stage)
+FROM registry.access.redhat.com/ubi9/ubi:latest AS python-builder
+
+COPY requirements.txt /tmp/requirements.txt
+
+RUN dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' install -y \
+       gcc gcc-c++ make \
+       python3.11-pip python3.11-devel \
+       openldap-devel \
+       krb5-workstation krb5-devel \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+RUN pip3.11 install --no-cache-dir --prefix=/install awxkit ansible-dev-tools -r /tmp/requirements.txt
+
+# Stage 3: Copy binaries from official images
 FROM public.ecr.aws/aws-cli/aws-cli:latest AS aws
 FROM hashicorp/terraform:latest AS terraform
 FROM hashicorp/vault:latest AS vault
@@ -15,77 +30,66 @@ FROM alpine/helm:latest AS helm
 FROM mcr.microsoft.com/powershell:latest AS pwsh
 FROM vmware/govc:latest AS govc
 
-# Stage 3: Final image
+# Stage 4: Final image
 FROM registry.access.redhat.com/ubi9/ubi:latest
 
 ARG PYV=3.11
 
 USER 0
 
+# Repo files (rarely change)
 COPY 1password.repo /etc/yum.repos.d/1password.repo
 COPY github.repo /etc/yum.repos.d/github.repo
 COPY epel.repo /etc/yum.repos.d/epel.repo
 
-WORKDIR /tmp
-COPY requirements.txt .
-
-# Create user
-RUN useradd -m -u 10001 -g 0 user \
-    && chmod -R g=u /home/user
-
-# Install OS packages
+# Install OS packages (runtime only, no build deps)
 # hadolint ignore=DL3041
-RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc \
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN useradd -m -u 10001 -g 0 user \
+    && chmod -R g=u /home/user \
+    && rpm --import https://downloads.1password.com/linux/keys/1password.asc \
     && dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' module enable nodejs:20 -y \
     && (dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' check-update -y || true) \
     && dnf --setopt=subscription-manager.enabled=0 --disablerepo='rhel-*' --enablerepo='epel' install -y \
-       gcc gcc-c++ make \
        jq wget unzip vim \
        1password-cli \
        gh \
        iputils bind-utils nmap procps-ng \
        nodejs npm \
-       python3.11-pip python3.11-devel \
-       openldap-devel openldap-clients \
+       python3.11-pip python3.11-libs \
+       openldap-clients \
        krb5-workstation \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
-# Install Python packages
-# hadolint ignore=DL3013
-RUN pip3.11 install --no-cache-dir awxkit ansible-dev-tools -r requirements.txt
+# Copy pre-built Python packages from builder stage
+COPY --from=python-builder /install /usr/local
 
-# Install Claude Code
+# Install Claude Code and Codex CLI
 RUN curl -fsSL https://claude.ai/install.sh | bash \
-    && cp /root/.local/bin/claude /usr/local/bin/claude
+    && cp /root/.local/bin/claude /usr/local/bin/claude \
+    && npm install -g @openai/codex
 
-# Install Codex CLI
-RUN npm install -g @openai/codex
-
-# Copy binaries from official images
+# Copy binaries from official images and download VS Code CLI
 COPY --from=aws /usr/local/aws-cli/ /usr/local/aws-cli/
-RUN ln -s /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws
 COPY --from=terraform /bin/terraform /usr/local/bin/terraform
 COPY --from=vault /bin/vault /usr/local/bin/vault
 COPY --from=ose-cli /usr/bin/oc /usr/local/bin/oc
 COPY --from=ose-cli /usr/bin/kubectl /usr/local/bin/kubectl
 COPY --from=helm /usr/bin/helm /usr/local/bin/helm
 COPY --from=pwsh /opt/microsoft/powershell /opt/microsoft/powershell
-RUN ln -s /opt/microsoft/powershell/pwsh /usr/local/bin/pwsh \
-    && ln -s /opt/microsoft/powershell/pwsh /usr/local/bin/powershell
-
 COPY --from=govc /govc /usr/local/bin/govc
 
-# Download remaining binaries without official images
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN curl -sL "https://code.visualstudio.com/sha/download?build=stable&os=cli-alpine-x64" -o /tmp/vscode-cli.tar.gz \
+RUN ln -s /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws \
+    && ln -s /opt/microsoft/powershell/pwsh /usr/local/bin/pwsh \
+    && ln -s /opt/microsoft/powershell/pwsh /usr/local/bin/powershell \
+    && curl -sL "https://code.visualstudio.com/sha/download?build=stable&os=cli-alpine-x64" -o /tmp/vscode-cli.tar.gz \
     && tar -xzf /tmp/vscode-cli.tar.gz -C /usr/local/bin/ \
     && rm /tmp/vscode-cli.tar.gz
 
 # Copy Ansible collections from galaxy stage
 COPY --from=galaxy /collections /collections
 
-RUN mkdir -p /opt/ansible
 COPY --chmod=755 vault_env_reader.sh /opt/ansible/vault_env_reader.sh
 
 # Configure environment
