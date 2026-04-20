@@ -51,6 +51,7 @@
         - "{{ playbook_dir }}/env/Default/env/common/eda_decision_environments.d"
         - "{{ playbook_dir }}/env/Default/env/common/eda_projects.d"
         - "{{ playbook_dir }}/env/Default/env/common/eda_rulebook_activations.d"
+        - "{{ playbook_dir }}/env/Default/env/dev/eda_credentials.d"
       loop_control:
         label: "{{ item | basename }}"
 

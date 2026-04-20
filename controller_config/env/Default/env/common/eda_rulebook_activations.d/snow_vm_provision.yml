@@ -9,7 +9,6 @@ eda_rulebook_activations:
     restart_policy: always
     enabled: true
     eda_credentials:
-      - ServiceNow
       - AAP Controller Admin
     extra_vars:
       vault_url: "http://vault.vault.svc:8200"
