@@ -2,6 +2,7 @@
 eda_rulebook_activations:
   - name: GitHub Push Handler
     description: Handles GitHub push events — triggers EE builds and CaC dispatch based on changed paths
+    organization: Default
     project: AnsibleForge
     rulebook: ee-build-on-change.yml
     decision_environment: Default Decision Environment
