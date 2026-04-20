@@ -6,6 +6,10 @@ __pycache__/
 .DS_Store
 mkdocs.log
 
+# Local tool state
+.ansible/
+.claude/
+
 # Terraform
 .terraform/
 .terraform.lock.hcl
