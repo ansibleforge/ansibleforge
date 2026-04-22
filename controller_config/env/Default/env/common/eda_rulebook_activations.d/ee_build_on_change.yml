@@ -8,5 +8,6 @@ eda_rulebook_activations:
     decision_environment: Default Decision Environment
     event_streams:
       - event_stream: GitHub
+        source_index: 0
     restart_policy: always
     enabled: true
