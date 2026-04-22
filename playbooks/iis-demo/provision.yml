@@ -108,20 +108,33 @@
           ManagedBy: ansible
         user_data: |
           <powershell>
+          # Log everything for debugging via EC2 console output
+          Start-Transcript -Path C:\Windows\Temp\userdata.log -Append
           $ErrorActionPreference = 'Stop'
-          # Set the Administrator password to our known value
-          net user Administrator "{{ admin_password }}"
-          # Enable WinRM over HTTPS with a self-signed cert
-          $cert = New-SelfSignedCertificate -DnsName $env:COMPUTERNAME -CertStoreLocation Cert:\LocalMachine\My
-          winrm quickconfig -q -transport:https -force
-          winrm delete winrm/config/listener?Address=*+Transport=HTTPS 2>$null
-          winrm create winrm/config/listener?Address=*+Transport=HTTPS ('@{Hostname="'+$env:COMPUTERNAME+'";CertificateThumbprint="'+$cert.Thumbprint+'"}')
+
+          # Set a known Administrator password
+          net user Administrator "{{ admin_password }}" /Y
+          wmic useraccount where "Name='Administrator'" set PasswordExpires=false
+
+          # Use the Ansible-maintained WinRM setup script — handles cert,
+          # listener, firewall, and service config in one shot.
+          $url = "https://raw.githubusercontent.com/ansible/ansible-documentation/devel/examples/scripts/ConfigureRemotingForAnsible.ps1"
+          $file = "$env:temp\ConfigureRemotingForAnsible.ps1"
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          (New-Object System.Net.WebClient).DownloadFile($url, $file)
+          powershell -ExecutionPolicy Bypass -File $file -EnableCredSSP -DisableBasicAuth:$false -Verbose
+
+          # Explicitly enable basic auth (script defaults to cert-auth only in recent versions)
           winrm set winrm/config/service/auth '@{Basic="true"}'
           winrm set winrm/config/service '@{AllowUnencrypted="false"}'
-          New-NetFirewallRule -DisplayName "WinRM HTTPS" -Direction Inbound -LocalPort 5986 -Protocol TCP -Action Allow
+
+          # Firewall for HTTP 80 (demo page)
           New-NetFirewallRule -DisplayName "HTTP 80" -Direction Inbound -LocalPort 80 -Protocol TCP -Action Allow
+
           Restart-Service WinRM
+          Stop-Transcript
           </powershell>
+          <persist>true</persist>
         wait: true
         state: running
       register: _ec2
