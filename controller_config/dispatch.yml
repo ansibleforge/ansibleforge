@@ -54,6 +54,7 @@
         eda_decision_environments: []
         eda_rulebook_activations: []
         eda_credentials: []
+        eda_event_streams: []
 
     - name: Find EDA config files
       ansible.builtin.find:
@@ -61,6 +62,7 @@
           - "{{ playbook_dir }}/env/Default/env/common/eda_decision_environments.d"
           - "{{ playbook_dir }}/env/Default/env/common/eda_projects.d"
           - "{{ playbook_dir }}/env/Default/env/common/eda_rulebook_activations.d"
+          - "{{ playbook_dir }}/env/Default/env/common/eda_event_streams.d"
           - "{{ playbook_dir }}/env/Default/env/dev/eda_credentials.d"
         file_type: file
         patterns: "*.yml,*.yaml"
@@ -96,6 +98,11 @@
           {{ _eda_file_contents.results
              | rejectattr('ansible_facts.eda_credentials', 'undefined')
              | map(attribute='ansible_facts.eda_credentials')
+             | ansible.builtin.flatten }}
+        eda_event_streams: >-
+          {{ _eda_file_contents.results
+             | rejectattr('ansible_facts.eda_event_streams', 'undefined')
+             | map(attribute='ansible_facts.eda_event_streams')
              | ansible.builtin.flatten }}
 
     # Patch the IIS Auto-Heal activation's IIS_HEALTH_URL from IIS_HOST env var
