@@ -39,8 +39,8 @@
     - name: Look up existing SG name + description (needed by ec2_security_group even on update)
       amazon.aws.ec2_security_group_info:
         region: "{{ aws_region }}"
-        filters:
-          group-id: "{{ security_group_id }}"
+        group_ids:
+          - "{{ security_group_id }}"
       register: _sg_info
 
     - name: Open port 80 to the world on the demo SG (idempotent)
