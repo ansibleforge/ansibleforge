@@ -44,7 +44,7 @@
               | list
               | first).subnet_id }}
 
-    - name: Ensure iis-demo SG exists with HTTP 80 and WinRM 5986 ingress
+    - name: Ensure iis-demo SG exists with HTTP 80 and WinRM 5985 ingress
       amazon.aws.ec2_security_group:
         region: "{{ aws_region }}"
         state: present
@@ -58,10 +58,10 @@
             cidr_ip: 0.0.0.0/0
             rule_desc: "HTTP for IIS demo page"
           - proto: tcp
-            from_port: 5986
-            to_port: 5986
+            from_port: 5985
+            to_port: 5985
             cidr_ip: 0.0.0.0/0
-            rule_desc: "WinRM HTTPS"
+            rule_desc: "WinRM HTTP (demo)"
         purge_rules: false
       register: _demo_sg
 
@@ -108,28 +108,23 @@
           ManagedBy: ansible
         user_data: |
           <powershell>
-          # Log everything for debugging via EC2 console output
           Start-Transcript -Path C:\Windows\Temp\userdata.log -Append
           $ErrorActionPreference = 'Stop'
 
           # Set a known Administrator password
-          net user Administrator "{{ admin_password }}" /Y
+          net user Administrator "{{ admin_password }}"
           wmic useraccount where "Name='Administrator'" set PasswordExpires=false
 
-          # Use the Ansible-maintained WinRM setup script — handles cert,
-          # listener, firewall, and service config in one shot.
-          $url = "https://raw.githubusercontent.com/ansible/ansible-documentation/devel/examples/scripts/ConfigureRemotingForAnsible.ps1"
-          $file = "$env:temp\ConfigureRemotingForAnsible.ps1"
-          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-          (New-Object System.Net.WebClient).DownloadFile($url, $file)
-          powershell -ExecutionPolicy Bypass -File $file -EnableCredSSP -DisableBasicAuth:$false -Verbose
-
-          # Explicitly enable basic auth (script defaults to cert-auth only in recent versions)
+          # WinRM over HTTP (5985) with basic auth + unencrypted — demo-only.
+          Enable-PSRemoting -Force -SkipNetworkProfileCheck
           winrm set winrm/config/service/auth '@{Basic="true"}'
-          winrm set winrm/config/service '@{AllowUnencrypted="false"}'
+          winrm set winrm/config/service '@{AllowUnencrypted="true"}'
+          winrm set winrm/config/client/auth '@{Basic="true"}'
+          winrm set winrm/config/client '@{AllowUnencrypted="true"}'
 
-          # Firewall for HTTP 80 (demo page)
-          New-NetFirewallRule -DisplayName "HTTP 80" -Direction Inbound -LocalPort 80 -Protocol TCP -Action Allow
+          # Firewall rules
+          New-NetFirewallRule -DisplayName "WinRM HTTP" -Direction Inbound -LocalPort 5985 -Protocol TCP -Action Allow
+          New-NetFirewallRule -DisplayName "HTTP 80"    -Direction Inbound -LocalPort 80   -Protocol TCP -Action Allow
 
           Restart-Service WinRM
           Stop-Transcript
@@ -144,10 +139,10 @@
         _instance_id: "{{ _ec2.instances[0].instance_id }}"
         _public_ip: "{{ _ec2.instances[0].public_ip_address }}"
 
-    - name: Wait for WinRM HTTPS to be reachable
+    - name: Wait for WinRM HTTP to be reachable
       ansible.builtin.wait_for:
         host: "{{ _public_ip }}"
-        port: 5986
+        port: 5985
         timeout: 600
         delay: 60
         sleep: 10
@@ -159,9 +154,10 @@
         ansible_connection: winrm
         ansible_user: Administrator
         ansible_password: "{{ admin_password }}"
-        ansible_port: 5986
+        ansible_port: 5985
+        ansible_winrm_scheme: http
         ansible_winrm_transport: basic
-        ansible_winrm_server_cert_validation: ignore
+        ansible_winrm_message_encryption: auto
 
     - name: Populate "IIS Demo Secrets" credential in AAP Controller
       vars:

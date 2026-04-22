@@ -27,9 +27,10 @@
         ansible_connection: winrm
         ansible_user: Administrator
         ansible_password: "{{ iis_admin_password }}"
-        ansible_port: 5986
+        ansible_port: 5985
+        ansible_winrm_scheme: http
         ansible_winrm_transport: basic
-        ansible_winrm_server_cert_validation: ignore
+        ansible_winrm_message_encryption: auto
 
 - name: Write fail.flag on IIS host
   hosts: iis_demo
