@@ -9,8 +9,6 @@
 
   vars:
     aws_region: us-east-2
-    subnet_id: "subnet-0048b1b310a720c5b"
-    security_group_id: "sg-0b7cc52861cdcd8a1"
     vm_name: "iis-demo"
     os_ami_owner: "801119661308"
     os_ami_filter: "Windows_Server-2022-English-Full-Base-*"
@@ -21,18 +19,56 @@
       {{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=20') }}AF1!
 
   tasks:
-    - name: DEBUG — list SGs in region
-      amazon.aws.ec2_security_group_info:
+    - name: Find default VPC
+      amazon.aws.ec2_vpc_net_info:
         region: "{{ aws_region }}"
-      register: _all_sgs
-    - ansible.builtin.debug:
-        msg: "{{ _all_sgs.security_groups | map(attribute='group_id') | list }}"
-    - name: DEBUG — list subnets in region
+        filters:
+          is-default: "true"
+      register: _vpc
+
+    - name: Set default VPC id
+      ansible.builtin.set_fact:
+        _vpc_id: "{{ _vpc.vpcs[0].vpc_id }}"
+
+    - name: Find a public subnet in that VPC
       amazon.aws.ec2_vpc_subnet_info:
         region: "{{ aws_region }}"
-      register: _all_subnets
-    - ansible.builtin.debug:
-        msg: "{{ _all_subnets.subnets | map(attribute='subnet_id') | list }}"
+        filters:
+          vpc-id: "{{ _vpc_id }}"
+      register: _subnets
+
+    - name: Pick the first subnet that auto-assigns public IPs
+      ansible.builtin.set_fact:
+        subnet_id: >-
+          {{ (_subnets.subnets
+              | selectattr('map_public_ip_on_launch', 'equalto', true)
+              | list
+              | first).subnet_id }}
+
+    - name: Ensure iis-demo SG exists with HTTP 80 and WinRM 5986 ingress
+      amazon.aws.ec2_security_group:
+        region: "{{ aws_region }}"
+        state: present
+        name: iis-demo-sg
+        description: "AnsibleForge IIS demo — HTTP and WinRM"
+        vpc_id: "{{ _vpc_id }}"
+        rules:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: 0.0.0.0/0
+            rule_desc: "HTTP for IIS demo page"
+          - proto: tcp
+            from_port: 5986
+            to_port: 5986
+            cidr_ip: 0.0.0.0/0
+            rule_desc: "WinRM HTTPS"
+        purge_rules: false
+      register: _demo_sg
+
+    - name: Set security group id
+      ansible.builtin.set_fact:
+        security_group_id: "{{ _demo_sg.group_id }}"
 
     - name: Find latest Windows 2022 AMI
       amazon.aws.ec2_ami_info:
