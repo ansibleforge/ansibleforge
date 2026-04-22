@@ -10,13 +10,18 @@
   vars:
     aws_region: us-east-2
     vm_name: "iis-demo"
+
+  pre_tasks:
+    - name: Generate Administrator password once (lookup would re-run every access)
+      ansible.builtin.set_fact:
+        admin_password: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=20') }}Af1!"
     os_ami_owner: "801119661308"
     os_ami_filter: "Windows_Server-2022-English-Full-Base-*"
     instance_type: "t3a.large"
     disk_size_gb: 50
-    # Admin password is regenerated each time to keep the demo self-contained.
-    admin_password: >-
-      {{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=20') }}AF1!
+    # admin_password is set in pre_tasks as a fact so the lookup runs exactly
+    # once (play vars re-evaluate the expression on every access, which would
+    # produce a different password in user-data vs the credential).
 
   tasks:
     - name: Find VPCs
