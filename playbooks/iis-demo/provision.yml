@@ -14,7 +14,9 @@
   pre_tasks:
     - name: Generate Administrator password once (lookup would re-run every access)
       ansible.builtin.set_fact:
-        admin_password: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=20') }}Af1!"
+        admin_password: "{{ _pw + 'Af1!' }}"
+      vars:
+        _pw: "{{ lookup('ansible.builtin.password', '/dev/null length=20') }}"
     os_ami_owner: "801119661308"
     os_ami_filter: "Windows_Server-2022-English-Full-Base-*"
     instance_type: "t3a.large"
