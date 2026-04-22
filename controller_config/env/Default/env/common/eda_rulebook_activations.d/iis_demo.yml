@@ -1,0 +1,18 @@
+---
+# The IIS_HEALTH_URL extra_var is patched at dispatch time in dispatch.yml
+# using the Vault-stored host IP (secret/iis-demo). If the IIS demo host
+# has never been provisioned, the activation will start but the url_check
+# source will error on DNS/connection refused and the activation will fail.
+eda_rulebook_activations:
+  - name: IIS Auto-Heal
+    description: Polls IIS /health.aspx and restarts IIS on 4xx/5xx
+    organization: Default
+    project: AnsibleForge
+    rulebook: iis-health-restart.yml
+    decision_environment: Default Decision Environment
+    restart_policy: always
+    enabled: true
+    eda_credentials:
+      - AAP Controller Admin
+    extra_vars:
+      IIS_HEALTH_URL: "http://localhost/health.aspx"

@@ -1,0 +1,220 @@
+---
+# Provisions a Windows 2022 EC2 instance, installs IIS + ASP.NET, deploys the
+# demo pages, and writes the host IP + Administrator password to Vault so
+# downstream JTs and the EDA rulebook can target it.
+- name: Launch Windows EC2 for IIS demo
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    aws_region: us-east-2
+    subnet_id: "subnet-0048b1b310a720c5b"
+    security_group_id: "sg-0b7cc52861cdcd8a1"
+    vm_name: "iis-demo"
+    os_ami_owner: "801119661308"
+    os_ami_filter: "Windows_Server-2022-English-Full-Base-*"
+    instance_type: "t3a.large"
+    disk_size_gb: 50
+    # Admin password is regenerated each time to keep the demo self-contained.
+    admin_password: >-
+      {{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=20') }}AF1!
+
+  tasks:
+    - name: Find latest Windows 2022 AMI
+      amazon.aws.ec2_ami_info:
+        region: "{{ aws_region }}"
+        owners:
+          - "{{ os_ami_owner }}"
+        filters:
+          name: "{{ os_ami_filter }}"
+          architecture: x86_64
+          virtualization-type: hvm
+      register: _ami_results
+
+    - name: Select most recent AMI
+      ansible.builtin.set_fact:
+        _ami_id: "{{ (_ami_results.images | sort(attribute='creation_date') | last).image_id }}"
+
+    - name: Open port 80 to the world on the demo SG (idempotent)
+      amazon.aws.ec2_security_group:
+        region: "{{ aws_region }}"
+        state: present
+        group_id: "{{ security_group_id }}"
+        rules:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: 0.0.0.0/0
+            rule_desc: "HTTP for IIS demo"
+        purge_rules: false
+
+    - name: Launch EC2 instance
+      amazon.aws.ec2_instance:
+        region: "{{ aws_region }}"
+        name: "{{ vm_name }}"
+        instance_type: "{{ instance_type }}"
+        image_id: "{{ _ami_id }}"
+        subnet_id: "{{ subnet_id }}"
+        security_group: "{{ security_group_id }}"
+        network:
+          assign_public_ip: true
+        volumes:
+          - device_name: /dev/sda1
+            ebs:
+              volume_size: "{{ disk_size_gb | int }}"
+              volume_type: gp3
+              encrypted: true
+        tags:
+          Name: "{{ vm_name }}"
+          Role: iis-demo
+          ManagedBy: ansible
+        user_data: |
+          <powershell>
+          $ErrorActionPreference = 'Stop'
+          # Set the Administrator password to our known value
+          net user Administrator "{{ admin_password }}"
+          # Enable WinRM over HTTPS with a self-signed cert
+          $cert = New-SelfSignedCertificate -DnsName $env:COMPUTERNAME -CertStoreLocation Cert:\LocalMachine\My
+          winrm quickconfig -q -transport:https -force
+          winrm delete winrm/config/listener?Address=*+Transport=HTTPS 2>$null
+          winrm create winrm/config/listener?Address=*+Transport=HTTPS ('@{Hostname="'+$env:COMPUTERNAME+'";CertificateThumbprint="'+$cert.Thumbprint+'"}')
+          winrm set winrm/config/service/auth '@{Basic="true"}'
+          winrm set winrm/config/service '@{AllowUnencrypted="false"}'
+          New-NetFirewallRule -DisplayName "WinRM HTTPS" -Direction Inbound -LocalPort 5986 -Protocol TCP -Action Allow
+          New-NetFirewallRule -DisplayName "HTTP 80" -Direction Inbound -LocalPort 80 -Protocol TCP -Action Allow
+          Restart-Service WinRM
+          </powershell>
+        wait: true
+        state: running
+      register: _ec2
+
+    - name: Set instance facts
+      ansible.builtin.set_fact:
+        _instance_id: "{{ _ec2.instances[0].instance_id }}"
+        _public_ip: "{{ _ec2.instances[0].public_ip_address }}"
+
+    - name: Wait for WinRM HTTPS to be reachable
+      ansible.builtin.wait_for:
+        host: "{{ _public_ip }}"
+        port: 5986
+        timeout: 600
+        delay: 60
+        sleep: 10
+
+    - name: Add the new instance to runtime inventory
+      ansible.builtin.add_host:
+        name: "{{ _public_ip }}"
+        groups: iis_demo
+        ansible_connection: winrm
+        ansible_user: Administrator
+        ansible_password: "{{ admin_password }}"
+        ansible_port: 5986
+        ansible_winrm_transport: basic
+        ansible_winrm_server_cert_validation: ignore
+
+    - name: Populate "IIS Demo Secrets" credential in AAP Controller
+      vars:
+        _controller_host: "{{ lookup('env', 'CONTROLLER_HOST') }}"
+        _controller_user: "{{ lookup('env', 'CONTROLLER_USERNAME') | default('admin', true) }}"
+        _controller_pass: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+      block:
+        - name: Assert AAP Controller Admin credential is attached
+          ansible.builtin.assert:
+            that:
+              - _controller_host | length > 0
+              - _controller_pass | length > 0
+            fail_msg: >-
+              Attach the "AAP Controller Admin" credential to the
+              "IIS Demo - Provision" job template so the credential
+              can be updated with the new host IP and password.
+
+        - name: Look up IIS Demo Secrets credential ID
+          ansible.builtin.uri:
+            url: "{{ _controller_host }}/api/controller/v2/credentials/?name=IIS+Demo+Secrets"
+            method: GET
+            user: "{{ _controller_user }}"
+            password: "{{ _controller_pass }}"
+            force_basic_auth: true
+            validate_certs: false
+          register: _cred_lookup
+
+        - name: Patch IIS Demo Secrets credential with new host + password
+          ansible.builtin.uri:
+            url: "{{ _controller_host }}/api/controller/v2/credentials/{{ _cred_lookup.json.results[0].id }}/"
+            method: PATCH
+            user: "{{ _controller_user }}"
+            password: "{{ _controller_pass }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              inputs:
+                IIS_HOST: "{{ _public_ip }}"
+                IIS_ADMIN_PASSWORD: "{{ admin_password }}"
+            status_code: [200]
+          no_log: true
+      rescue:
+        - name: Credential update failed (non-fatal)
+          ansible.builtin.debug:
+            msg: >-
+              Could not update IIS Demo Secrets credential:
+              {{ ansible_failed_result.msg | default('unknown') }}.
+              Manually update it with IIS_HOST={{ _public_ip }}.
+
+- name: Configure IIS on the demo host
+  hosts: iis_demo
+  gather_facts: false
+
+  tasks:
+    - name: Wait for WinRM
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+
+    - name: Install IIS and ASP.NET features
+      ansible.windows.win_feature:
+        name:
+          - Web-Server
+          - Web-Asp-Net45
+          - Web-Net-Ext45
+          - Web-ISAPI-Ext
+          - Web-ISAPI-Filter
+        include_management_tools: true
+        state: present
+
+    - name: Remove default IIS page
+      ansible.windows.win_file:
+        path: 'C:\inetpub\wwwroot\iisstart.htm'
+        state: absent
+
+    - name: Deploy demo pages
+      ansible.windows.win_copy:
+        src: "{{ item }}"
+        dest: 'C:\inetpub\wwwroot\{{ item | basename }}'
+      loop:
+        - files/default.aspx
+        - files/health.aspx
+
+    - name: Initialize restart counter if missing
+      ansible.windows.win_copy:
+        content: "0"
+        dest: 'C:\inetpub\wwwroot\restartcount.txt'
+        force: false
+
+    - name: Set Default.aspx as default document
+      ansible.windows.win_shell: |
+        Import-Module WebAdministration
+        Remove-WebConfigurationProperty -Filter /system.webServer/defaultDocument/files -Name . -AtElement @{value='Default.aspx'} -ErrorAction SilentlyContinue
+        Add-WebConfigurationProperty -Filter /system.webServer/defaultDocument/files -Name . -Value @{value='Default.aspx'}
+      changed_when: false
+
+    - name: Restart IIS to pick up configuration
+      ansible.windows.win_shell: iisreset
+      changed_when: true
+
+    - name: Display demo URL
+      ansible.builtin.debug:
+        msg: |
+          IIS demo ready at: http://{{ inventory_hostname }}/
+          Health endpoint:   http://{{ inventory_hostname }}/health.aspx
+          Administrator password stored in Vault at secret/iis-demo

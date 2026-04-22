@@ -1,0 +1,24 @@
+---
+# Polls the IIS demo /health.aspx endpoint. If it returns any 4xx/5xx or goes
+# down, fires the "IIS Demo - Restart IIS" job template, which clears fail.flag,
+# bumps the restart counter, and runs iisreset.
+- name: IIS Auto-Heal
+  hosts: all
+  sources:
+    - ansible.eda.url_check:
+        urls:
+          - "{{ IIS_HEALTH_URL }}"
+        delay: 10
+  rules:
+    - name: IIS unhealthy -> restart
+      condition: >-
+        event.url_check.status == "down" or
+        event.url_check.status_code >= 400
+      throttle:
+        once_within: 1 minute
+        group_by_attributes:
+          - event.url_check.url
+      action:
+        run_job_template:
+          name: "IIS Demo - Restart IIS"
+          organization: Default

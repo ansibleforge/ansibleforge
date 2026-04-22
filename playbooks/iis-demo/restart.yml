@@ -1,0 +1,59 @@
+---
+# Clears fail.flag, increments the restart counter, and does iisreset.
+# Invoked by the EDA rulebook on health failure, but also launchable manually.
+- name: Restart IIS on the demo host
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    iis_host: "{{ lookup('env', 'IIS_HOST') }}"
+    iis_admin_password: "{{ lookup('env', 'IIS_ADMIN_PASSWORD') }}"
+
+  tasks:
+    - name: Assert IIS credentials are present
+      ansible.builtin.assert:
+        that:
+          - iis_host | length > 0
+          - iis_admin_password | length > 0
+        fail_msg: >-
+          Attach the "IIS Demo Secrets" credential to this job template.
+
+    - name: Add IIS host to runtime inventory
+      ansible.builtin.add_host:
+        name: "{{ iis_host }}"
+        groups: iis_demo
+        ansible_connection: winrm
+        ansible_user: Administrator
+        ansible_password: "{{ iis_admin_password }}"
+        ansible_port: 5986
+        ansible_winrm_transport: basic
+        ansible_winrm_server_cert_validation: ignore
+
+- name: Heal IIS
+  hosts: iis_demo
+  gather_facts: false
+
+  tasks:
+    - name: Remove fail.flag
+      ansible.windows.win_file:
+        path: 'C:\inetpub\wwwroot\fail.flag'
+        state: absent
+
+    - name: Increment restart counter
+      ansible.windows.win_shell: |
+        $path = 'C:\inetpub\wwwroot\restartcount.txt'
+        $count = 0
+        if (Test-Path $path) { $count = [int](Get-Content $path -Raw).Trim() }
+        ($count + 1) | Set-Content -Path $path -Encoding ASCII
+        Write-Output ($count + 1)
+      register: _new_count
+      changed_when: true
+
+    - name: Reset IIS
+      ansible.windows.win_shell: iisreset
+      changed_when: true
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: "IIS restarted. New restart count: {{ _new_count.stdout | trim }}"

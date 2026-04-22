@@ -1,0 +1,48 @@
+---
+# Drops a fail.flag in the IIS webroot so /health.aspx starts returning 500.
+# EDA polls /health.aspx and fires the restart JT on detecting the 500.
+- name: Trigger IIS health failure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    iis_host: "{{ lookup('env', 'IIS_HOST') }}"
+    iis_admin_password: "{{ lookup('env', 'IIS_ADMIN_PASSWORD') }}"
+
+  tasks:
+    - name: Assert IIS credentials are present
+      ansible.builtin.assert:
+        that:
+          - iis_host | length > 0
+          - iis_admin_password | length > 0
+        fail_msg: >-
+          Attach the "IIS Demo Secrets" credential to this job template so
+          IIS_HOST and IIS_ADMIN_PASSWORD are injected as env vars.
+
+    - name: Add IIS host to runtime inventory
+      ansible.builtin.add_host:
+        name: "{{ iis_host }}"
+        groups: iis_demo
+        ansible_connection: winrm
+        ansible_user: Administrator
+        ansible_password: "{{ iis_admin_password }}"
+        ansible_port: 5986
+        ansible_winrm_transport: basic
+        ansible_winrm_server_cert_validation: ignore
+
+- name: Write fail.flag on IIS host
+  hosts: iis_demo
+  gather_facts: false
+
+  tasks:
+    - name: Create fail.flag (makes /health.aspx return 500)
+      ansible.windows.win_copy:
+        content: "trigger"
+        dest: 'C:\inetpub\wwwroot\fail.flag'
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: >-
+          fail.flag written on {{ inventory_hostname }}.
+          /health.aspx will now return 500. EDA should detect and restart within ~10s.

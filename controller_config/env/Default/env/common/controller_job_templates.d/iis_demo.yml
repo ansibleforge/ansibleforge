@@ -1,0 +1,46 @@
+---
+controller_templates:
+  - name: "IIS Demo - Provision"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/iis-demo/provision.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "AWS - AnsibleForge"
+      - "AAP Controller Admin"
+    description: "Launch a Windows EC2, install IIS + ASP.NET, deploy the demo pages, and update the IIS Demo Secrets credential with the new host + password."
+
+  - name: "IIS Demo - Trigger Error"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/iis-demo/trigger_error.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "IIS Demo Secrets"
+    description: "Write fail.flag so /health.aspx returns 500. EDA polls /health.aspx and restarts IIS on failure."
+
+  - name: "IIS Demo - Restart IIS"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/iis-demo/restart.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "IIS Demo Secrets"
+    description: "Clear fail.flag, bump the restart counter, and run iisreset. Invoked by the EDA rulebook on health failure."
+
+  - name: "IIS Demo - Destroy"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/iis-demo/destroy.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "AWS - AnsibleForge"
+    description: "Terminate the iis-demo EC2 instance."

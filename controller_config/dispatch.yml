@@ -55,6 +55,34 @@
       loop_control:
         label: "{{ item | basename }}"
 
+    # Patch the IIS Auto-Heal activation's IIS_HEALTH_URL from IIS_HOST env var
+    # (injected by the "IIS Demo Secrets" credential attached to this JT). The
+    # rulebook polls that URL every 10s. Skipped if the credential isn't
+    # attached or the host is still the placeholder.
+    - name: Patch IIS Auto-Heal activation with health URL
+      vars:
+        _iis_host: "{{ lookup('env', 'IIS_HOST') }}"
+      when:
+        - _iis_host | length > 0
+        - _iis_host != "unprovisioned.invalid"
+      ansible.builtin.set_fact:
+        eda_rulebook_activations: >-
+          {{ (eda_rulebook_activations
+              | rejectattr('name', 'equalto', 'IIS Auto-Heal')
+              | list)
+             + [(eda_rulebook_activations
+                 | selectattr('name', 'equalto', 'IIS Auto-Heal')
+                 | first)
+                | combine({'extra_vars':
+                    (eda_rulebook_activations
+                     | selectattr('name', 'equalto', 'IIS Auto-Heal')
+                     | first).extra_vars | default({})
+                    | combine({
+                        'IIS_HEALTH_URL': 'http://' ~ _iis_host ~ '/health.aspx',
+                      })
+                 })]
+          }}
+
     # Patch the ServiceNow activation's extra_vars with SN_HOST/USERNAME/PASSWORD.
     # The EDA rulebook's source plugin references {{ SN_HOST }} etc., which EDA
     # resolves against activation-scoped vars, not env. We source the values

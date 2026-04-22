@@ -1,0 +1,29 @@
+---
+- name: Destroy IIS demo EC2 instance
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    aws_region: us-east-2
+    vm_name: "iis-demo"
+
+  tasks:
+    - name: Find instance by tag
+      amazon.aws.ec2_instance_info:
+        region: "{{ aws_region }}"
+        filters:
+          "tag:Role": iis-demo
+          "instance-state-name": ["pending", "running", "stopped", "stopping"]
+      register: _matches
+
+    - name: Terminate instance
+      amazon.aws.ec2_instance:
+        region: "{{ aws_region }}"
+        instance_ids: "{{ _matches.instances | map(attribute='instance_id') | list }}"
+        state: absent
+      when: _matches.instances | length > 0
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: "Terminated {{ _matches.instances | length }} iis-demo instance(s)."
