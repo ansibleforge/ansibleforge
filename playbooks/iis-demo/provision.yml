@@ -48,8 +48,6 @@
         image_id: "{{ _ami_id }}"
         subnet_id: "{{ subnet_id }}"
         security_group: "{{ security_group_id }}"
-        network:
-          assign_public_ip: true
         volumes:
           - device_name: /dev/sda1
             ebs:
