@@ -19,16 +19,15 @@
       {{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=20') }}AF1!
 
   tasks:
-    - name: Find default VPC
+    - name: Find VPCs
       amazon.aws.ec2_vpc_net_info:
         region: "{{ aws_region }}"
-        filters:
-          is-default: "true"
       register: _vpc
 
-    - name: Set default VPC id
+    - name: Pick a VPC (first in the region)
       ansible.builtin.set_fact:
         _vpc_id: "{{ _vpc.vpcs[0].vpc_id }}"
+      failed_when: _vpc.vpcs | length == 0
 
     - name: Find a public subnet in that VPC
       amazon.aws.ec2_vpc_subnet_info:
