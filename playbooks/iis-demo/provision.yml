@@ -36,18 +36,9 @@
       ansible.builtin.set_fact:
         _ami_id: "{{ (_ami_results.images | sort(attribute='creation_date') | last).image_id }}"
 
-    - name: Open port 80 on the demo SG via boto3 (idempotent)
-      ansible.builtin.command:
-        cmd: >-
-          aws ec2 authorize-security-group-ingress
-          --region {{ aws_region }}
-          --group-id {{ security_group_id }}
-          --ip-permissions 'IpProtocol=tcp,FromPort=80,ToPort=80,IpRanges=[{CidrIp=0.0.0.0/0,Description="HTTP for IIS demo"}]'
-      register: _sg_authorize
-      changed_when: "'Return' in _sg_authorize.stdout or _sg_authorize.rc == 0"
-      failed_when:
-        - _sg_authorize.rc != 0
-        - "'InvalidPermission.Duplicate' not in _sg_authorize.stderr"
+    # Port 80 ingress on the demo SG is assumed to already be open. If the
+    # EDA activation can't poll /health.aspx after provisioning, manually
+    # add a 0.0.0.0/0 tcp:80 rule to sg-0b7cc52861cdcd8a1 in us-east-2.
 
     - name: Launch EC2 instance
       amazon.aws.ec2_instance:
