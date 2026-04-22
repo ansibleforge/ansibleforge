@@ -43,17 +43,60 @@
           "AAP Controller Admin" credential or pass controller_password
           as an extra var.
 
-    - name: Load EDA configuration from filetree
+    # EDA filetree load. include_vars with `dir:` overwrites same-named vars
+    # across files, so for directories that may contain multiple files that
+    # each define the same list variable (e.g. eda_rulebook_activations),
+    # load each file separately and flatten. Mirrors the concatenation
+    # pattern used by infra.controller_configuration.filetree_read.
+    - name: Init EDA list variables
+      ansible.builtin.set_fact:
+        eda_projects: []
+        eda_decision_environments: []
+        eda_rulebook_activations: []
+        eda_credentials: []
+
+    - name: Find EDA config files
+      ansible.builtin.find:
+        paths:
+          - "{{ playbook_dir }}/env/Default/env/common/eda_decision_environments.d"
+          - "{{ playbook_dir }}/env/Default/env/common/eda_projects.d"
+          - "{{ playbook_dir }}/env/Default/env/common/eda_rulebook_activations.d"
+          - "{{ playbook_dir }}/env/Default/env/dev/eda_credentials.d"
+        file_type: file
+        patterns: "*.yml,*.yaml"
+      register: _eda_files
+
+    - name: Load each EDA config file
       ansible.builtin.include_vars:
-        dir: "{{ item }}"
-        extensions: ["yml", "yaml"]
-      loop:
-        - "{{ playbook_dir }}/env/Default/env/common/eda_decision_environments.d"
-        - "{{ playbook_dir }}/env/Default/env/common/eda_projects.d"
-        - "{{ playbook_dir }}/env/Default/env/common/eda_rulebook_activations.d"
-        - "{{ playbook_dir }}/env/Default/env/dev/eda_credentials.d"
+        file: "{{ _eda_file.path }}"
+      loop: "{{ _eda_files.files }}"
       loop_control:
-        label: "{{ item | basename }}"
+        loop_var: _eda_file
+        label: "{{ _eda_file.path | basename }}"
+      register: _eda_file_contents
+
+    - name: Concatenate EDA lists across all loaded files
+      ansible.builtin.set_fact:
+        eda_projects: >-
+          {{ _eda_file_contents.results
+             | rejectattr('ansible_facts.eda_projects', 'undefined')
+             | map(attribute='ansible_facts.eda_projects')
+             | ansible.builtin.flatten }}
+        eda_decision_environments: >-
+          {{ _eda_file_contents.results
+             | rejectattr('ansible_facts.eda_decision_environments', 'undefined')
+             | map(attribute='ansible_facts.eda_decision_environments')
+             | ansible.builtin.flatten }}
+        eda_rulebook_activations: >-
+          {{ _eda_file_contents.results
+             | rejectattr('ansible_facts.eda_rulebook_activations', 'undefined')
+             | map(attribute='ansible_facts.eda_rulebook_activations')
+             | ansible.builtin.flatten }}
+        eda_credentials: >-
+          {{ _eda_file_contents.results
+             | rejectattr('ansible_facts.eda_credentials', 'undefined')
+             | map(attribute='ansible_facts.eda_credentials')
+             | ansible.builtin.flatten }}
 
     # Patch the IIS Auto-Heal activation's IIS_HEALTH_URL from IIS_HOST env var
     # (injected by the "IIS Demo Secrets" credential attached to this JT). The
