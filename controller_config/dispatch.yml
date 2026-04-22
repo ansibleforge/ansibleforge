@@ -205,6 +205,26 @@
               name: EDA to Controller
               token: "{{ _controller_token.json.token }}"
             status_code: [200, 201]
+    # The ansible.eda.rulebook_activation module declares extra_vars as
+    # type=str. If we pass a dict Ansible renders it with Python repr (e.g.
+    # "{'k': 'v'}") which the EDA API can't parse — "dictionary requested,
+    # could not parse JSON or key=value". Serialize to JSON first.
+    - name: Serialize activation extra_vars dicts to JSON
+      ansible.builtin.set_fact:
+        _eda_ra_serialized: >-
+          {{ (_eda_ra_serialized | default([]))
+             + [ __item | combine({'extra_vars': __item.extra_vars | to_json})
+                 if (__item.extra_vars is defined and __item.extra_vars is mapping)
+                 else __item ] }}
+      loop: "{{ eda_rulebook_activations }}"
+      loop_control:
+        loop_var: __item
+        label: "{{ __item.name }}"
+
+    - name: Swap in the serialized activations list
+      ansible.builtin.set_fact:
+        eda_rulebook_activations: "{{ _eda_ra_serialized }}"
+
     # Delete-and-recreate any managed activations that already exist. The
     # ansible.eda.rulebook_activation module refuses to update a running
     # activation ("Activation is not in disabled mode and in stopped
