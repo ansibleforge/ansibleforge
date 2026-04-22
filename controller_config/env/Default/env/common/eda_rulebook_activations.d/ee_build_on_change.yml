@@ -7,6 +7,6 @@ eda_rulebook_activations:
     rulebook: ee-build-on-change.yml
     decision_environment: Default Decision Environment
     event_streams:
-      - GitHub
+      - event_stream: GitHub
     restart_policy: always
     enabled: true
