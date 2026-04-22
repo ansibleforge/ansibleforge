@@ -55,82 +55,42 @@
       loop_control:
         label: "{{ item | basename }}"
 
-    # Resolve ServiceNow creds from Vault so they can be injected as activation
-    # extra_vars. The EDA rulebook's source plugin references {{ SN_HOST }} etc.,
-    # which EDA resolves against activation-scoped vars, not env. Vault is
-    # reached via AppRole auth — VAULT_ADDR/ROLE_ID/SECRET_ID come from the
-    # "Vault AppRole - AAP Playbook" credential attached to the CaC JT.
-    # Failures are non-fatal so the rest of CaC still applies if Vault is
-    # unreachable or the AppRole credential isn't attached.
-    - name: Resolve ServiceNow creds from Vault and patch SN activation
+    # Patch the ServiceNow activation's extra_vars with SN_HOST/USERNAME/PASSWORD.
+    # The EDA rulebook's source plugin references {{ SN_HOST }} etc., which EDA
+    # resolves against activation-scoped vars, not env. We source the values
+    # from the "ServiceNow" Controller credential, which Controller injects as
+    # env vars for the duration of this job (attach that credential to this
+    # CaC job template). Non-fatal: if the env vars aren't present the rest
+    # of CaC still applies.
+    - name: Patch ServiceNow activation with SN_* env vars
       vars:
-        _vault_addr: "{{ lookup('env', 'VAULT_ADDR') | default('http://vault.vault.svc:8200', true) }}"
-        _vault_role_id: "{{ lookup('env', 'VAULT_ROLE_ID') }}"
-        _vault_secret_id: "{{ lookup('env', 'VAULT_SECRET_ID') }}"
-      block:
-        - name: Assert Vault AppRole credentials are present
-          ansible.builtin.assert:
-            that:
-              - _vault_role_id | length > 0
-              - _vault_secret_id | length > 0
-            fail_msg: >-
-              Vault AppRole credentials not in env. Attach the
-              "Vault AppRole - AAP Playbook" credential to the
-              CaC job template.
-
-        - name: Login to Vault via AppRole
-          ansible.builtin.uri:
-            url: "{{ _vault_addr }}/v1/auth/approle/login"
-            method: POST
-            body_format: json
-            body:
-              role_id: "{{ _vault_role_id }}"
-              secret_id: "{{ _vault_secret_id }}"
-            validate_certs: false
-            status_code: [200]
-          register: _vault_login
-          no_log: true
-
-        - name: Fetch ServiceNow secret from Vault
-          ansible.builtin.uri:
-            url: "{{ _vault_addr }}/v1/secret/data/servicenow"
-            method: GET
-            headers:
-              X-Vault-Token: "{{ _vault_login.json.auth.client_token }}"
-            validate_certs: false
-            status_code: [200]
-          register: _sn_vault
-          no_log: true
-
-        - name: Patch ServiceNow activation with Vault-sourced creds
-          ansible.builtin.set_fact:
-            eda_rulebook_activations: >-
-              {{ (eda_rulebook_activations
-                  | rejectattr('name', 'equalto', 'ServiceNow VM Provision')
-                  | list)
-                 + [(eda_rulebook_activations
+        _sn_host: "{{ lookup('env', 'SN_HOST') }}"
+        _sn_username: "{{ lookup('env', 'SN_USERNAME') }}"
+        _sn_password: "{{ lookup('env', 'SN_PASSWORD') }}"
+      when:
+        - _sn_host | length > 0
+        - _sn_username | length > 0
+        - _sn_password | length > 0
+      ansible.builtin.set_fact:
+        eda_rulebook_activations: >-
+          {{ (eda_rulebook_activations
+              | rejectattr('name', 'equalto', 'ServiceNow VM Provision')
+              | list)
+             + [(eda_rulebook_activations
+                 | selectattr('name', 'equalto', 'ServiceNow VM Provision')
+                 | first)
+                | combine({'extra_vars':
+                    (eda_rulebook_activations
                      | selectattr('name', 'equalto', 'ServiceNow VM Provision')
-                     | first)
-                    | combine({'extra_vars':
-                        (eda_rulebook_activations
-                         | selectattr('name', 'equalto', 'ServiceNow VM Provision')
-                         | first).extra_vars | default({})
-                        | combine({
-                            'SN_HOST': _sn_vault.json.data.data.host,
-                            'SN_USERNAME': _sn_vault.json.data.data.username,
-                            'SN_PASSWORD': _sn_vault.json.data.data.password,
-                          })
-                     })]
-              }}
-          no_log: true
-      rescue:
-        - name: ServiceNow Vault lookup failed (non-fatal)
-          ansible.builtin.debug:
-            msg: >-
-              Could not inject ServiceNow creds into SN activation:
-              {{ ansible_failed_result.msg | default('unknown') }}.
-              Activation will be created without SN_HOST/USERNAME/PASSWORD
-              and will fail at runtime until creds are populated.
+                     | first).extra_vars | default({})
+                    | combine({
+                        'SN_HOST': _sn_host,
+                        'SN_USERNAME': _sn_username,
+                        'SN_PASSWORD': _sn_password,
+                      })
+                 })]
+          }}
+      no_log: true
 
     - name: Ensure EDA controller token exists
       ansible.builtin.uri:
