@@ -21,6 +21,19 @@
       {{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=20') }}AF1!
 
   tasks:
+    - name: DEBUG — list SGs in region
+      amazon.aws.ec2_security_group_info:
+        region: "{{ aws_region }}"
+      register: _all_sgs
+    - ansible.builtin.debug:
+        msg: "{{ _all_sgs.security_groups | map(attribute='group_id') | list }}"
+    - name: DEBUG — list subnets in region
+      amazon.aws.ec2_vpc_subnet_info:
+        region: "{{ aws_region }}"
+      register: _all_subnets
+    - ansible.builtin.debug:
+        msg: "{{ _all_subnets.subnets | map(attribute='subnet_id') | list }}"
+
     - name: Find latest Windows 2022 AMI
       amazon.aws.ec2_ami_info:
         region: "{{ aws_region }}"
