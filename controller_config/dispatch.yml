@@ -58,30 +58,34 @@
     # Resolve ServiceNow creds from Vault so they can be injected as activation
     # extra_vars. The EDA rulebook's source plugin references {{ SN_HOST }} etc.,
     # which EDA resolves against activation-scoped vars, not env. Vault is
-    # reached via the aap-controller k8s-auth role (same role the Controller
-    # Vault Lookup credential uses). Failures are non-fatal so that the rest
-    # of CaC still applies even if Vault is unreachable.
+    # reached via AppRole auth — VAULT_ADDR/ROLE_ID/SECRET_ID come from the
+    # "Vault AppRole - AAP Playbook" credential attached to the CaC JT.
+    # Failures are non-fatal so the rest of CaC still applies if Vault is
+    # unreachable or the AppRole credential isn't attached.
     - name: Resolve ServiceNow creds from Vault and patch SN activation
+      vars:
+        _vault_addr: "{{ lookup('env', 'VAULT_ADDR') | default('http://vault.vault.svc:8200', true) }}"
+        _vault_role_id: "{{ lookup('env', 'VAULT_ROLE_ID') }}"
+        _vault_secret_id: "{{ lookup('env', 'VAULT_SECRET_ID') }}"
       block:
-        - name: Find service account token
-          ansible.builtin.set_fact:
-            _sa_token: "{{ lookup('file', item) }}"
-          loop:
-            - /var/run/secrets/kubernetes.io/serviceaccount/token
-            - /run/secrets/kubernetes.io/serviceaccount/token
-          loop_control:
-            label: "{{ item }}"
-          ignore_errors: true
-          no_log: true
+        - name: Assert Vault AppRole credentials are present
+          ansible.builtin.assert:
+            that:
+              - _vault_role_id | length > 0
+              - _vault_secret_id | length > 0
+            fail_msg: >-
+              Vault AppRole credentials not in env. Attach the
+              "Vault AppRole - AAP Playbook" credential to the
+              CaC job template.
 
-        - name: Login to Vault via kubernetes auth
+        - name: Login to Vault via AppRole
           ansible.builtin.uri:
-            url: "http://vault.vault.svc:8200/v1/auth/kubernetes/login"
+            url: "{{ _vault_addr }}/v1/auth/approle/login"
             method: POST
             body_format: json
             body:
-              role: aap-controller
-              jwt: "{{ _sa_token }}"
+              role_id: "{{ _vault_role_id }}"
+              secret_id: "{{ _vault_secret_id }}"
             validate_certs: false
             status_code: [200]
           register: _vault_login
@@ -89,7 +93,7 @@
 
         - name: Fetch ServiceNow secret from Vault
           ansible.builtin.uri:
-            url: "http://vault.vault.svc:8200/v1/secret/data/servicenow"
+            url: "{{ _vault_addr }}/v1/secret/data/servicenow"
             method: GET
             headers:
               X-Vault-Token: "{{ _vault_login.json.auth.client_token }}"
