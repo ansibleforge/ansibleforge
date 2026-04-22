@@ -36,11 +36,20 @@
       ansible.builtin.set_fact:
         _ami_id: "{{ (_ami_results.images | sort(attribute='creation_date') | last).image_id }}"
 
+    - name: Look up existing SG name + description (needed by ec2_security_group even on update)
+      amazon.aws.ec2_security_group_info:
+        region: "{{ aws_region }}"
+        filters:
+          group-id: "{{ security_group_id }}"
+      register: _sg_info
+
     - name: Open port 80 to the world on the demo SG (idempotent)
       amazon.aws.ec2_security_group:
         region: "{{ aws_region }}"
         state: present
-        group_id: "{{ security_group_id }}"
+        name: "{{ _sg_info.security_groups[0].group_name }}"
+        description: "{{ _sg_info.security_groups[0].description }}"
+        vpc_id: "{{ _sg_info.security_groups[0].vpc_id }}"
         rules:
           - proto: tcp
             from_port: 80
