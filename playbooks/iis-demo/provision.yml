@@ -49,7 +49,7 @@
         region: "{{ aws_region }}"
         state: present
         name: iis-demo-sg
-        description: "AnsibleForge IIS demo — HTTP and WinRM"
+        description: "AnsibleForge IIS demo - HTTP and WinRM"
         vpc_id: "{{ _vpc_id }}"
         rules:
           - proto: tcp
