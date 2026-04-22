@@ -1,5 +1,7 @@
 ---
 eda_rulebook_activations:
+  # Disabled until the GitHub Webhook Credential and event stream are
+  # wired up in CaC. The activation needs the event stream to exist.
   - name: GitHub Push Handler
     description: Handles GitHub push events — triggers EE builds and CaC dispatch based on changed paths
     organization: Default
@@ -11,3 +13,4 @@ eda_rulebook_activations:
         source_index: 0
     restart_policy: always
     enabled: true
+    state: absent

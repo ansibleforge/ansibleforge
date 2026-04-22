@@ -1,6 +1,11 @@
 ---
+# GitHub Webhook Credential is not yet defined in CaC, so this event stream
+# can't be created without a manual credential setup. Disabled until the
+# credential is wired up. See also eda_rulebook_activations.d/ee_build_on_change.yml.
 eda_event_streams:
   - name: GitHub
+    organization: Default
     credential_name: GitHub Webhook Credential
-    event_stream_type: "GitHub"
+    event_stream_type: "GitHub Event Stream"
     forward_events: true
+    state: absent
