@@ -67,13 +67,13 @@
     # doesn't mangle the `^`/`!=` operators (a previous body-form-urlencoded
     # version was silently dropped by the SN API and returned every CI in
     # cmdb_ci_vm_instance — which then got submitted for decommission).
+    - name: Build CMDB query URL (single-line so no whitespace creeps in)
+      ansible.builtin.set_fact:
+        _cmdb_query_url: "{{ sn_host }}/api/now/table/cmdb_ci_vm_instance?sysparm_query={{ ('nameSTARTSWITH' ~ chaos_vm_prefix ~ '^install_status=1^name!=' ~ new_vm_name) | urlencode }}&sysparm_fields=name,vm_inst_id,sys_id,install_status&sysparm_limit=20"
+
     - name: Find existing chaos VMs in CMDB to decommission
       ansible.builtin.uri:
-        url: >-
-          {{ sn_host }}/api/now/table/cmdb_ci_vm_instance
-          ?sysparm_query={{ ('nameSTARTSWITH' ~ chaos_vm_prefix ~ '^install_status=1^name!=' ~ new_vm_name) | urlencode }}
-          &sysparm_fields=name,vm_inst_id,sys_id,install_status
-          &sysparm_limit=20
+        url: "{{ _cmdb_query_url }}"
         method: GET
         user: "{{ sn_username }}"
         password: "{{ sn_password }}"
