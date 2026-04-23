@@ -10,13 +10,6 @@
   vars:
     aws_region: us-east-2
     vm_name: "iis-demo"
-
-  pre_tasks:
-    - name: Generate Administrator password once (lookup would re-run every access)
-      ansible.builtin.set_fact:
-        admin_password: "{{ _pw + 'Af1!' }}"
-      vars:
-        _pw: "{{ lookup('ansible.builtin.password', '/dev/null length=20') }}"
     os_ami_owner: "801119661308"
     os_ami_filter: "Windows_Server-2022-English-Full-Base-*"
     instance_type: "t3a.large"
@@ -24,6 +17,16 @@
     # admin_password is set in pre_tasks as a fact so the lookup runs exactly
     # once (play vars re-evaluate the expression on every access, which would
     # produce a different password in user-data vs the credential).
+
+  pre_tasks:
+    - name: Generate Administrator password once (lookup would re-run every access)
+      ansible.builtin.set_fact:
+        admin_password: "{{ _pw + 'Af1!' }}"
+      vars:
+        # Restrict to alphanumeric — punctuation chars like $, ", ` break the
+        # PowerShell user-data that runs `net user Administrator "<pw>"`,
+        # producing a set password that differs from the variable.
+        _pw: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=20') }}"
 
   tasks:
     - name: Find VPCs
@@ -90,10 +93,6 @@
     - name: Select most recent AMI
       ansible.builtin.set_fact:
         _ami_id: "{{ (_ami_results.images | sort(attribute='creation_date') | last).image_id }}"
-
-    # Port 80 ingress on the demo SG is assumed to already be open. If the
-    # EDA activation can't poll /health.aspx after provisioning, manually
-    # add a 0.0.0.0/0 tcp:80 rule to sg-0b7cc52861cdcd8a1 in us-east-2.
 
     - name: Launch EC2 instance
       amazon.aws.ec2_instance:
@@ -214,6 +213,61 @@
               Could not update IIS Demo Secrets credential:
               {{ ansible_failed_result.msg | default('unknown') }}.
               Manually update it with IIS_HOST={{ _public_ip }}.
+
+    - name: Update EDA "IIS Auto-Heal" activation with new IIS_HEALTH_URL
+      vars:
+        _controller_host: "{{ lookup('env', 'CONTROLLER_HOST') }}"
+        _controller_user: "{{ lookup('env', 'CONTROLLER_USERNAME') | default('admin', true) }}"
+        _controller_pass: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+        _activation_name: "IIS Auto-Heal"
+      block:
+        - name: Look up IIS Auto-Heal activation ID
+          ansible.builtin.uri:
+            url: "{{ _controller_host }}/api/eda/v1/activations/?name={{ _activation_name | urlencode }}"
+            method: GET
+            user: "{{ _controller_user }}"
+            password: "{{ _controller_pass }}"
+            force_basic_auth: true
+            validate_certs: false
+          register: _act_lookup
+
+        - name: Patch + restart activation when found
+          when: (_act_lookup.json.results | default([])) | length > 0
+          vars:
+            _act_id: "{{ _act_lookup.json.results[0].id }}"
+          block:
+            - name: Patch activation extra_var + re-enable
+              ansible.builtin.uri:
+                url: "{{ _controller_host }}/api/eda/v1/activations/{{ _act_id }}/"
+                method: PATCH
+                user: "{{ _controller_user }}"
+                password: "{{ _controller_pass }}"
+                force_basic_auth: true
+                validate_certs: false
+                body_format: json
+                body:
+                  is_enabled: true
+                  extra_var:
+                    IIS_HEALTH_URL: "http://{{ _public_ip }}/health.aspx"
+                status_code: [200]
+
+            - name: Restart activation so the new URL takes effect
+              ansible.builtin.uri:
+                url: "{{ _controller_host }}/api/eda/v1/activations/{{ _act_id }}/restart/"
+                method: POST
+                user: "{{ _controller_user }}"
+                password: "{{ _controller_pass }}"
+                force_basic_auth: true
+                validate_certs: false
+                status_code: [200, 204]
+      rescue:
+        - name: Activation update failed (non-fatal)
+          ansible.builtin.debug:
+            msg: >-
+              Could not update EDA activation '{{ _activation_name }}':
+              {{ ansible_failed_result.msg | default('unknown') }}.
+              Manually set IIS_HEALTH_URL=http://{{ _public_ip }}/health.aspx
+              on the activation, then restart it.
 
 - name: Configure IIS on the demo host
   hosts: iis_demo
