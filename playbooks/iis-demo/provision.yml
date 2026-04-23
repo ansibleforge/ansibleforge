@@ -247,8 +247,9 @@
                 body_format: json
                 body:
                   is_enabled: true
-                  extra_var:
-                    IIS_HEALTH_URL: "http://{{ _public_ip }}/health.aspx"
+                  # extra_var is a CharField on the EDA API and runs through
+                  # yaml.safe_load — must be a serialized string, not a dict.
+                  extra_var: "{{ {'IIS_HEALTH_URL': 'http://' ~ _public_ip ~ '/health.aspx'} | to_nice_yaml }}"
                 status_code: [200]
 
             - name: Restart activation so the new URL takes effect
