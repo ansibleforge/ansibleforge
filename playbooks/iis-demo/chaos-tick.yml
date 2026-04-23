@@ -1,0 +1,17 @@
+---
+# Wrapper invoked by the "IIS Chaos" EDA activation each tick.
+# Adds a random 0-30s jitter on top of the rulebook's 90s base interval so
+# fail.flag plants land between 90 and 120 seconds apart, then triggers the
+# standard IIS error.
+- name: Chaos jitter
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Wait random 0-30s so chaos ticks spread to 90-120s apart
+      ansible.builtin.wait_for:
+        timeout: "{{ 0 | random(end=30) }}"
+
+- name: Trigger IIS error
+  ansible.builtin.import_playbook: trigger_error.yml

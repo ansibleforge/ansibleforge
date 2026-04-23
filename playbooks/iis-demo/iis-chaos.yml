@@ -1,0 +1,20 @@
+---
+# Drives the IIS Auto-Heal demo by injecting a fail.flag every 90-120 seconds
+# via the "IIS Demo - Chaos Tick" job template (which wraps trigger_error.yml
+# with random jitter). The IIS Auto-Heal activation detects the resulting 500
+# on /health.aspx and runs the restart playbook, closing the loop.
+- name: IIS Chaos
+  hosts: all
+  sources:
+    - ansible.eda.generic:
+        payload:
+          - chaos: tick
+        loop_count: -1
+        loop_delay: 90
+  rules:
+    - name: Inject IIS error
+      condition: event.chaos == "tick"
+      action:
+        run_job_template:
+          name: "IIS Demo - Chaos Tick"
+          organization: Default
