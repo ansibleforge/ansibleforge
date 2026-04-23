@@ -55,9 +55,9 @@
             memory_gb: "4"
             disk_size_gb: "20"
             environment: dev
+            business_justification: "Automated chaos cycle for SN VM provision demo"
         status_code: [200, 201]
       register: _new_ritm
-      no_log: true
 
     - name: Report provision RITM
       ansible.builtin.debug:
@@ -100,7 +100,6 @@
       loop: "{{ _existing_chaos_vms.json.result | default([]) }}"
       loop_control:
         label: "{{ item.name }} ({{ item.vm_inst_id }})"
-      no_log: true
       register: _decom_results
 
     - name: Report decommission count
