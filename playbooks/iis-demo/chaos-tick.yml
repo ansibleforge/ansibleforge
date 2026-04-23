@@ -11,7 +11,7 @@
   tasks:
     - name: Wait random 0-30s so chaos ticks spread to 90-120s apart
       ansible.builtin.wait_for:
-        timeout: "{{ 0 | random(end=30) }}"
+        timeout: "{{ 30 | random }}"
 
 - name: Trigger IIS error
   ansible.builtin.import_playbook: trigger_error.yml
