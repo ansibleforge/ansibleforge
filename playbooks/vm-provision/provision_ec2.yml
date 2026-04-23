@@ -42,6 +42,61 @@
       "16_64": "m5a.4xlarge"
 
   tasks:
+    # If subnet_id/security_group_id aren't supplied (e.g. the JT was
+    # provisioned with stale AWS IDs that have since been deleted, or the
+    # chaos generator launches with no networking pinned), discover a
+    # public subnet in the first VPC of the region and ensure a shared
+    # vm-provision-sg exists. Skipped entirely when both IDs are passed.
+    - name: Auto-discover networking when subnet/SG not provided
+      when: subnet_id | length == 0 or security_group_id | length == 0
+      block:
+        - name: Find VPCs
+          amazon.aws.ec2_vpc_net_info:
+            region: "{{ aws_region }}"
+          register: _vpc
+
+        - name: Pick first VPC in region
+          ansible.builtin.set_fact:
+            _vpc_id: "{{ _vpc.vpcs[0].vpc_id }}"
+          failed_when: _vpc.vpcs | length == 0
+
+        - name: Find subnets in that VPC
+          amazon.aws.ec2_vpc_subnet_info:
+            region: "{{ aws_region }}"
+            filters:
+              vpc-id: "{{ _vpc_id }}"
+          register: _subnets
+
+        - name: Pick first auto-public subnet
+          ansible.builtin.set_fact:
+            subnet_id: >-
+              {{ (_subnets.subnets
+                  | selectattr('map_public_ip_on_launch', 'equalto', true)
+                  | list | first).subnet_id }}
+          when: subnet_id | length == 0
+
+        - name: Ensure shared vm-provision-sg exists
+          amazon.aws.ec2_security_group:
+            region: "{{ aws_region }}"
+            state: present
+            name: vm-provision-sg
+            description: AnsibleForge VM provision demo SG (SSH/HTTP/HTTPS/RDP/WinRM)
+            vpc_id: "{{ _vpc_id }}"
+            rules:
+              - {proto: tcp, from_port: 22,   to_port: 22,   cidr_ip: 0.0.0.0/0, rule_desc: SSH}
+              - {proto: tcp, from_port: 80,   to_port: 80,   cidr_ip: 0.0.0.0/0, rule_desc: HTTP}
+              - {proto: tcp, from_port: 443,  to_port: 443,  cidr_ip: 0.0.0.0/0, rule_desc: HTTPS}
+              - {proto: tcp, from_port: 3389, to_port: 3389, cidr_ip: 0.0.0.0/0, rule_desc: RDP}
+              - {proto: tcp, from_port: 5985, to_port: 5985, cidr_ip: 0.0.0.0/0, rule_desc: WinRM HTTP}
+            purge_rules: false
+          register: _vm_sg
+          when: security_group_id | length == 0
+
+        - name: Set security_group_id from discovered SG
+          ansible.builtin.set_fact:
+            security_group_id: "{{ _vm_sg.group_id }}"
+          when: security_group_id | length == 0
+
     - name: Fetch RITM variables from ServiceNow
       servicenow.itsm.api_info:
         resource: sc_item_option_mtom
