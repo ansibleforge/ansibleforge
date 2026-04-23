@@ -1,0 +1,19 @@
+---
+# Drives the ServiceNow VM Provision/Decommission demo by submitting a
+# new provision RITM (and a decommission RITM for each previous chaos
+# VM) every 5-8 minutes via the "SN Chaos Tick" job template.
+- name: SN Chaos
+  hosts: all
+  sources:
+    - ansible.eda.generic:
+        payload:
+          - chaos: tick
+        loop_count: -1
+        loop_delay: 300
+  rules:
+    - name: Submit provision + decommission RITMs
+      condition: event.chaos == "tick"
+      action:
+        run_job_template:
+          name: "SN Chaos Tick"
+          organization: Default

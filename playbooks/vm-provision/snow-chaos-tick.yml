@@ -1,0 +1,110 @@
+---
+# Drives the ServiceNow VM Provision/Decommission demo. Each tick:
+#   1. Waits 0-180s random jitter so cycles spread to 5-8 min (rulebook
+#      base interval is 300s).
+#   2. Submits a new "Request a new virtual machine" RITM via the SN
+#      service catalog order_now endpoint (state=1 -> EDA fires the
+#      Provision rule -> "VM Provision - EC2" launches an ubuntu t3a.medium).
+#   3. Looks up CMDB CIs whose name starts with the chaos prefix and are
+#      still "In use" (excluding the just-requested one), and submits a
+#      "Decommission VM" RITM for each — the EDA Decommission rule then
+#      runs "VM Deprovision - EC2" to terminate the EC2.
+- name: ServiceNow chaos tick
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    sn_host: "{{ lookup('env', 'SN_HOST') }}"
+    sn_username: "{{ lookup('env', 'SN_USERNAME') }}"
+    sn_password: "{{ lookup('env', 'SN_PASSWORD') }}"
+    sn_provision_cat_item: "2c160bb0c3f33210dd6df7fdd401311f"
+    sn_decom_cat_item: "b1995e0ac33f7210dd6df7fdd40131cb"
+    chaos_vm_prefix: "chaos-vm"
+    cycle_epoch: "{{ lookup('pipe', 'date +%s') }}"
+    new_vm_name: "{{ chaos_vm_prefix }}-{{ cycle_epoch }}"
+
+  tasks:
+    - name: Assert SN credentials are present
+      ansible.builtin.assert:
+        that:
+          - sn_host | length > 0
+          - sn_username | length > 0
+          - sn_password | length > 0
+        fail_msg: Attach the "ServiceNow" credential to this job template.
+
+    - name: Wait random 0-180s so chaos cycles spread to 5-8 min apart
+      ansible.builtin.wait_for:
+        timeout: "{{ 180 | random }}"
+
+    - name: Submit Provision RITM via service catalog order_now
+      ansible.builtin.uri:
+        url: "{{ sn_host }}/api/sn_sc/servicecatalog/items/{{ sn_provision_cat_item }}/order_now"
+        method: POST
+        user: "{{ sn_username }}"
+        password: "{{ sn_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body:
+          sysparm_quantity: "1"
+          variables:
+            vm_name: "{{ new_vm_name }}"
+            operating_system: ubuntu2404
+            cpu_cores: "2"
+            memory_gb: "4"
+            disk_size_gb: "20"
+            environment: dev
+        status_code: [200, 201]
+      register: _new_ritm
+      no_log: true
+
+    - name: Report provision RITM
+      ansible.builtin.debug:
+        msg: "Submitted provision RITM for {{ new_vm_name }} (request_number={{ _new_ritm.json.result.request_number }})"
+
+    - name: Find existing chaos VMs in CMDB to decommission
+      ansible.builtin.uri:
+        url: "{{ sn_host }}/api/now/table/cmdb_ci_vm_instance"
+        method: GET
+        user: "{{ sn_username }}"
+        password: "{{ sn_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers:
+          Accept: application/json
+        body_format: form-urlencoded
+        body:
+          sysparm_query: "nameSTARTSWITH{{ chaos_vm_prefix }}^install_status=1^name!={{ new_vm_name }}"
+          sysparm_fields: "name,vm_inst_id,sys_id,install_status"
+          sysparm_limit: "20"
+        status_code: 200
+      register: _existing_chaos_vms
+
+    - name: Submit Decommission RITM for each existing chaos VM
+      ansible.builtin.uri:
+        url: "{{ sn_host }}/api/sn_sc/servicecatalog/items/{{ sn_decom_cat_item }}/order_now"
+        method: POST
+        user: "{{ sn_username }}"
+        password: "{{ sn_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body:
+          sysparm_quantity: "1"
+          variables:
+            vm_name: "{{ item.name }}"
+            instance_id: "{{ item.vm_inst_id }}"
+            decommission_reason: "Chaos rotation"
+        status_code: [200, 201]
+      loop: "{{ _existing_chaos_vms.json.result | default([]) }}"
+      loop_control:
+        label: "{{ item.name }} ({{ item.vm_inst_id }})"
+      no_log: true
+      register: _decom_results
+
+    - name: Report decommission count
+      ansible.builtin.debug:
+        msg: >-
+          Submitted {{ _decom_results.results | default([]) | length }}
+          decommission RITM(s) for previous chaos VMs.
