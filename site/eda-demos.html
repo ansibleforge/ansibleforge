@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnsibleForge - Event-Driven Ansible Demos</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css">
+  <style>
+    :root {
+      --ansible-red: #EE0000;
+      --ansible-dark: #1A1918;
+      --forge-orange: #F0AB00;
+      --forge-blue: #0066CC;
+      --text-light: #E0E0E0;
+    }
+    .reveal { font-family: 'Red Hat Display', 'Segoe UI', sans-serif; }
+    .reveal h1, .reveal h2, .reveal h3 { text-transform: none; font-weight: 700; }
+    .reveal h1 { font-size: 2.2em; }
+    .reveal h2 { font-size: 1.6em; color: var(--forge-orange); }
+    .reveal h3 { font-size: 1.2em; color: var(--text-light); }
+    .reveal .subtitle { color: var(--text-light); font-size: 0.7em; opacity: 0.8; }
+    .reveal .highlight { color: var(--forge-orange); }
+    .reveal .red { color: var(--ansible-red); }
+    .reveal .green { color: #28A745; }
+    .reveal section { text-align: left; }
+    .reveal .center { text-align: center; }
+
+    .reveal ul { list-style: none; padding-left: 0; }
+    .reveal ul li { padding: 0.3em 0; }
+    .reveal ul li::before {
+      content: "\25B8"; color: var(--forge-orange);
+      font-weight: bold; margin-right: 0.6em;
+    }
+    .reveal .two-col {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 2em; font-size: 0.85em;
+    }
+    .reveal .three-col {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5em; font-size: 0.75em;
+    }
+    .reveal .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 1.2em;
+      border-top: 3px solid var(--forge-orange);
+    }
+    .reveal .card h3 { margin-top: 0; font-size: 1em; color: var(--forge-orange); }
+    .reveal .card ul { font-size: 0.9em; }
+
+    .reveal .stat-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1em; text-align: center; margin: 1em 0;
+    }
+    .reveal .stat {
+      background: rgba(255,255,255,0.05); border-radius: 10px;
+      padding: 1em 0.5em; border-bottom: 3px solid var(--forge-orange);
+    }
+    .reveal .stat .number {
+      font-size: 2em; font-weight: 800;
+      color: var(--forge-orange); display: block;
+    }
+    .reveal .stat .label { font-size: 0.7em; opacity: 0.8; }
+
+    .reveal .flow {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0.5em; flex-wrap: wrap; margin: 1em 0; font-size: 0.85em;
+    }
+    .reveal .flow .step {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px; padding: 0.5em 1em;
+    }
+    .reveal .flow .arrow { color: var(--forge-orange); font-size: 1.4em; }
+
+    .reveal .tag {
+      display: inline-block; background: rgba(240,171,0,0.15);
+      border: 1px solid rgba(240,171,0,0.3); border-radius: 4px;
+      padding: 0.1em 0.5em; font-size: 0.8em; margin: 0.15em;
+    }
+    .reveal .logo-text { font-size: 3em; font-weight: 800; letter-spacing: -0.02em; }
+    .reveal .logo-text .ansible { color: var(--ansible-red); }
+    .reveal .logo-text .forge { color: var(--forge-orange); }
+
+    .reveal .timeline { position: relative; padding-left: 2em; font-size: 0.85em; }
+    .reveal .timeline::before {
+      content: ''; position: absolute; left: 0.5em; top: 0; bottom: 0;
+      width: 2px; background: var(--forge-orange);
+    }
+    .reveal .timeline .event { position: relative; padding: 0.5em 0; }
+    .reveal .timeline .event::before {
+      content: ''; position: absolute; left: -1.75em; top: 0.85em;
+      width: 10px; height: 10px; background: var(--forge-orange); border-radius: 50%;
+    }
+    .reveal .quote {
+      font-style: italic; font-size: 1.05em;
+      border-left: 4px solid var(--forge-orange);
+      padding-left: 1em; margin: 1em 0; color: var(--text-light);
+    }
+    .reveal pre {
+      box-shadow: none; width: 100%;
+      background: rgba(0,0,0,0.4); border-radius: 8px;
+    }
+    .reveal pre code {
+      max-height: none; padding: 1em; font-size: 0.5em; line-height: 1.4;
+    }
+    .reveal .demo-divider {
+      background: linear-gradient(135deg, var(--ansible-dark) 0%, #2a2a2a 100%);
+    }
+    .reveal .demo-label {
+      display: inline-block; background: var(--forge-orange); color: var(--ansible-dark);
+      padding: 0.25em 0.8em; border-radius: 4px; font-size: 0.6em;
+      font-weight: 700; letter-spacing: 0.1em; margin-bottom: 0.8em;
+    }
+  </style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+  <!-- TITLE -->
+  <section class="center">
+    <div class="logo-text">
+      <span class="ansible">Ansible</span><span class="forge">Forge</span>
+    </div>
+    <p class="subtitle" style="font-size:1.4em; margin-top:0.8em; color: var(--forge-orange);">
+      Event-Driven Ansible
+    </p>
+    <p class="subtitle" style="margin-top:1em;">
+      Live demos: <span class="highlight">IIS Auto-Heal</span> &bull; <span class="highlight">ServiceNow VM Provision</span>
+    </p>
+  </section>
+
+  <!-- EDA IN 30 SECONDS -->
+  <section>
+    <h2>EDA in 30 Seconds</h2>
+    <div class="flow">
+      <div class="step"><strong>Source</strong><br><span style="font-size:0.7em;">poll/listen for events</span></div>
+      <div class="arrow">&rarr;</div>
+      <div class="step"><strong>Condition</strong><br><span style="font-size:0.7em;">match what you care about</span></div>
+      <div class="arrow">&rarr;</div>
+      <div class="step"><strong>Action</strong><br><span style="font-size:0.7em;">run a playbook / job template</span></div>
+    </div>
+    <div class="two-col" style="margin-top:1em;">
+      <div>
+        <h3>What it replaces</h3>
+        <ul>
+          <li>Cron jobs polling for state</li>
+          <li>Tickets that wait for a human</li>
+          <li>"Something broke, who's on call?"</li>
+          <li>Manual click-ops on every alert</li>
+        </ul>
+      </div>
+      <div>
+        <h3>What it gives you</h3>
+        <ul>
+          <li>Sub-minute response to real events</li>
+          <li>Auditable, version-controlled rules</li>
+          <li>The same playbooks you already wrote</li>
+          <li>One platform per cluster, not per tool</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEMO ARCHITECTURE -->
+  <section>
+    <h2>Today's Lab</h2>
+    <div class="flow">
+      <div class="step">External signal</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">EDA Activation</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">Rule Match</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">Job Template</div>
+      <div class="arrow">&rarr;</div>
+      <div class="step">Real change</div>
+    </div>
+    <div class="three-col" style="margin-top:1em;">
+      <div class="card">
+        <h3>EDA Activations</h3>
+        <ul>
+          <li>IIS Auto-Heal</li>
+          <li>IIS Chaos</li>
+          <li>ServiceNow VM Provision</li>
+          <li>SN Chaos</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Targets</h3>
+        <ul>
+          <li>Windows EC2 (IIS demo VM)</li>
+          <li>ServiceNow dev instance</li>
+          <li>AWS account 171109435201</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Pattern</h3>
+        <ul>
+          <li>One activation reacts</li>
+          <li>One activation injects chaos</li>
+          <li>Loop runs forever, hands-off</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- DEMO 1: IIS AUTO-HEAL                         -->
+  <!-- ============================================ -->
+  <section class="center demo-divider">
+    <span class="demo-label">DEMO 1</span>
+    <h1 style="color: var(--forge-orange);">IIS Auto-Heal</h1>
+    <p class="subtitle" style="font-size:1.1em; margin-top:0.8em;">
+      A web server health check that fixes itself in under a minute.
+    </p>
+  </section>
+
+  <!-- IIS — SCENARIO -->
+  <section>
+    <h2>The Scenario</h2>
+    <div class="quote">
+      "IIS just started returning 500s on /health.aspx. Page someone."
+    </div>
+    <div class="two-col" style="margin-top:1em;">
+      <div>
+        <h3>Without EDA</h3>
+        <ul>
+          <li>Monitoring fires a PagerDuty alert</li>
+          <li>Engineer wakes up, RDPs in</li>
+          <li>Runs <span class="tag">iisreset</span></li>
+          <li>Closes the ticket, goes back to bed</li>
+          <li>Average MTTR: <span class="red">15&ndash;30 minutes</span></li>
+        </ul>
+      </div>
+      <div>
+        <h3>With EDA</h3>
+        <ul>
+          <li>Rulebook polls /health.aspx every 10s</li>
+          <li>4xx/5xx response triggers a rule</li>
+          <li>Rule launches the restart job template</li>
+          <li>Counter increments, audit trail in AAP</li>
+          <li>Average MTTR: <span class="green">~45 seconds</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- IIS — THE RULEBOOK -->
+  <section>
+    <h2>The Rulebook</h2>
+    <p style="font-size:0.85em; opacity:0.8;">
+      <code>extensions/eda/rulebooks/iis-health-restart.yml</code>
+    </p>
+<pre><code class="language-yaml" data-trim data-noescape>
+- name: IIS Auto-Heal
+  hosts: all
+  sources:
+    - ansible.eda.url_check:
+        urls:
+          - "{{ IIS_HEALTH_URL }}"
+        delay: 10
+  rules:
+    - name: IIS unhealthy -&gt; restart
+      condition: &gt;-
+        event.url_check.status == "down" or
+        event.url_check.status_code &gt;= 400
+      throttle:
+        once_within: 1 minute
+        group_by_attributes:
+          - event.url_check.url
+      action:
+        run_job_template:
+          name: "IIS Demo - Restart IIS"
+          organization: Default
+</code></pre>
+    <p style="font-size:0.7em; opacity:0.7; margin-top:0.5em;">
+      <span class="highlight">Throttle</span> prevents storms during the heal window.
+      <span class="highlight">URL</span> is templated from extra_var so the same rulebook works against any host.
+    </p>
+  </section>
+
+  <!-- IIS — THE ACTION -->
+  <section>
+    <h2>What the Action Does</h2>
+    <p style="font-size:0.85em; opacity:0.8;">
+      Job Template <code>IIS Demo - Restart IIS</code> &mdash; <code>playbooks/iis-demo/restart.yml</code>
+    </p>
+    <div class="timeline" style="margin-top:1em;">
+      <div class="event"><strong>Add IIS host to runtime inventory</strong> &mdash; pulls host + admin password from the <code>IIS Demo Secrets</code> credential</div>
+      <div class="event"><strong>Remove fail.flag</strong> &mdash; the file <code>health.aspx</code> checks for to decide its status code</div>
+      <div class="event"><strong>Increment restart counter</strong> &mdash; <code>C:\inetpub\wwwroot\restartcount.txt</code></div>
+      <div class="event"><strong>Run iisreset</strong> &mdash; reload IIS to pick up any underlying config changes</div>
+    </div>
+    <p style="font-size:0.8em; margin-top:1em;">
+      Reusable: launch it from the AAP UI on demand, from EDA, or from a scheduled workflow.
+    </p>
+  </section>
+
+  <!-- IIS — THE CHAOS GENERATOR -->
+  <section>
+    <h2>The Chaos Generator</h2>
+    <p style="font-size:0.85em; opacity:0.8;">
+      A <em>second</em> activation drives a continuous failure-and-recovery loop &mdash; you don't have to break things by hand to demo.
+    </p>
+<pre><code class="language-yaml" data-trim data-noescape>
+- name: IIS Chaos
+  hosts: all
+  sources:
+    - ansible.eda.generic:
+        payload:
+          - chaos: tick
+        loop_count: -1
+        loop_delay: 90        # base interval
+  rules:
+    - name: Inject IIS error
+      condition: event.chaos == "tick"
+      action:
+        run_job_template:
+          name: "IIS Demo - Chaos Tick"
+          # adds 0-30s jitter, then writes fail.flag
+</code></pre>
+    <p style="font-size:0.75em; opacity:0.8; margin-top:0.5em;">
+      Tick every <span class="highlight">90&ndash;120 seconds</span>; toggle the activation on/off to start/stop the demo.
+    </p>
+  </section>
+
+  <!-- IIS — LIVE: WHAT TO WATCH -->
+  <section>
+    <h2>Live: What to Watch</h2>
+    <div class="three-col">
+      <div class="card">
+        <h3>1. Browser</h3>
+        <ul>
+          <li>Open <code>/health.aspx</code></li>
+          <li>Refresh during a chaos tick &rarr; <span class="red">500</span></li>
+          <li>Wait ~30s &rarr; <span class="green">200</span> again</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>2. AAP &mdash; EDA</h3>
+        <ul>
+          <li>Activations &rarr; <em>IIS Auto-Heal</em></li>
+          <li>Rule Audit shows each fire</li>
+          <li>Status &amp; events processed counter ticks</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>3. AAP &mdash; Jobs</h3>
+        <ul>
+          <li><em>IIS Demo - Restart IIS</em> in history</li>
+          <li>Each run takes ~25s</li>
+          <li>Output shows <code>restart count: N</code></li>
+        </ul>
+      </div>
+    </div>
+    <p style="font-size:0.8em; margin-top:1em; text-align:center;">
+      <span class="highlight">Talking point:</span> point at the restart counter going up &mdash; that's the audit trail your auditors want.
+    </p>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- DEMO 2: SERVICENOW VM PROVISION              -->
+  <!-- ============================================ -->
+  <section class="center demo-divider">
+    <span class="demo-label">DEMO 2</span>
+    <h1 style="color: var(--forge-orange);">ServiceNow VM Provision</h1>
+    <p class="subtitle" style="font-size:1.1em; margin-top:0.8em;">
+      A self-service catalog that actually self-services.
+    </p>
+  </section>
+
+  <!-- SN — SCENARIO -->
+  <section>
+    <h2>The Scenario</h2>
+    <div class="quote">
+      "Users want a VM. Today they file a ticket and wait two days for someone to click in the AWS console."
+    </div>
+    <div class="two-col" style="margin-top:1em;">
+      <div>
+        <h3>Without EDA</h3>
+        <ul>
+          <li>RITM lands in the cloud team queue</li>
+          <li>Someone reads the variables</li>
+          <li>Logs into AWS, picks subnet/SG/AMI</li>
+          <li>Launches, then updates the RITM by hand</li>
+          <li>Creates the CMDB CI by hand</li>
+        </ul>
+      </div>
+      <div>
+        <h3>With EDA</h3>
+        <ul>
+          <li>RITM hits ServiceNow, EDA polls every 30s</li>
+          <li>Rule fires the provision job template</li>
+          <li>Playbook reads RITM vars, launches EC2</li>
+          <li>Closes the RITM with work notes</li>
+          <li>Creates the CMDB CI &mdash; same flow for decom</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SN — THE RULEBOOK -->
+  <section>
+    <h2>The Rulebook</h2>
+    <p style="font-size:0.85em; opacity:0.8;">
+      <code>extensions/eda/rulebooks/snow-vm-provision.yml</code> &mdash; two rulesets in one file
+    </p>
+<pre><code class="language-yaml" data-trim data-noescape>
+- name: Provision VM on ServiceNow catalog request
+  sources:
+    - servicenow.itsm.records:
+        instance: { host: "{{ SN_HOST }}", username: "{{ SN_USERNAME }}",
+                    password: "{{ SN_PASSWORD }}" }
+        table: sc_req_item
+        sysparm_query: "cat_item=2c160bb0...^state=1"
+        interval: 30
+  rules:
+    - name: New VM request -&gt; launch provisioning
+      condition: event.sys_id is defined
+      throttle: { once_within: 1 minute, group_by_attributes: [event.sys_id] }
+      action:
+        run_job_template:
+          name: "VM Provision - EC2"
+          job_args:
+            extra_vars:
+              ritm_number: "{{ event.number }}"
+              ritm_sys_id: "{{ event.sys_id }}"
+</code></pre>
+    <p style="font-size:0.7em; opacity:0.7; margin-top:0.4em;">
+      A second ruleset in the same file watches the <em>decommission</em> catalog item and fires <em>VM Deprovision - EC2</em>.
+    </p>
+  </section>
+
+  <!-- SN — THE PIPELINE -->
+  <section>
+    <h2>What the Provision JT Does</h2>
+    <p style="font-size:0.85em; opacity:0.8;">
+      <code>playbooks/vm-provision/provision_ec2.yml</code>
+    </p>
+    <div class="timeline" style="margin-top:1em;">
+      <div class="event"><strong>Fetch RITM variables</strong> &mdash; <code>servicenow.itsm.api_info</code> pulls vm_name, OS, cores, memory, disk, env</div>
+      <div class="event"><strong>Auto-discover networking</strong> &mdash; first VPC + public subnet + shared <code>vm-provision-sg</code> (SSH/HTTP/HTTPS/RDP/WinRM)</div>
+      <div class="event"><strong>Resolve AMI</strong> &mdash; map OS family to owner+filter, pick newest creation date</div>
+      <div class="event"><strong>Resolve instance type</strong> &mdash; <code>cores_memory</code> map &rarr; <code>t3a.medium</code>, <code>r5a.xlarge</code>, etc.</div>
+      <div class="event"><strong>Launch EC2</strong> &mdash; tagged with the RITM number for traceability</div>
+      <div class="event"><strong>Create CMDB CI</strong> &mdash; <code>cmdb_ci_vm_instance</code> with the instance ID + IP</div>
+      <div class="event"><strong>Close the RITM</strong> &mdash; PATCH state=closed_complete with work notes</div>
+    </div>
+  </section>
+
+  <!-- SN — THE CHAOS GENERATOR -->
+  <section>
+    <h2>The Chaos Generator</h2>
+    <p style="font-size:0.85em; opacity:0.8;">
+      Same pattern as the IIS chaos: a generic-source activation creates work for the real activation to react to.
+    </p>
+<pre><code class="language-yaml" data-trim data-noescape>
+- name: SN Chaos
+  sources:
+    - ansible.eda.generic:
+        payload: [ {chaos: tick} ]
+        loop_count: -1
+        loop_delay: 300       # ~5 min base
+  rules:
+    - name: Submit provision + decommission RITMs
+      condition: event.chaos == "tick"
+      action:
+        run_job_template:
+          name: "SN Chaos Tick"
+          # 0-180s jitter, then:
+          #  1) POST a new provision RITM via /servicecatalog/order_now
+          #  2) Find existing chaos VMs in CMDB and submit decom RITMs
+</code></pre>
+    <div class="stat-grid" style="margin-top:0.8em;">
+      <div class="stat"><span class="number">5&ndash;8m</span><span class="label">Cycle</span></div>
+      <div class="stat"><span class="number">1</span><span class="label">VM alive at a time</span></div>
+      <div class="stat"><span class="number">~30s</span><span class="label">Provision</span></div>
+      <div class="stat"><span class="number">~15s</span><span class="label">Decom</span></div>
+    </div>
+  </section>
+
+  <!-- SN — LIVE: WHAT TO WATCH -->
+  <section>
+    <h2>Live: What to Watch</h2>
+    <div class="three-col">
+      <div class="card">
+        <h3>1. ServiceNow</h3>
+        <ul>
+          <li>RITM list &mdash; new ones land every cycle</li>
+          <li>State transitions to <em>Closed Complete</em></li>
+          <li>Work notes show instance ID + IPs</li>
+          <li>CMDB CIs created &amp; retired</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>2. AAP &mdash; Jobs</h3>
+        <ul>
+          <li><em>SN Chaos Tick</em> every 5&ndash;8 min</li>
+          <li><em>VM Provision - EC2</em> right after</li>
+          <li><em>VM Deprovision - EC2</em> for previous VM</li>
+          <li>Drill into stdout for live AWS calls</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>3. AWS Console</h3>
+        <ul>
+          <li>EC2 list filtered by <code>tag:Name=chaos-vm-*</code></li>
+          <li>One instance running, rotating</li>
+          <li>Terminated instances visible (1h)</li>
+          <li>Tag <code>ServiceNow_RITM</code> proves the link</li>
+        </ul>
+      </div>
+    </div>
+    <p style="font-size:0.8em; margin-top:1em; text-align:center;">
+      <span class="highlight">Talking point:</span> the RITM and the EC2 instance carry the same correlation ID &mdash; full audit, both sides.
+    </p>
+  </section>
+
+  <!-- PATTERNS & LESSONS -->
+  <section>
+    <h2>Patterns Worth Stealing</h2>
+    <div class="two-col">
+      <div>
+        <h3>The Chaos Generator</h3>
+        <ul>
+          <li>Second activation with <code>ansible.eda.generic</code></li>
+          <li>Drives the demo without manual breakage</li>
+          <li>Toggle <code>is_enabled</code> to start/stop</li>
+          <li>Random jitter in the action playbook keeps cycles natural</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Throttle is Mandatory</h3>
+        <ul>
+          <li><code>once_within</code> + <code>group_by_attributes</code></li>
+          <li>Stops 6 polls in 60s firing 6 remediations</li>
+          <li>Group by the entity key (URL, sys_id)</li>
+          <li>Test by triggering 3 events at once</li>
+        </ul>
+      </div>
+    </div>
+    <div class="two-col" style="margin-top:1em;">
+      <div>
+        <h3>Restart Policy: <code>always</code></h3>
+        <ul>
+          <li>Activation pod dies &rarr; auto-restart</li>
+          <li>Watermarks reset on restart &mdash; expected</li>
+          <li>Pair with health metrics in Grafana</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Source Watermarks</h3>
+        <ul>
+          <li><code>servicenow.itsm.records</code> only emits new records since startup</li>
+          <li>"Activation is silent" usually means "no new events"</li>
+          <li>Use <code>log_level: info</code> when troubleshooting</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSING -->
+  <section class="center">
+    <div class="logo-text">
+      <span class="ansible">Ansible</span><span class="forge">Forge</span>
+    </div>
+    <p style="font-size:1.05em; margin-top:1em; max-width:680px; margin-left:auto; margin-right:auto;">
+      Two activations. One pattern. <span class="highlight">Self-driving demos</span> that mirror real production incidents.
+    </p>
+    <div style="margin-top:1.5em; font-size:0.8em; opacity:0.7;">
+      <p>Rulebooks: <code>extensions/eda/rulebooks/</code></p>
+      <p>Playbooks: <code>playbooks/iis-demo/</code> &middot; <code>playbooks/vm-provision/</code></p>
+      <p style="margin-top:0.8em; opacity:0.6;">github.com/hfenner/ansibleforge</p>
+    </div>
+  </section>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    slideNumber: 'c/t',
+    progress: true,
+    transition: 'fade',
+    plugins: [ RevealHighlight ],
+  });
+</script>
+</body>
+</html>
