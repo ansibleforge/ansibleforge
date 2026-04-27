@@ -1,0 +1,7 @@
+---
+controller_schedules:
+  - name: "SN Keepalive - Every 30 Minutes"
+    unified_job_template: "SN Keepalive"
+    rrule: "DTSTART;TZID=America/New_York:20260427T080000 RRULE:FREQ=MINUTELY;INTERVAL=30"
+    enabled: true
+    description: "Ping SNOW every 30 minutes to keep the developer instance from hibernating"

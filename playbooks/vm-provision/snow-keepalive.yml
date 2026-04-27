@@ -1,0 +1,64 @@
+---
+# Periodic ping against the ServiceNow developer instance to keep it
+# awake and to detect hibernation early. Run on a schedule (every ~30
+# min). A successful 200 + JSON body means SNOW is reachable; the
+# "Instance Hibernating" HTML page or any non-200 response is reported
+# but does not fail the job, so the schedule can keep firing wake-ups.
+- name: ServiceNow keepalive ping
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    sn_host: "{{ lookup('env', 'SN_HOST') }}"
+    sn_username: "{{ lookup('env', 'SN_USERNAME') }}"
+    sn_password: "{{ lookup('env', 'SN_PASSWORD') }}"
+
+  tasks:
+    - name: Assert SN credentials are present
+      ansible.builtin.assert:
+        that:
+          - sn_host | length > 0
+          - sn_username | length > 0
+          - sn_password | length > 0
+        fail_msg: Attach the "ServiceNow" credential to this job template.
+
+    - name: Ping SNOW table API
+      ansible.builtin.uri:
+        url: "{{ sn_host }}/api/now/table/sys_user?sysparm_limit=1&sysparm_fields=sys_id"
+        method: GET
+        user: "{{ sn_username }}"
+        password: "{{ sn_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers:
+          Accept: application/json
+        return_content: true
+        status_code: [200, 401, 403, 502, 503, 504]
+        timeout: 30
+      register: _ping
+      failed_when: false
+
+    - name: Wake hibernated instance via dev portal endpoint
+      ansible.builtin.uri:
+        url: "{{ sn_host }}/dev.do?wu=true"
+        method: GET
+        validate_certs: false
+        timeout: 30
+        status_code: [200, 302, 401, 403]
+      register: _wakeup
+      failed_when: false
+      when:
+        - _ping.content is defined
+        - "'Instance Hibernating' in (_ping.content | default(''))"
+
+    - name: Report SNOW state
+      ansible.builtin.debug:
+        msg: >-
+          {% if _ping.status == 200 and _ping.json is defined %}
+          SNOW awake — table API responded 200 with JSON.
+          {% elif _ping.content is defined and 'Instance Hibernating' in _ping.content %}
+          SNOW is hibernating — wake-up request fired (status={{ _wakeup.status | default('?') }}).
+          {% else %}
+          SNOW unreachable — status={{ _ping.status | default('?') }}, will retry next schedule.
+          {% endif %}

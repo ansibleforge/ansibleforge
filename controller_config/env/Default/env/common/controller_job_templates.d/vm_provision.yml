@@ -51,3 +51,14 @@ controller_templates:
       vm_environment: dev
       business_justification: ""
     description: "Submit a ServiceNow catalog request to provision a new VM"
+
+  - name: "SN Keepalive"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/vm-provision/snow-keepalive.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "ServiceNow"
+    description: "Periodic ping to keep the SNOW developer instance awake and detect hibernation"
