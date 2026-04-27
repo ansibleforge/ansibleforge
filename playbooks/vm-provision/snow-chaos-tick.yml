@@ -75,41 +75,15 @@
       ansible.builtin.wait_for:
         timeout: "{{ 180 | random }}"
 
-    - name: Submit Provision RITM via service catalog order_now
-      ansible.builtin.uri:
-        url: "{{ sn_host }}/api/sn_sc/servicecatalog/items/{{ sn_provision_cat_item }}/order_now"
-        method: POST
-        user: "{{ sn_username }}"
-        password: "{{ sn_password }}"
-        force_basic_auth: true
-        validate_certs: false
-        body_format: json
-        body:
-          sysparm_quantity: "1"
-          variables:
-            vm_name: "{{ new_vm_name }}"
-            operating_system: ubuntu2404
-            cpu_cores: "2"
-            memory_gb: "4"
-            disk_size_gb: "20"
-            environment: dev
-            business_justification: "Automated chaos cycle for SN VM provision demo"
-        status_code: [200, 201]
-      register: _new_ritm
-
-    - name: Report provision RITM
-      ansible.builtin.debug:
-        msg: "Submitted provision RITM for {{ new_vm_name }} (request_number={{ _new_ritm.json.result.request_number }})"
-
     # Build the SN encoded-query in Jinja and pass via the URL so Ansible
     # doesn't mangle the `^`/`!=` operators (a previous body-form-urlencoded
     # version was silently dropped by the SN API and returned every CI in
     # cmdb_ci_vm_instance — which then got submitted for decommission).
     - name: Build CMDB query URL (single-line so no whitespace creeps in)
       ansible.builtin.set_fact:
-        _cmdb_query_url: "{{ sn_host }}/api/now/table/cmdb_ci_vm_instance?sysparm_query={{ ('nameSTARTSWITH' ~ chaos_vm_prefix ~ '^install_status=1^name!=' ~ new_vm_name) | urlencode }}&sysparm_fields=name,vm_inst_id,sys_id,install_status&sysparm_limit=20"
+        _cmdb_query_url: "{{ sn_host }}/api/now/table/cmdb_ci_vm_instance?sysparm_query={{ ('nameSTARTSWITH' ~ chaos_vm_prefix ~ '^install_status=1') | urlencode }}&sysparm_fields=name,vm_inst_id,sys_id,install_status&sysparm_limit=20"
 
-    - name: Find existing chaos VMs in CMDB to decommission
+    - name: Find existing chaos VMs in CMDB
       ansible.builtin.uri:
         url: "{{ _cmdb_query_url }}"
         method: GET
@@ -129,9 +103,13 @@
         _existing_chaos_vms: >-
           {{ _existing_chaos_vms_raw.json.result | default([])
              | selectattr('name', 'match', '^' ~ chaos_vm_prefix ~ '-')
-             | rejectattr('name', 'equalto', new_vm_name)
              | list }}
 
+    # Decommission first, provision second — and only provision if the
+    # decom step finds nothing already in CMDB. This (plus the singleton
+    # check inside provision_ec2.yml) keeps us at ≤1 chaos VM at a time:
+    # if the previous tick's VM is still around for any reason, this tick
+    # asks for it to be decommissioned and skips creating another one.
     - name: Submit Decommission RITM for each existing chaos VM
       ansible.builtin.uri:
         url: "{{ sn_host }}/api/sn_sc/servicecatalog/items/{{ sn_decom_cat_item }}/order_now"
@@ -158,3 +136,41 @@
         msg: >-
           Submitted {{ _decom_results.results | default([]) | length }}
           decommission RITM(s) for previous chaos VMs.
+
+    - name: Skip provision when a chaos VM is already active in CMDB
+      ansible.builtin.debug:
+        msg: >-
+          Provision skipped — {{ _existing_chaos_vms | length }} chaos VM(s)
+          still active in CMDB
+          ({{ _existing_chaos_vms | map(attribute='name') | join(', ') }}).
+          The decom RITM(s) above will clean them up; next tick will
+          provision a replacement.
+      when: _existing_chaos_vms | length > 0
+
+    - name: Submit Provision RITM via service catalog order_now
+      when: _existing_chaos_vms | length == 0
+      ansible.builtin.uri:
+        url: "{{ sn_host }}/api/sn_sc/servicecatalog/items/{{ sn_provision_cat_item }}/order_now"
+        method: POST
+        user: "{{ sn_username }}"
+        password: "{{ sn_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body:
+          sysparm_quantity: "1"
+          variables:
+            vm_name: "{{ new_vm_name }}"
+            operating_system: ubuntu2404
+            cpu_cores: "2"
+            memory_gb: "4"
+            disk_size_gb: "20"
+            environment: dev
+            business_justification: "Automated chaos cycle for SN VM provision demo"
+        status_code: [200, 201]
+      register: _new_ritm
+
+    - name: Report provision RITM
+      when: _existing_chaos_vms | length == 0
+      ansible.builtin.debug:
+        msg: "Submitted provision RITM for {{ new_vm_name }} (request_number={{ _new_ritm.json.result.request_number }})"
