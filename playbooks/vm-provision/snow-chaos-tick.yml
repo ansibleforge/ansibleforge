@@ -33,6 +33,44 @@
           - sn_password | length > 0
         fail_msg: Attach the "ServiceNow" credential to this job template.
 
+    # Pre-flight: if the developer instance is hibernating or otherwise
+    # unreachable, the catalog calls below would all error and pile up
+    # noise (and on wake-up, EDA flushes the queued ticks as a burst —
+    # which is how we ended up with 100+ orphan EC2 instances). Skip the
+    # cycle cleanly instead.
+    - name: Pre-flight SNOW reachability
+      ansible.builtin.uri:
+        url: "{{ sn_host }}/api/now/table/sys_user?sysparm_limit=1&sysparm_fields=sys_id"
+        method: GET
+        user: "{{ sn_username }}"
+        password: "{{ sn_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers:
+          Accept: application/json
+        return_content: true
+        status_code: [200, 401, 403, 502, 503, 504]
+        timeout: 30
+      register: _snow_ping
+      failed_when: false
+
+    - name: Skip cycle when SNOW is hibernating or unreachable
+      when: _snow_ping.status != 200 or _snow_ping.json is not defined
+      block:
+        - name: Report skip reason
+          ansible.builtin.debug:
+            msg: >-
+              Skipping chaos cycle —
+              {% if _snow_ping.content is defined and 'Instance Hibernating' in _snow_ping.content %}
+              SNOW developer instance is hibernating.
+              {% else %}
+              SNOW unreachable (status={{ _snow_ping.status | default('?') }}).
+              {% endif %}
+              The SN Keepalive schedule will keep poking it.
+
+        - name: End play
+          ansible.builtin.meta: end_play
+
     - name: Wait random 0-180s so chaos cycles spread to 5-8 min apart
       ansible.builtin.wait_for:
         timeout: "{{ 180 | random }}"
