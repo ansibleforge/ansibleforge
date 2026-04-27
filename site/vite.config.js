@@ -11,6 +11,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         slideshow: resolve(__dirname, 'slideshow.html'),
         edaDemos: resolve(__dirname, 'eda-demos.html'),
+        trustedAutomation: resolve(__dirname, 'decks/security-collab-eda/index.html'),
       },
     },
   },
