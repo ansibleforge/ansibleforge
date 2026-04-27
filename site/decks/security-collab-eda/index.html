@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AAP — Trusted automation for state &amp; local government</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../../colors_and_type.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="deck-stage.js"></script>
+<style>
+  html, body { margin:0; padding:0; background:#000; color:#fff; }
+  deck-stage { background:#000; }
+
+  /* base slide chrome */
+  .slide{
+    position:relative; width:1920px; height:1080px;
+    color:#fff; font-family:var(--font-body);
+    overflow:hidden;
+    background:
+      linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px) 0 0/72px 72px,
+      linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px) 0 0/72px 72px,
+      #0C0C0C;
+  }
+  .slide.glow{
+    background:
+      radial-gradient(circle 900px at 92% -8%,rgba(238,0,0,.32),transparent 65%),
+      linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px) 0 0/72px 72px,
+      linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px) 0 0/72px 72px,
+      #0C0C0C;
+  }
+  .slide.glow-bl{
+    background:
+      radial-gradient(circle 900px at 8% 108%,rgba(238,0,0,.24),transparent 65%),
+      linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px) 0 0/72px 72px,
+      linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px) 0 0/72px 72px,
+      #0C0C0C;
+  }
+  .num{position:absolute;top:48px;left:96px;font-family:var(--font-mono);font-size:18px;letter-spacing:.22em;text-transform:uppercase;color:var(--rh-gray-400)}
+  .num strong{color:var(--rh-red)}
+  .foot{position:absolute;left:96px;right:96px;bottom:42px;display:flex;justify-content:flex-end;align-items:center;font-family:var(--font-mono);font-size:16px;letter-spacing:.18em;text-transform:uppercase;color:var(--rh-gray-400);border-top:1px solid var(--rh-gray-700);padding-top:18px}
+  .foot .pg{color:var(--rh-red)}
+  .word{display:inline-flex;align-items:center;gap:12px;color:#fff;font-family:var(--font-display);font-weight:900;font-size:18px;letter-spacing:-.02em}
+  .word::before{content:"";width:24px;height:17px;background:var(--rh-red);clip-path:polygon(0 100%,15% 60%,40% 50%,60% 50%,85% 60%,100% 100%)}
+  .eyebrow{font-family:var(--font-mono);font-size:18px;letter-spacing:.24em;text-transform:uppercase;color:var(--rh-red)}
+  .div60{width:90px;height:4px;background:var(--rh-red);border-radius:2px}
+  .keyword{display:inline-block;background:rgba(238,0,0,.15);color:var(--rh-red);padding:.05em .35em;border-radius:6px;font-weight:900}
+  em.r{color:var(--rh-red);font-style:normal}
+  em.t{color:var(--rh-teal);font-style:normal}
+  em.g{color:var(--rh-gold);font-style:normal}
+  em.b{color:var(--rh-blue);font-style:normal}
+  em.p{color:var(--rh-purple);font-style:normal}
+
+  /* ── slide 1: title ── */
+  .s-title .stage{position:absolute;left:96px;right:96px;top:50%;transform:translateY(-54%);max-width:1500px}
+  .s-title h1{font-family:var(--font-display);font-weight:900;font-size:132px;line-height:.98;letter-spacing:-.03em;margin:28px 0 0}
+  .s-title .sub{font-family:var(--font-body);font-size:30px;line-height:1.4;color:var(--rh-gray-200);margin-top:42px;max-width:none;white-space:nowrap}
+  .s-title .meta{position:absolute;right:96px;bottom:42px;text-align:right;font-family:var(--font-mono);font-size:16px;letter-spacing:.2em;text-transform:uppercase;color:var(--rh-gray-400);line-height:1.6}
+  .s-title .meta strong{color:#fff;display:block;font-family:var(--font-display);font-weight:700;letter-spacing:0;text-transform:none;font-size:22px;margin-bottom:6px}
+
+  /* ── shared section header ── */
+  .head{position:absolute;left:96px;right:96px;top:120px;max-width:none}
+  .head h2{font-family:var(--font-display);font-weight:900;font-size:84px;line-height:1.02;letter-spacing:-.022em;margin:18px 0 22px}
+  .head .lede{font-family:var(--font-body);font-size:26px;line-height:1.5;color:var(--rh-gray-200);max-width:none;margin-top:18px}
+  .s-trust .head .lede{max-width:none}
+
+  /* ── slide 2: trust boundary ── */
+  .s-trust .grid{position:absolute;left:96px;right:96px;top:560px;display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+  .pillar{background:#1A1A1A;border:1px solid var(--rh-gray-700);border-top:4px solid var(--rh-red);border-radius:10px;padding:32px 32px 36px;display:flex;flex-direction:column;min-height:380px}
+  .pillar.gold{border-top-color:var(--rh-gold)}
+  .pillar.teal{border-top-color:var(--rh-teal)}
+  .pillar.blue{border-top-color:var(--rh-blue)}
+  .pillar .lbl{font-family:var(--font-mono);font-size:14px;letter-spacing:.22em;text-transform:uppercase;color:var(--rh-gray-400);margin-bottom:14px}
+  .pillar h3{font-family:var(--font-display);font-weight:700;font-size:30px;line-height:1.15;color:#fff;margin:0 0 14px;letter-spacing:-.01em}
+  .pillar p{font-family:var(--font-body);font-size:18px;line-height:1.55;color:var(--rh-gray-200);margin:0}
+  .pillar .meta{margin-top:auto;padding-top:20px;border-top:1px solid var(--rh-gray-700);font-family:var(--font-mono);font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--rh-red)}
+  .pillar.gold .meta{color:var(--rh-gold)}
+  .pillar.teal .meta{color:var(--rh-teal)}
+  .pillar.blue .meta{color:var(--rh-blue)}
+
+  /* ── slide 3: signed supply chain ── */
+  .s-supply .head{max-width:62%}
+  .supply-stage{position:absolute;left:96px;right:96px;top:520px;height:380px}
+  .lane{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:2px;background:linear-gradient(90deg,#3C3C3C 0%,#3C3C3C 100%)}
+  .node{position:absolute;top:50%;transform:translate(-50%,-50%);width:240px;background:#1A1A1A;border:1px solid var(--rh-gray-700);border-radius:10px;padding:20px 22px;text-align:left}
+  .node.red{border-top:3px solid var(--rh-red)}
+  .node.teal{border-top:3px solid var(--rh-teal)}
+  .node.gold{border-top:3px solid var(--rh-gold)}
+  .node.purple{border-top:3px solid var(--rh-purple)}
+  .node .stp{font-family:var(--font-mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--rh-gray-400);margin-bottom:8px}
+  .node h4{font-family:var(--font-display);font-weight:700;font-size:22px;color:#fff;margin:0 0 8px;letter-spacing:-.01em}
+  .node p{font-family:var(--font-body);font-size:14px;line-height:1.45;color:var(--rh-gray-200);margin:0}
+  .sig{position:absolute;top:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;background:#0C0C0C;border:2px solid var(--rh-red);color:var(--rh-red);display:grid;place-items:center;font-family:var(--font-mono);font-size:18px;font-weight:700;box-shadow:0 0 16px rgba(238,0,0,.4)}
+  .sig.ok{border-color:var(--rh-teal);color:var(--rh-teal);box-shadow:0 0 16px rgba(0,149,150,.55)}
+  .ann{position:absolute;font-family:var(--font-mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--rh-gray-400)}
+  .footnote{position:absolute;left:96px;bottom:120px;font-family:var(--font-mono);font-size:14px;letter-spacing:.15em;text-transform:uppercase;color:var(--rh-gray-400);max-width:60ch;line-height:1.6}
+  .footnote strong{color:var(--rh-gray-200);font-weight:500}
+
+  /* ── slide 4: collaboration swimlane ── */
+  .s-collab .head{max-width:48%}
+  .swim{position:absolute;right:96px;top:160px;width:920px;height:740px;background:#1A1A1A;border:1px solid var(--rh-gray-700);border-radius:10px;padding:34px 38px;display:flex;flex-direction:column;gap:20px}
+  .swim-h{font-family:var(--font-mono);font-size:14px;letter-spacing:.22em;text-transform:uppercase;color:var(--rh-red);display:flex;justify-content:space-between;border-bottom:1px solid var(--rh-gray-700);padding-bottom:12px}
+  .lane-row{display:grid;grid-template-columns:170px 1fr;gap:24px;align-items:stretch;flex:1;border-bottom:1px dashed #292929;padding-bottom:18px}
+  .lane-row:last-child{border-bottom:none;padding-bottom:0}
+  .lane-name{font-family:var(--font-display);font-weight:700;font-size:22px;color:#fff;letter-spacing:-.01em;display:flex;flex-direction:column;justify-content:center;gap:6px}
+  .lane-name .role{font-family:var(--font-mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:400}
+  .lane-name.security .role{color:var(--rh-red)}
+  .lane-name.ops .role{color:var(--rh-teal)}
+  .lane-name.dev .role{color:var(--rh-blue)}
+  .lane-pills{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .pill{padding:10px 14px;background:#0F0F0F;border:1px solid var(--rh-gray-700);border-radius:6px;font-family:var(--font-body);font-size:15px;color:#fff;display:inline-flex;align-items:center;gap:8px}
+  .pill .pdot{width:8px;height:8px;border-radius:50%;background:var(--rh-gray-400)}
+  .pill.red{border-color:rgba(238,0,0,.45)}
+  .pill.red .pdot{background:var(--rh-red)}
+  .pill.teal{border-color:rgba(0,149,150,.5)}
+  .pill.teal .pdot{background:var(--rh-teal)}
+  .pill.blue{border-color:rgba(0,102,204,.5)}
+  .pill.blue .pdot{background:var(--rh-blue)}
+  .arrow{color:var(--rh-gray-400);font-family:var(--font-mono)}
+  .truth{display:flex;align-items:center;gap:14px;padding-top:6px;border-top:1px solid var(--rh-gray-700);font-family:var(--font-mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--rh-gray-200)}
+  .truth .dot{width:10px;height:10px;border-radius:50%;background:var(--rh-red);box-shadow:0 0 12px rgba(238,0,0,.6)}
+
+  /* ── video slide ── */
+  .s-video{padding:0}
+  .s-video video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.55) contrast(1.05) saturate(.9)}
+  .s-video::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 30% 60%,transparent 0%,rgba(0,0,0,.55) 70%),linear-gradient(180deg,rgba(0,0,0,.35) 0%,transparent 30%,transparent 60%,rgba(0,0,0,.7) 100%);pointer-events:none}
+  .s-video .v-stage{position:absolute;left:96px;right:96px;bottom:140px;z-index:2}
+  .s-video .v-eyebrow{font-family:var(--font-mono);font-size:18px;letter-spacing:.24em;text-transform:uppercase;color:var(--rh-red);margin-bottom:24px}
+  .s-video h2{font-family:var(--font-display);font-weight:700;font-size:48px;line-height:1.15;letter-spacing:-.015em;color:#fff;margin:0;text-shadow:0 4px 40px rgba(0,0,0,.6)}
+  .s-video .v-sub{font-family:var(--font-body);font-size:30px;line-height:1.4;color:#E0E0E0;max-width:48ch;text-shadow:0 2px 20px rgba(0,0,0,.7)}
+  .s-video .v-credit{position:absolute;right:96px;top:120px;z-index:2;font-family:var(--font-mono);font-size:14px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.55);text-align:right;line-height:1.6}
+  .s-video .v-credit strong{color:#fff;font-weight:500}
+  .s-video .num,.s-video .foot{z-index:2}
+  .s-video .foot{border-top-color:rgba(255,255,255,.2)}
+
+  /* ── manual remediation slide ── */
+  .s-manual .head h2{font-size:64px;max-width:none}
+  .loop-stage{position:absolute;left:96px;right:96px;top:500px;bottom:130px;display:grid;grid-template-columns:1.6fr 1fr;gap:80px;align-items:start}
+  .loop-diagram{position:relative;display:grid;grid-template-columns:1fr 56px 1fr;grid-template-rows:auto 56px auto;gap:0;align-items:center;justify-items:center}
+  .loop-step{background:#1A1A1A;border:1px solid var(--rh-gray-700);border-left:3px solid var(--rh-red);border-radius:8px;padding:18px 22px;width:100%;max-width:280px}
+  .loop-step .si{font-family:var(--font-mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--rh-red);margin-bottom:8px}
+  .loop-step h4{font-family:var(--font-display);font-weight:700;font-size:20px;color:#fff;margin:0 0 6px;letter-spacing:-.01em}
+  .loop-step p{font-family:var(--font-body);font-size:14px;line-height:1.45;color:var(--rh-gray-200);margin:0}
+  .loop-arrow{font-family:var(--font-mono);font-size:28px;color:var(--rh-gray-400);font-weight:300;line-height:1}
+  .loop-cycle{grid-column:2;grid-row:2;font-family:var(--font-mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--rh-red);text-align:center;border:1px solid rgba(238,0,0,.4);border-radius:50%;width:56px;height:56px;display:grid;place-items:center;background:#0C0C0C;line-height:1.1}
+  .loop-cycle small{font-size:9px;color:var(--rh-gray-400);letter-spacing:.18em;display:block}
+  .toll{display:flex;flex-direction:column;gap:24px}
+  .toll-stat{border-left:4px solid var(--rh-red);padding-left:22px}
+  .toll-stat .n{font-family:var(--font-display);font-weight:900;font-size:56px;line-height:1;color:#fff;letter-spacing:-.03em}
+  .toll-stat .l{font-family:var(--font-mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--rh-gray-400);margin-top:8px}
+  .toll-stat .d{font-family:var(--font-body);font-size:16px;color:var(--rh-gray-200);margin-top:8px;line-height:1.5;max-width:32ch}
+
+  /* ── automated response slide ── */
+  .s-auto .head h2{max-width:none;white-space:nowrap;font-size:72px}
+  .auto-stage{position:absolute;left:96px;right:96px;top:520px;bottom:130px;display:grid;grid-template-columns:1fr 1fr;gap:48px}
+  .auto-flow{background:#1A1A1A;border:1px solid var(--rh-gray-700);border-radius:10px;padding:32px 36px;display:flex;flex-direction:column;gap:18px}
+  .auto-flow .ah{font-family:var(--font-mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--rh-teal);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--rh-gray-700);padding-bottom:14px}
+  .auto-flow .ah .badge{font-size:11px;background:rgba(0,149,150,.15);color:var(--rh-teal);padding:4px 10px;border-radius:4px;letter-spacing:.18em}
+  .auto-step{display:flex;gap:16px;align-items:flex-start;padding:6px 0}
+  .auto-step .ai{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:#0F0F0F;border:2px solid var(--rh-teal);color:var(--rh-teal);display:grid;place-items:center;font-family:var(--font-mono);font-size:14px;font-weight:700}
+  .auto-step .ac h4{font-family:var(--font-display);font-weight:700;font-size:19px;color:#fff;margin:2px 0 4px;letter-spacing:-.01em}
+  .auto-step .ac p{font-family:var(--font-body);font-size:15px;line-height:1.5;color:var(--rh-gray-200);margin:0}
+  .auto-side{display:flex;flex-direction:column;gap:24px}
+  .auto-side .cmp{background:#1A1A1A;border:1px solid var(--rh-gray-700);border-radius:10px;padding:26px 30px;flex:1}
+  .auto-side .cmp .clbl{font-family:var(--font-mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--rh-gray-400);margin-bottom:10px}
+  .auto-side .cmp .ttr{font-family:var(--font-display);font-weight:900;font-size:44px;line-height:1.05;color:#fff;letter-spacing:-.025em;white-space:nowrap}
+  .auto-side .cmp .ttr em{color:var(--rh-teal);font-style:normal}
+  .auto-side .cmp .ttr.bad em{color:var(--rh-red)}
+  .auto-side .cmp p{font-family:var(--font-body);font-size:15px;line-height:1.5;color:var(--rh-gray-200);margin:14px 0 0}
+  .auto-side .platforms{font-family:var(--font-mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--rh-gray-200);margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+  .auto-side .platforms span{padding:6px 10px;background:#0F0F0F;border:1px solid var(--rh-gray-700);border-radius:4px}
+  .auto-cite{position:absolute;right:96px;bottom:80px;font-family:var(--font-mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--rh-gray-400);text-align:right;line-height:1.6}
+  .auto-cite a{color:var(--rh-gray-200);text-decoration:none;border-bottom:1px solid var(--rh-gray-700)}
+
+  /* ── slide 5: EDA timeline ── */
+  .s-eda .head{max-width:60%}
+  .timeline{position:absolute;left:96px;right:96px;top:720px;height:260px;background:#1A1A1A;border:1px solid var(--rh-gray-700);border-radius:10px;padding:24px 44px}
+  .tl-row{position:relative;height:120px}
+  .tl-axis{position:absolute;left:0;right:0;top:42px;height:2px;background:#3C3C3C}
+  .tl-tick{position:absolute;top:36px;width:2px;height:14px;background:#3C3C3C}
+  .tl-label{position:absolute;top:60px;font-family:var(--font-mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--rh-gray-400);transform:translateX(-50%)}
+  .tl-event{position:absolute;top:6px;width:18px;height:18px;border-radius:50%;background:var(--rh-red);transform:translate(-50%,0);box-shadow:0 0 16px rgba(238,0,0,.6)}
+  .tl-event.start{background:var(--rh-gold);box-shadow:0 0 16px rgba(240,171,0,.55)}
+  .tl-event.end{background:var(--rh-teal);box-shadow:0 0 16px rgba(0,149,150,.55)}
+  .tl-cap{position:absolute;top:-6px;font-family:var(--font-mono);font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#fff;transform:translateX(-50%)}
+  .tl-bar{position:absolute;top:36px;height:14px;border-radius:3px}
+  .tl-bar.eda{background:linear-gradient(90deg,var(--rh-red),var(--rh-gold))}
+  .tl-bar.human{background:#3C3C3C}
+  .tl-rowlabel{position:absolute;left:-180px;top:50%;transform:translateY(-50%);width:160px;text-align:right;font-family:var(--font-display);font-weight:700;font-size:18px;color:#fff}
+  .tl-rowlabel .sec{font-family:var(--font-mono);font-size:14px;color:var(--rh-red);font-weight:400;letter-spacing:.1em;display:block;margin-top:2px}
+  .tl-rowlabel.h .sec{color:var(--rh-gray-400)}
+  .tl-wrap{position:relative;margin-left:180px;padding-top:6px;display:flex;flex-direction:column;gap:18px}
+  .tl-track{position:relative;height:78px;border-bottom:1px dashed #292929}
+  .tl-track:last-child{border-bottom:none}
+
+  .stat-row{position:absolute;left:96px;right:96px;top:420px;display:flex;gap:60px}
+  .stat-item{flex:1;border-left:4px solid var(--rh-red);padding-left:24px}
+  .stat-item.t{border-left-color:var(--rh-teal)}
+  .stat-item .n{font-family:var(--font-display);font-weight:900;font-size:80px;line-height:1;color:#fff;letter-spacing:-.03em}
+  .stat-item .l{font-family:var(--font-mono);font-size:14px;letter-spacing:.18em;text-transform:uppercase;color:var(--rh-gray-400);margin-top:10px}
+  .stat-item .d{font-family:var(--font-body);font-size:17px;color:var(--rh-gray-200);margin-top:6px;max-width:32ch;line-height:1.5}
+
+  /* ── slide 7: statewide shared service ── */
+  .s-state .head h2{font-size:72px;max-width:none}
+  .s-state .head .lede{max-width:80ch}
+  .who-strip{position:absolute;left:96px;right:96px;top:480px;display:grid;grid-template-columns:repeat(8,1fr);gap:14px}
+  .who-tile{background:#1A1A1A;border:1px solid var(--rh-gray-700);border-top:3px solid var(--rh-red);border-radius:8px;padding:18px 16px 20px;text-align:center;display:flex;flex-direction:column;gap:6px;min-height:120px;justify-content:center}
+  .who-tile .wn{font-family:var(--font-display);font-weight:700;font-size:18px;color:#fff;line-height:1.15;letter-spacing:-.005em}
+  .who-tile .ws{font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--rh-gray-400);line-height:1.4}
+  .who-tile.t{border-top-color:var(--rh-teal)}
+  .who-tile.g{border-top-color:var(--rh-gold)}
+  .who-tile.b{border-top-color:var(--rh-blue)}
+  .who-tile.p{border-top-color:var(--rh-purple)}
+
+  .arch{position:absolute;left:96px;right:96px;top:660px;bottom:130px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:36px;align-items:stretch}
+  .arch-card{background:#1A1A1A;border:1px solid var(--rh-gray-700);border-radius:10px;padding:30px 32px 32px;display:flex;flex-direction:column;position:relative}
+  .arch-card .alabel{font-family:var(--font-mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--rh-red);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+  .arch-card.t .alabel{color:var(--rh-teal)}
+  .arch-card.g .alabel{color:var(--rh-gold)}
+  .arch-card .alabel .anum{font-family:var(--font-display);font-weight:900;font-size:14px;color:var(--rh-gray-400);letter-spacing:.05em}
+  .arch-card h3{font-family:var(--font-display);font-weight:700;font-size:26px;color:#fff;margin:0 0 10px;letter-spacing:-.01em;line-height:1.15}
+  .arch-card .who{font-family:var(--font-mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--rh-gray-200);margin-bottom:16px}
+  .arch-card p{font-family:var(--font-body);font-size:16px;line-height:1.5;color:var(--rh-gray-200);margin:0 0 14px}
+  .arch-card ul{margin:0;padding:0;list-style:none}
+  .arch-card li{font-family:var(--font-body);font-size:14px;line-height:1.45;color:var(--rh-gray-200);padding:6px 0;display:flex;gap:10px}
+  .arch-card li::before{content:"▸";color:var(--rh-red);flex-shrink:0;font-size:13px}
+  .arch-card.t li::before{color:var(--rh-teal)}
+  .arch-card.g li::before{color:var(--rh-gold)}
+
+  /* ── slide 7: closed-loop integrations ── */
+  .s-loop .head h2{font-size:72px;max-width:none}
+  .s-loop .head .lede{max-width:78ch}
+  .loop-pipe{position:absolute;left:96px;right:96px;top:520px;bottom:240px;background:#1A1A1A;border:1px solid var(--rh-gray-700);border-radius:12px;padding:36px 44px;display:grid;grid-template-columns:1fr 36px 1fr 36px 1fr 36px 1fr;gap:0;align-items:stretch}
+  .lp-stage{display:flex;flex-direction:column;justify-content:center;gap:8px}
+  .lp-stage .lps{font-family:var(--font-mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--rh-gray-400)}
+  .lp-stage .lpn{font-family:var(--font-display);font-weight:700;font-size:22px;color:#fff;letter-spacing:-.01em;line-height:1.15}
+  .lp-stage .lpd{font-family:var(--font-body);font-size:13px;line-height:1.45;color:var(--rh-gray-200)}
+  .lp-stage .lptools{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .lp-stage .lptools span{font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--rh-gray-200);padding:5px 9px;background:#0F0F0F;border:1px solid var(--rh-gray-700);border-radius:4px}
+  .lp-stage.detect .lps{color:var(--rh-red)}
+  .lp-stage.event .lps{color:var(--rh-gold)}
+  .lp-stage.match .lps{color:var(--rh-teal)}
+  .lp-stage.fix .lps{color:var(--rh-blue)}
+  .lp-arrow{font-family:var(--font-mono);font-size:24px;color:var(--rh-gray-400);font-weight:300;display:grid;place-items:center}
+
+  .scenarios{position:absolute;left:96px;right:96px;bottom:130px;height:230px;display:grid;grid-template-columns:1fr 1fr;gap:32px}
+  .scn{background:#1A1A1A;border:1px solid var(--rh-gray-700);border-left:3px solid var(--rh-red);border-radius:10px;padding:22px 28px;display:flex;flex-direction:column;gap:10px}
+  .scn.t{border-left-color:var(--rh-teal)}
+  .scn .sh{display:flex;justify-content:space-between;align-items:center}
+  .scn .stool{font-family:var(--font-mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--rh-red)}
+  .scn.t .stool{color:var(--rh-teal)}
+  .scn .stag{font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--rh-gray-400);padding:4px 8px;border:1px solid var(--rh-gray-700);border-radius:4px}
+  .scn h4{font-family:var(--font-display);font-weight:700;font-size:20px;color:#fff;margin:0;letter-spacing:-.01em;line-height:1.2}
+  .scn .sflow{display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap}
+  .scn .sflow .step{font-family:var(--font-body);font-size:14px;color:var(--rh-gray-200);line-height:1.4}
+  .scn .sflow .step strong{color:#fff;font-weight:600}
+  .scn .sflow .arr{font-family:var(--font-mono);font-size:14px;color:var(--rh-gray-400)}
+
+  /* ── slide 8: CTA closer ── */
+  .s-cta-final{padding:0}
+  .s-cta-final .num{}
+  .s-cta-final .cta-stage{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:0 96px}
+  .s-cta-final .ck{font-family:var(--font-mono);font-size:18px;letter-spacing:.28em;text-transform:uppercase;color:var(--rh-red);margin-bottom:32px}
+  .s-cta-final h1{font-family:var(--font-display);font-weight:900;font-size:140px;line-height:.94;letter-spacing:-.028em;color:#fff;margin:0 0 28px;max-width:18ch}
+  .s-cta-final h1 em{color:var(--rh-red);font-style:normal}
+  .s-cta-final .csub{font-family:var(--font-body);font-size:30px;line-height:1.4;color:var(--rh-gray-200);max-width:48ch;margin-bottom:64px}
+  .s-cta-final .pilot-card{background:#1A1A1A;border:1px solid var(--rh-gray-700);border-left:4px solid var(--rh-red);border-radius:10px;padding:36px 44px;display:block;max-width:1280px}
+  .s-cta-final .pilot-card .pl{font-family:var(--font-mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--rh-red);margin-bottom:10px}
+  .s-cta-final .pilot-card h3{font-family:var(--font-display);font-weight:700;font-size:34px;color:#fff;margin:0 0 12px;letter-spacing:-.015em;line-height:1.15}
+  .s-cta-final .pilot-card p{font-family:var(--font-body);font-size:18px;line-height:1.5;color:var(--rh-gray-200);margin:0;max-width:54ch}
+  .s-cta-final .pilot-card .actions{display:flex;flex-direction:column;gap:12px}
+  .s-cta-final .pilot-card .actions .btn{white-space:nowrap}
+
+  /* ── slide 9 (was 6): pilot CTA legacy [unused after rework] ── */
+  .s-cta{}
+  .s-cta .head{max-width:56%}
+  .phases{position:absolute;left:96px;right:96px;top:520px;display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
+  .phase{background:#1A1A1A;border:1px solid var(--rh-gray-700);border-radius:10px;padding:30px 32px 36px;position:relative}
+  .phase .ix{position:absolute;top:-22px;left:32px;font-family:var(--font-display);font-weight:900;font-size:62px;color:var(--rh-red);line-height:1;letter-spacing:-.03em;text-shadow:0 0 24px rgba(238,0,0,.4)}
+  .phase.t .ix{color:var(--rh-teal);text-shadow:0 0 24px rgba(0,149,150,.4)}
+  .phase.g .ix{color:var(--rh-gold);text-shadow:0 0 24px rgba(240,171,0,.4)}
+  .phase .when{font-family:var(--font-mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--rh-gray-400);margin:24px 0 12px}
+  .phase h3{font-family:var(--font-display);font-weight:700;font-size:30px;color:#fff;margin:0 0 14px;letter-spacing:-.01em}
+  .phase ul{margin:0;padding:0;list-style:none}
+  .phase li{font-family:var(--font-body);font-size:17px;line-height:1.55;color:var(--rh-gray-200);padding:8px 0;border-bottom:1px solid #292929;display:flex;gap:10px}
+  .phase li:last-child{border-bottom:none}
+  .phase li::before{content:"▸";color:var(--rh-red);flex-shrink:0}
+  .phase.t li::before{color:var(--rh-teal)}
+  .phase.g li::before{color:var(--rh-gold)}
+
+  .closer{position:absolute;left:96px;right:96px;bottom:130px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--rh-gray-700);padding-top:30px}
+  .closer .quip{font-family:var(--font-display);font-weight:900;font-size:38px;color:#fff;letter-spacing:-.015em;max-width:24ch;line-height:1.1}
+  .closer .quip em{color:var(--rh-red);font-style:normal}
+  .closer .cta{display:flex;gap:14px;align-items:center}
+  .btn{font-family:var(--font-display);font-weight:700;font-size:20px;padding:18px 32px;border-radius:6px;letter-spacing:.02em}
+  .btn-pri{background:var(--rh-red);color:#fff}
+  .btn-sec{background:transparent;color:#fff;border:1px solid var(--rh-gray-200)}
+
+  /* tweaks */
+  .twk-extra{display:flex;flex-direction:column;gap:6px}
+</style>
+</head>
+<body>
+<deck-stage data-show-slide-numbers="false">
+
+  <!-- ───── SLIDE 1: TITLE ───── -->
+  <section class="slide glow s-title" data-screen-label="01 Title">
+    <div class="num"><strong>01</strong> &nbsp;—&nbsp; <span id="t-eyebrow">Trusted Automation</span></div>
+    <div class="stage">
+      <div class="eyebrow" id="t-kicker">Ansible Automation Platform · State &amp; Local Gov</div>
+      <h1 id="t-title"></h1>
+      <div class="sub" id="t-sub"></div>
+    </div>
+    <div class="meta" style="display:none"></div>
+  </section>
+
+  <!-- ───── SLIDE 2: TRUST PILLARS ───── -->
+  <section class="slide s-trust" data-screen-label="02 Trust pillars">
+    <div class="num"><strong>02</strong> &nbsp;—&nbsp; The Four Pillars</div>
+    <div class="head">
+      <div class="eyebrow" style="display:none"></div>
+      <h2 id="p2-title">Security, collaboration, <em class="r">repeatability.</em></h2>
+      <div class="div60"></div>
+      <p class="lede" id="p2-lede">Four pillars an automation platform needs before a state agency can stake compliance on it.</p>
+    </div>
+    <div class="grid">
+      <div class="pillar">
+        <div class="lbl">01 / Security</div>
+        <h3>Signed at the source</h3>
+        <p>Red Hat creates signed collections and execution environments. Internal development can apply the same signatures.<br><br>AAP can refuse anything without a trusted signature.</p>
+        <div class="meta">Sigstore · GPG · Policy as code</div>
+      </div>
+      <div class="pillar gold">
+        <div class="lbl">02 / Collaboration</div>
+        <h3>One source of truth</h3>
+        <p>Security writes guardrails.<br>Ops runs them.<br>Agencies consume automation without exposing secrets or changing process.<br><br>Three roles. Zero email threads.</p>
+        <div class="meta">RBAC · Credential Isolation</div>
+      </div>
+      <div class="pillar teal">
+        <div class="lbl">03 / Repeatability</div>
+        <h3>Drift remediated</h3>
+        <p>Detect, file, remediate, verify — closed loop. Every change carries a job ID, an approver, and a backup snapshot.<br><br>Compliance is the side effect.</p>
+        <div class="meta">NIST 800-53 · CIS · FedRAMP-aligned</div>
+      </div>
+      <div class="pillar blue">
+        <div class="lbl">04 / Audit</div>
+        <h3>The record writes itself</h3>
+        <p>Every job links to ticket, host, change window, and approver. No spreadsheet attestation. No annual audit panic.</p>
+        <div class="meta">AC-5 · AU-2 · CM-3</div>
+      </div>
+    </div>
+    <div class="foot">
+      <span class="pg">02 / 08</span>
+    </div>
+  </section>
+
+  <!-- ───── SLIDE 3: VIDEO INTERLUDE ───── -->
+  <section class="slide s-video" data-screen-label="03 What failure looks like">
+    <video autoplay loop muted playsinline preload="auto">
+      <source src="https://heavymeta.org/images/fr24-20240718.mp4" type="video/mp4">
+    </video>
+    <div class="num"><strong>03</strong> &nbsp;—&nbsp; What Failure Looks Like</div>
+    <div class="v-credit">Flightradar24 · 18 July 2024<br><strong>The morning of the outage</strong></div>
+    <div class="v-stage">
+      <div class="v-eyebrow">When the supply chain breaks</div>
+      <h2><em class="r" style="color:var(--rh-red);font-style:normal">78 minutes</em> of bad code.<br>8.5 million Windows systems crashed.</h2>
+    </div>
+    <div class="foot">
+      <span class="pg" style="color:rgba(255,255,255,.7)">03 / 08</span>
+    </div>
+  </section>
+
+  <!-- ───── SLIDE 4: MANUAL REMEDIATION ───── -->
+  <section class="slide s-manual" data-screen-label="04 The manual toll">
+    <div class="num"><strong>04</strong> &nbsp;—&nbsp; The Manual Toll</div>
+    <div class="head">
+      <div class="eyebrow">No automation, no shortcut</div>
+      <h2>Walk to the box. <em class="r">Repeat 8.5 million times.</em></h2>
+      <div class="div60"></div>
+      <p class="lede">Most organizations had no automated path. Recovery was a four-step loop, performed by a human being, on every affected machine — in a data center, on a desk, on a kiosk.</p>
+    </div>
+
+    <div class="loop-stage">
+      <div class="loop-diagram">
+        <div class="loop-step" style="grid-column:1;grid-row:1">
+          <div class="si">01 · Travel</div>
+          <h4>Find the system</h4>
+          <p>Physically reach the host — or talk a user through it on the phone.</p>
+        </div>
+        <div class="loop-arrow" style="grid-column:2;grid-row:1">→</div>
+        <div class="loop-step" style="grid-column:3;grid-row:1">
+          <div class="si">02 · Boot</div>
+          <h4>Reboot into Safe Mode</h4>
+          <p>Interrupt startup. Get the recovery menu. Often requires a BitLocker key.</p>
+        </div>
+
+        <div class="loop-arrow" style="grid-column:1;grid-row:2">↑</div>
+        <div class="loop-cycle">Repeat<small>per machine</small></div>
+        <div class="loop-arrow" style="grid-column:3;grid-row:2">↓</div>
+
+        <div class="loop-step" style="grid-column:1;grid-row:3">
+          <div class="si">04 · Verify</div>
+          <h4>Reboot &amp; pray</h4>
+          <p>If it boots, file the ticket. If not, escalate. Then the next machine.</p>
+        </div>
+        <div class="loop-arrow" style="grid-column:2;grid-row:3">←</div>
+        <div class="loop-step" style="grid-column:3;grid-row:3">
+          <div class="si">03 · Remove</div>
+          <h4>Delete the bad driver</h4>
+          <p>Navigate the file path. Delete the offending <code style="font-family:var(--font-mono);color:var(--rh-red);font-size:13px">.sys</code>. Hope nothing else broke.</p>
+        </div>
+      </div>
+
+      <div class="toll">
+        <div class="toll-stat">
+          <div class="n">~15&ndash;30 min</div>
+          <div class="l">Per machine, on a good day</div>
+          <div class="d">Longer if the user can't find the BitLocker key, or the host is offsite.</div>
+        </div>
+        <div class="toll-stat">
+          <div class="n">Days &rarr; weeks</div>
+          <div class="l">Total clock time at fleet scale</div>
+          <div class="d">Airlines, hospitals, and call centers ran with key systems offline while teams worked through hosts one at a time.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span class="pg">04 / 08</span>
+    </div>
+  </section>
+
+  <!-- ───── SLIDE 5: AUTOMATED RESPONSE ───── -->
+  <section class="slide glow s-auto" data-screen-label="05 Automated response">
+    <div class="num"><strong>05</strong> &nbsp;—&nbsp; What AAP Does Instead</div>
+    <div class="head">
+      <div class="eyebrow">Built for the next outage</div>
+      <h2>One playbook. <em class="r" style="color:var(--rh-teal);font-style:normal">Every dead host.</em></h2>
+      <div class="div60"></div>
+      <p class="lede">Red Hat shipped a reference framework that turns the four-step loop into a single workflow.<br><br>We automated the failure too — so the recovery playbook was tested before any real outage forced us to learn it.<br><br>It runs across VMware, OpenShift Virtualization, Hyper-V, AWS, Azure, and bare metal — same playbook, every host.</p>
+    </div>
+
+    <div class="auto-stage">
+      <div class="auto-flow">
+        <div class="ah"><span>Recovery workflow</span><span class="badge">AAP</span></div>
+
+        <div class="auto-step">
+          <div class="ai">01</div>
+          <div class="ac">
+            <h4>Generate WinPE recovery ISO</h4>
+            <p>Embed the fix script. Custom-built per scenario, signed, version-pinned.</p>
+          </div>
+        </div>
+        <div class="auto-step">
+          <div class="ai">02</div>
+          <div class="ac">
+            <h4>Push ISO to the hypervisor</h4>
+            <p>Upload to vSphere, OpenShift, or any supported platform via its API.</p>
+          </div>
+        </div>
+        <div class="auto-step">
+          <div class="ai">03</div>
+          <div class="ac">
+            <h4>Boot affected VMs into WinPE</h4>
+            <p>Power-cycle the fleet, attach the ISO, force boot order — all over the management API.</p>
+          </div>
+        </div>
+        <div class="auto-step">
+          <div class="ai">04</div>
+          <div class="ac">
+            <h4>Run the fix &amp; verify</h4>
+            <p>Script removes the driver. AAP reboots the host and runs a health check before marking it green.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="auto-side">
+        <div class="cmp">
+          <div class="clbl">Time to recovery</div>
+          <div class="ttr bad">Days <em style="color:var(--rh-teal)">→ Minutes</em></div>
+          <p>Same fix, executed in parallel, by the platform.</p>
+        </div>
+        <div class="cmp">
+          <div class="clbl">Runs anywhere a VM does</div>
+          <div class="platforms">
+            <span>VMware vSphere</span>
+            <span>OpenShift Virt</span>
+            <span>Hyper-V</span>
+            <span>Nutanix</span>
+            <span>AWS EC2</span>
+            <span>Azure</span>
+            <span>GCP</span>
+            <span>Bare metal</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="auto-cite">
+      Source · Red Hat Blog<br>
+      <a href="https://www.redhat.com/en/blog/automating-windows-system-recovery-ansible-automation-platform" target="_blank" rel="noreferrer" style="text-transform:none;letter-spacing:.02em">redhat.com/en/blog/automating-windows-system-recovery-ansible-automation-platform</a>
+    </div>
+
+    <div class="foot">
+      <span class="pg">05 / 08</span>
+    </div>
+  </section>
+
+  <!-- ───── SLIDE 6: STATEWIDE SHARED SERVICE ───── -->
+  <section class="slide s-state" data-screen-label="06 Statewide shared service">
+    <div class="num"><strong>06</strong> &nbsp;—&nbsp; The Statewide Opportunity</div>
+    <div class="head">
+      <div class="eyebrow">Beyond the state IT perimeter</div>
+      <h2>The state has the platform. <em class="r">Most of the state doesn&apos;t.</em></h2>
+      <div class="div60"></div>
+      <p class="lede">Counties, schools, libraries, special districts, tribal governments, healthcare authorities — most can&apos;t afford to stand up their own signed automation platform. They don&apos;t need to. The state can run it once, and offer it as a service.</p>
+    </div>
+
+    <div class="who-strip">
+      <div class="who-tile"><div class="wn">Counties</div><div class="ws">County government</div></div>
+      <div class="who-tile t"><div class="wn">K–12 Districts</div><div class="ws">School networks</div></div>
+      <div class="who-tile g"><div class="wn">Public Universities</div><div class="ws">State systems</div></div>
+      <div class="who-tile b"><div class="wn">Special Districts</div><div class="ws">Water · Fire · Library</div></div>
+      <div class="who-tile p"><div class="wn">Tribal Gov&apos;ts</div><div class="ws">Sovereign networks</div></div>
+      <div class="who-tile"><div class="wn">Election Boards</div><div class="ws">County clerks</div></div>
+      <div class="who-tile t"><div class="wn">Healthcare Auth.</div><div class="ws">Public hospitals</div></div>
+      <div class="who-tile g"><div class="wn">Municipalities</div><div class="ws">City · Town · Village</div></div>
+    </div>
+
+    <div class="arch">
+      <div class="arch-card">
+        <div class="alabel"><span>Model A · Shared Service</span><span class="anum">01</span></div>
+        <h3>State runs it. Everyone consumes.</h3>
+        <div class="who">For entities with no IT staff</div>
+        <p>State operates the Controller and Hub centrally. Subordinate entities log in, launch signed templates against their own infrastructure. They never run the platform.</p>
+        <ul>
+          <li>Zero infra burden on the consumer</li>
+          <li>Vetted content, RBAC&apos;d per entity</li>
+          <li>Best fit for libraries, small towns, special districts</li>
+        </ul>
+      </div>
+
+      <div class="arch-card t">
+        <div class="alabel"><span>Model B · Federated Hub</span><span class="anum">02</span></div>
+        <h3>State signs. They pull.</h3>
+        <div class="who">For entities running their own ops</div>
+        <p>State maintains a signed Automation Hub. Subordinate entities run their own lightweight Controller and pull vetted, signed content. Like a CDN for trusted playbooks.</p>
+        <ul>
+          <li>Sovereignty preserved — no domain join</li>
+          <li>Air-gap and DMZ-friendly</li>
+          <li>Best fit for counties, K–12, universities, tribes</li>
+        </ul>
+      </div>
+
+      <div class="arch-card g">
+        <div class="alabel"><span>Model C · Crisis Response</span><span class="anum">03</span></div>
+        <h3>You enroll. We push the fix.</h3>
+        <div class="who">For when the next 78 minutes hits</div>
+        <p>State CISO team authors a signed remediation playbook the moment a 0-day lands. Enrolled entities receive it through the federated hub and execute — hours, not weeks.</p>
+        <ul>
+          <li>One incident response, statewide</li>
+          <li>Audit trail of who patched, when</li>
+          <li>Force-multiplies a small state IR team</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span class="pg">06 / 08</span>
+    </div>
+  </section>
+
+  <!-- ───── SLIDE 7: CLOSED-LOOP INTEGRATIONS ───── -->
+  <section class="slide s-loop" data-screen-label="07 Closed-loop integrations">
+    <div class="num"><strong>07</strong> &nbsp;—&nbsp; Closed Loop, Native Tools</div>
+    <div class="head">
+      <div class="eyebrow">Detection meets remediation</div>
+      <h2>The tools watching your fleet <em class="r">already speak to AAP.</em></h2>
+      <div class="div60"></div>
+      <p class="lede">Dynatrace, CrowdStrike, and Splunk emit signals your team already trusts. AAP listens, matches, and runs the fix. No middleware, no glue code, no second console.</p>
+    </div>
+
+    <div class="loop-pipe">
+      <div class="lp-stage detect">
+        <div class="lps">01 · Detect</div>
+        <div class="lpn">Tool sees the problem</div>
+        <div class="lpd">The monitoring or security platform fires a signal at the moment it identifies an incident.</div>
+        <div class="lptools"><span>Dynatrace</span><span>CrowdStrike</span><span>Splunk</span></div>
+      </div>
+      <div class="lp-arrow">→</div>
+      <div class="lp-stage event">
+        <div class="lps">02 · Event</div>
+        <div class="lpn">EDA listens</div>
+        <div class="lpd">Webhook, Kafka, or syslog. Native source plugins for the tools you already license.</div>
+        <div class="lptools"><span>Webhook</span><span>Kafka</span><span>Source plugin</span></div>
+      </div>
+      <div class="lp-arrow">→</div>
+      <div class="lp-stage match">
+        <div class="lps">03 · Match</div>
+        <div class="lpn">Rulebook decides</div>
+        <div class="lpd">Conditions in version control. Same review process as your playbooks. Auditable.</div>
+        <div class="lptools"><span>Rulebook YAML</span><span>Git-tracked</span></div>
+      </div>
+      <div class="lp-arrow">→</div>
+      <div class="lp-stage fix">
+        <div class="lps">04 · Remediate</div>
+        <div class="lpn">AAP runs the fix</div>
+        <div class="lpd">Signed playbook, verified content, full audit trail. Same Controller you already trust.</div>
+        <div class="lptools"><span>Signed</span><span>RBAC</span><span>Audit log</span></div>
+      </div>
+    </div>
+
+    <div class="scenarios">
+      <div class="scn">
+        <div class="sh">
+          <span class="stool">CrowdStrike Falcon</span>
+          <span class="stag">Security · Endpoint</span>
+        </div>
+        <h4>Malicious binary detected on a host</h4>
+        <div class="sflow">
+          <span class="step"><strong>Falcon</strong> raises detection</span>
+          <span class="arr">→</span>
+          <span class="step"><strong>AAP</strong> isolates the host, collects forensics, opens the ticket</span>
+        </div>
+        <div class="sflow">
+          <span class="step" style="color:var(--rh-gray-400);font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase">Mean time from detection to containment: seconds</span>
+        </div>
+      </div>
+      <div class="scn t">
+        <div class="sh">
+          <span class="stool">Dynatrace</span>
+          <span class="stag">Observability · APM</span>
+        </div>
+        <h4>Service breaches its SLO</h4>
+        <div class="sflow">
+          <span class="step"><strong>Dynatrace</strong> emits problem event</span>
+          <span class="arr">→</span>
+          <span class="step"><strong>AAP</strong> restarts the service, scales the tier, posts to the incident channel</span>
+        </div>
+        <div class="sflow">
+          <span class="step" style="color:var(--rh-gray-400);font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase">Pages routed only when automation can&apos;t close the loop</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span class="pg">07 / 08</span>
+    </div>
+  </section>
+
+  <!-- ───── SLIDE 8: CTA CLOSER ───── -->
+  <section class="slide glow s-cta-final" data-screen-label="08 Pilot CTA">
+    <div class="num"><strong>08</strong> &nbsp;—&nbsp; The Next Step</div>
+    <div class="cta-stage">
+      <div class="ck">A pilot you can defend</div>
+      <h1>Pick one entity.<br><em>Prove it works.</em></h1>
+      <div class="csub">One volunteer county, district, or special authority. One use case. One focused engagement. The signed supply chain, the shared-service model, and the crisis-response posture all stress-tested together.</div>
+
+      <div class="pilot-card">
+        <div>
+          <div class="pl">Bounded pilot</div>
+          <h3>Stand up the shared service. Onboard one volunteer entity. Push one signed remediation.</h3>
+          <p>Outcome: a replicable blueprint with metrics, audit trail, and per-entity cost.</p>
+        </div>
+        <div class="actions" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span class="pg">08 / 08</span>
+    </div>
+  </section>
+
+</deck-stage>
+
+<!-- Tweaks panel for cycling alternates -->
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<div id="tweaks-root"></div>
+<script type="text/babel" data-presets="react">
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "titleVariant": 2,
+    "p2Variant": 2
+  }/*EDITMODE-END*/;
+
+  // Headline alternates per slide (first option = default shipped above)
+  const ALTS = {
+    titles: [
+      {
+        kicker: "Ansible Automation Platform · State & Local Gov",
+        title: 'Trusted automation,<br>at the speed of <em class="r">government.</em>',
+        sub: "Sign every artifact. Share one source of truth.<br>React in seconds, not shifts.",
+        eyebrow: "Trusted Automation"
+      },
+      {
+        kicker: "AAP for State & Local Government",
+        title: 'One engine.<br>Every team.<br><em class="r">Zero exposure.</em>',
+        sub: "Cryptographic supply chain, role-segregated access, and event-driven response.<br>On one platform you can audit.",
+        eyebrow: "AAP · A Briefing"
+      },
+      {
+        kicker: "Trusted automation for the public sector",
+        title: 'Automate the response.<br>Share it <em class="r">statewide.</em>',
+        sub: "Sign every artifact. React in seconds, not shifts.<br>Then offer the same capability to every entity that can&apos;t build it alone.",
+        eyebrow: "Statewide Trusted Automation"
+      }
+    ],
+    p2: [
+      'Security, collaboration, <em class="r">repeatability.</em>',
+      'Three properties. <em class="r">No exceptions.</em>',
+      'What an automation engine <em class="r">owes</em> a CISO.'
+    ]
+  };
+
+  function applyTweaks(t) {
+    const tt = ALTS.titles[t.titleVariant] || ALTS.titles[0];
+    document.getElementById('t-eyebrow').textContent = tt.eyebrow;
+    document.querySelector('#t-eyebrow').closest('.s-title') &&
+      (document.querySelector('.s-title .eyebrow').textContent = tt.kicker);
+    document.getElementById('t-title').innerHTML = tt.title;
+    document.getElementById('t-sub').innerHTML = tt.sub;
+
+    document.getElementById('p2-title').innerHTML =
+      'Security, collaboration, <em class="r">' + (ALTS.p2[t.p2Variant] || '').match(/r">(.+?)<\/em>/)?.[1] + '.</em>';
+    // simpler: replace whole h2 innerHTML with each variant string as-is
+    document.getElementById('p2-title').innerHTML = ALTS.p2[t.p2Variant];
+  }
+
+  function App() {
+    const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+    React.useEffect(() => { applyTweaks(t); }, [t]);
+    return (
+      <TweaksPanel title="Tweaks · Headline alternates">
+        <TweakSection label="Slide 01 · Title" />
+        <TweakRadio label="Variant" value={t.titleVariant}
+          options={[{label:'A · Trusted',value:0},{label:'B · One engine',value:1},{label:'C · Statewide',value:2}]}
+          onChange={(v) => setTweak('titleVariant', v)} />
+        <TweakSection label="Slide 02 · Pillars headline" />
+        <TweakRadio label="Variant" value={t.p2Variant}
+          options={[{label:'A',value:0},{label:'B',value:1},{label:'C',value:2}]}
+          onChange={(v) => setTweak('p2Variant', v)} />
+      </TweaksPanel>
+    );
+  }
+
+  // Initialize defaults on first load (so slide 01 renders before tweaks are touched)
+  applyTweaks(TWEAK_DEFAULTS);
+
+  ReactDOM.createRoot(document.getElementById('tweaks-root')).render(<App />);
+</script>
+</body></html>
