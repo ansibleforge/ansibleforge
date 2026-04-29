@@ -220,6 +220,25 @@
         label: "{{ item.0.clientId }} <- {{ item.1 }}"
       failed_when: false
 
+    # The earlier `Assign default scopes` loop is O(clients × scopes)
+    # and easily outlives the 60s admin-cli token, so any URI tasks in
+    # the next blocks (RHDH SA roles, sysadmin) start failing 401. The
+    # next refresh isn't until after the sysadmin user task at line ~290.
+    - name: Refresh admin token
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/realms/master/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          client_id: admin-cli
+          username: "{{ keycloak_admin_user }}"
+          password: "{{ keycloak_admin_pass }}"
+          grant_type: password
+        validate_certs: "{{ keycloak_validate_certs }}"
+        status_code: 200
+      register: _kc_token
+      no_log: true
+
     # ── RHDH Service Account Roles ─────────────────────────────────
     - name: Configure RHDH service account roles
       block:
@@ -406,6 +425,21 @@
           loop_control:
             label: "{{ item }}"
 
+    - name: Refresh admin token
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/realms/master/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          client_id: admin-cli
+          username: "{{ keycloak_admin_user }}"
+          password: "{{ keycloak_admin_pass }}"
+          grant_type: password
+        validate_certs: "{{ keycloak_validate_certs }}"
+        status_code: 200
+      register: _kc_token
+      no_log: true
+
     # ── GitLab IDP (conditional) ───────────────────────────────────
     - name: Configure GitLab broker IDP
       when: gitlab_broker
@@ -450,6 +484,21 @@
                 template: "${CLAIM.preferred_username}"
             validate_certs: "{{ keycloak_validate_certs }}"
             status_code: [201, 400, 409]
+
+    - name: Refresh admin token
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/realms/master/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          client_id: admin-cli
+          username: "{{ keycloak_admin_user }}"
+          password: "{{ keycloak_admin_pass }}"
+          grant_type: password
+        validate_certs: "{{ keycloak_validate_certs }}"
+        status_code: 200
+      register: _kc_token
+      no_log: true
 
     # ── Master Realm Config ────────────────────────────────────────
     - name: Ensure admins group in master realm
