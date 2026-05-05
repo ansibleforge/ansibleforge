@@ -31,6 +31,7 @@ spec:
     chatbot_config_secret_name: aap-lightspeed-chatbot-config
   mcp:
     disabled: false
+    allow_write_operations: true
   extra_settings:
     - setting: SESSION_COOKIE_AGE
       value: "86400"
