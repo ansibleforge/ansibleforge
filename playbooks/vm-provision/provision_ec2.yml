@@ -42,11 +42,49 @@
       "16_64": "m5a.4xlarge"
 
   tasks:
-    # If subnet_id/security_group_id aren't supplied (e.g. the JT was
-    # provisioned with stale AWS IDs that have since been deleted, or the
-    # chaos generator launches with no networking pinned), discover a
-    # public subnet in the first VPC of the region and ensure a shared
-    # vm-provision-sg exists. Skipped entirely when both IDs are passed.
+    # Verify any caller-supplied subnet_id / security_group_id actually exist
+    # in AWS. Stale IDs (e.g. from an old JT default or EDA payload pointing
+    # at a since-deleted resource) are blanked out here so the discovery
+    # block below runs and self-heals instead of failing inside ec2_instance
+    # with an opaque IndexError from boto3's discover_security_groups.
+    - name: Validate provided AWS IDs (clear if missing so discovery runs)
+      when: subnet_id | length > 0 or security_group_id | length > 0
+      block:
+        - name: Verify provided subnet_id exists
+          amazon.aws.ec2_vpc_subnet_info:
+            region: "{{ aws_region }}"
+            subnet_ids:
+              - "{{ subnet_id }}"
+          register: _subnet_check
+          failed_when: false
+          when: subnet_id | length > 0
+
+        - name: Clear stale subnet_id
+          ansible.builtin.set_fact:
+            subnet_id: ""
+          when:
+            - subnet_id | length > 0
+            - _subnet_check.subnets | default([]) | length == 0
+
+        - name: Verify provided security_group_id exists
+          amazon.aws.ec2_security_group_info:
+            region: "{{ aws_region }}"
+            filters:
+              group-id: "{{ security_group_id }}"
+          register: _sg_check
+          failed_when: false
+          when: security_group_id | length > 0
+
+        - name: Clear stale security_group_id
+          ansible.builtin.set_fact:
+            security_group_id: ""
+          when:
+            - security_group_id | length > 0
+            - _sg_check.security_groups | default([]) | length == 0
+
+    # If subnet_id/security_group_id aren't supplied (or were just cleared
+    # above because the IDs were stale), discover a public subnet in the
+    # first VPC of the region and ensure a shared vm-provision-sg exists.
     - name: Auto-discover networking when subnet/SG not provided
       when: subnet_id | length == 0 or security_group_id | length == 0
       block:
