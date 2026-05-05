@@ -1,0 +1,50 @@
+---
+- name: Update Windows servers and reboot if required
+  hosts: windows
+  gather_facts: true
+
+  vars:
+    update_categories:
+      - SecurityUpdates
+      - CriticalUpdates
+      - UpdateRollups
+    reboot_timeout: 1800
+
+  tasks:
+    - name: Install Windows updates
+      ansible.windows.win_updates:
+        category_names: "{{ update_categories }}"
+        reboot: false
+        state: installed
+      register: _update_result
+
+    - name: Reboot if updates require it
+      ansible.windows.win_reboot:
+        reboot_timeout: "{{ reboot_timeout }}"
+        msg: Rebooting to finalize Windows updates installed by AAP
+      when: _update_result.reboot_required | default(false)
+
+    - name: Re-run updates after reboot to catch follow-on patches
+      ansible.windows.win_updates:
+        category_names: "{{ update_categories }}"
+        reboot: false
+        state: installed
+      register: _post_reboot_updates
+      when: _update_result.reboot_required | default(false)
+
+    - name: Final reboot if still required
+      ansible.windows.win_reboot:
+        reboot_timeout: "{{ reboot_timeout }}"
+        msg: Final reboot to finalize remaining Windows updates
+      when:
+        - _post_reboot_updates is defined
+        - _post_reboot_updates.reboot_required | default(false)
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: |
+          === Windows Update Complete ===
+          Installed: {{ _update_result.installed_update_count | default(0) }}
+          Failed: {{ _update_result.failed_update_count | default(0) }}
+          Found: {{ _update_result.found_update_count | default(0) }}
+          Rebooted: {{ _update_result.reboot_required | default(false) }}
