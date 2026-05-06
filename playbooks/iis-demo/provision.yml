@@ -28,6 +28,29 @@
         # producing a set password that differs from the variable.
         _pw: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=20') }}"
 
+    # Ensure an IAM role + instance profile granting SSM access exists. We use
+    # this to push the freshly-generated Administrator password onto the host
+    # via SSM Run Command after launch, which makes the playbook idempotent
+    # against pre-existing iis-demo instances. Without SSM, re-running against
+    # a host whose user_data has already executed leaves the credential and
+    # the host's actual password out of sync (user_data only re-runs on boot).
+    - name: Ensure IIS demo SSM IAM role exists
+      amazon.aws.iam_role:
+        name: iis-demo-ssm
+        assume_role_policy_document: |
+          {
+            "Version": "2012-10-17",
+            "Statement": [{
+              "Effect": "Allow",
+              "Principal": {"Service": "ec2.amazonaws.com"},
+              "Action": "sts:AssumeRole"
+            }]
+          }
+        managed_policies:
+          - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        create_instance_profile: true
+        state: present
+
   tasks:
     - name: Find VPCs
       amazon.aws.ec2_vpc_net_info:
@@ -102,6 +125,7 @@
         image_id: "{{ _ami_id }}"
         subnet_id: "{{ subnet_id }}"
         security_group: "{{ security_group_id }}"
+        instance_role: iis-demo-ssm
         volumes:
           - device_name: /dev/sda1
             ebs:
@@ -144,6 +168,83 @@
       ansible.builtin.set_fact:
         _instance_id: "{{ _ec2.instances[0].instance_id }}"
         _public_ip: "{{ _ec2.instances[0].public_ip_address }}"
+
+    # ec2_instance only sets instance_role at launch — for instances that
+    # already exist (the idempotent path), we have to associate the profile
+    # explicitly. This is a no-op when the association is already correct.
+    - name: Ensure SSM instance profile is associated with the iis-demo host
+      community.aws.ec2_iam_instance_profile_association:
+        region: "{{ aws_region }}"
+        instance_id: "{{ _instance_id }}"
+        iam_instance_profile: iis-demo-ssm
+        state: present
+
+    - name: Wait for SSM agent to register with AWS Systems Manager
+      ansible.builtin.command:
+        argv:
+          - aws
+          - ssm
+          - describe-instance-information
+          - --region
+          - "{{ aws_region }}"
+          - --filters
+          - "Key=InstanceIds,Values={{ _instance_id }}"
+          - --query
+          - InstanceInformationList[0].PingStatus
+          - --output
+          - text
+      register: _ssm_ping
+      retries: 60
+      delay: 10
+      until: _ssm_ping.stdout == "Online"
+      changed_when: false
+
+    # Reset the Administrator password to the value we just generated so the
+    # AAP credential we patch below actually matches what's on the host. This
+    # is what makes the playbook safe to re-run against an already-provisioned
+    # iis-demo instance. Using argv form + JSON via to_json so the password
+    # passes through unmangled regardless of which shell-special chars happen
+    # to land in it.
+    - name: Reset Administrator password via SSM Run Command
+      ansible.builtin.command:
+        argv:
+          - aws
+          - ssm
+          - send-command
+          - --region
+          - "{{ aws_region }}"
+          - --cli-input-json
+          - "{{ {'InstanceIds': [_instance_id], 'DocumentName': 'AWS-RunPowerShellScript', 'Parameters': {'commands': ['net user Administrator \"' ~ admin_password ~ '\"']}} | to_json }}"
+          - --query
+          - Command.CommandId
+          - --output
+          - text
+      register: _ssm_cmd
+      changed_when: true
+      no_log: true
+
+    - name: Wait for SSM password-reset command to complete
+      ansible.builtin.command:
+        argv:
+          - aws
+          - ssm
+          - get-command-invocation
+          - --region
+          - "{{ aws_region }}"
+          - --command-id
+          - "{{ _ssm_cmd.stdout }}"
+          - --instance-id
+          - "{{ _instance_id }}"
+          - --query
+          - Status
+          - --output
+          - text
+      register: _ssm_status
+      retries: 30
+      delay: 5
+      until: _ssm_status.stdout == "Success"
+      failed_when: _ssm_status.stdout in ["Failed", "Cancelled", "TimedOut"]
+      changed_when: false
 
     - name: Wait for WinRM HTTP to be reachable
       ansible.builtin.wait_for:
