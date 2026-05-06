@@ -171,13 +171,50 @@
 
     # ec2_instance only sets instance_role at launch — for instances that
     # already exist (the idempotent path), we have to associate the profile
-    # explicitly. This is a no-op when the association is already correct.
-    - name: Ensure SSM instance profile is associated with the iis-demo host
-      community.aws.ec2_iam_instance_profile_association:
-        region: "{{ aws_region }}"
-        instance_id: "{{ _instance_id }}"
-        iam_instance_profile: iis-demo-ssm
-        state: present
+    # explicitly. amazon.aws has no module for this and the EE doesn't ship
+    # community.aws, so we drive it through the AWS CLI directly.
+    - name: Look up any existing IAM instance profile association
+      ansible.builtin.command:
+        argv:
+          - aws
+          - ec2
+          - describe-iam-instance-profile-associations
+          - --region
+          - "{{ aws_region }}"
+          - --filters
+          - "Name=instance-id,Values={{ _instance_id }}"
+          - "Name=state,Values=associated"
+          - --query
+          - IamInstanceProfileAssociations[0].IamInstanceProfile.Arn
+          - --output
+          - text
+      register: _iam_assoc_arn
+      changed_when: false
+
+    - name: Fail fast if a non-iis-demo-ssm profile is already attached
+      ansible.builtin.fail:
+        msg: >-
+          Instance {{ _instance_id }} already has IAM profile
+          "{{ _iam_assoc_arn.stdout }}" attached. Expected iis-demo-ssm or
+          none. Disassociate it manually before re-running.
+      when:
+        - _iam_assoc_arn.stdout not in ["None", ""]
+        - not _iam_assoc_arn.stdout.endswith("/iis-demo-ssm")
+
+    - name: Associate iis-demo-ssm instance profile when none attached
+      ansible.builtin.command:
+        argv:
+          - aws
+          - ec2
+          - associate-iam-instance-profile
+          - --region
+          - "{{ aws_region }}"
+          - --instance-id
+          - "{{ _instance_id }}"
+          - --iam-instance-profile
+          - Name=iis-demo-ssm
+      when: _iam_assoc_arn.stdout in ["None", ""]
+      changed_when: true
 
     - name: Wait for SSM agent to register with AWS Systems Manager
       ansible.builtin.command:
