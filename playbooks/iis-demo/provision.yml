@@ -171,23 +171,29 @@
 
     # ec2_instance only sets instance_role at launch — for instances that
     # already exist (the idempotent path), we have to associate the profile
-    # explicitly. amazon.aws has no module for this and the EE doesn't ship
-    # community.aws, so we drive it through the AWS CLI directly.
+    # explicitly. amazon.aws has no module for instance-profile association
+    # on running instances and the EE ships neither community.aws nor the
+    # aws CLI, so we drive boto3 directly via inline python3. Same approach
+    # is used for the SSM Run Command tasks below.
     - name: Look up any existing IAM instance profile association
       ansible.builtin.command:
         argv:
-          - aws
-          - ec2
-          - describe-iam-instance-profile-associations
-          - --region
-          - "{{ aws_region }}"
-          - --filters
-          - "Name=instance-id,Values={{ _instance_id }}"
-          - "Name=state,Values=associated"
-          - --query
-          - IamInstanceProfileAssociations[0].IamInstanceProfile.Arn
-          - --output
-          - text
+          - python3
+          - -c
+          - |
+            import boto3, os
+            ec2 = boto3.client('ec2', region_name=os.environ['AWS_REGION'])
+            r = ec2.describe_iam_instance_profile_associations(
+                Filters=[
+                    {'Name': 'instance-id', 'Values': [os.environ['INSTANCE_ID']]},
+                    {'Name': 'state', 'Values': ['associated']},
+                ],
+            )
+            a = r.get('IamInstanceProfileAssociations', [])
+            print(a[0]['IamInstanceProfile']['Arn'] if a else '')
+      environment:
+        AWS_REGION: "{{ aws_region }}"
+        INSTANCE_ID: "{{ _instance_id }}"
       register: _iam_assoc_arn
       changed_when: false
 
@@ -198,38 +204,43 @@
           "{{ _iam_assoc_arn.stdout }}" attached. Expected iis-demo-ssm or
           none. Disassociate it manually before re-running.
       when:
-        - _iam_assoc_arn.stdout not in ["None", ""]
+        - _iam_assoc_arn.stdout | length > 0
         - not _iam_assoc_arn.stdout.endswith("/iis-demo-ssm")
 
     - name: Associate iis-demo-ssm instance profile when none attached
       ansible.builtin.command:
         argv:
-          - aws
-          - ec2
-          - associate-iam-instance-profile
-          - --region
-          - "{{ aws_region }}"
-          - --instance-id
-          - "{{ _instance_id }}"
-          - --iam-instance-profile
-          - Name=iis-demo-ssm
-      when: _iam_assoc_arn.stdout in ["None", ""]
+          - python3
+          - -c
+          - |
+            import boto3, os
+            ec2 = boto3.client('ec2', region_name=os.environ['AWS_REGION'])
+            ec2.associate_iam_instance_profile(
+                IamInstanceProfile={'Name': 'iis-demo-ssm'},
+                InstanceId=os.environ['INSTANCE_ID'],
+            )
+      environment:
+        AWS_REGION: "{{ aws_region }}"
+        INSTANCE_ID: "{{ _instance_id }}"
+      when: _iam_assoc_arn.stdout | length == 0
       changed_when: true
 
     - name: Wait for SSM agent to register with AWS Systems Manager
       ansible.builtin.command:
         argv:
-          - aws
-          - ssm
-          - describe-instance-information
-          - --region
-          - "{{ aws_region }}"
-          - --filters
-          - "Key=InstanceIds,Values={{ _instance_id }}"
-          - --query
-          - InstanceInformationList[0].PingStatus
-          - --output
-          - text
+          - python3
+          - -c
+          - |
+            import boto3, os
+            ssm = boto3.client('ssm', region_name=os.environ['AWS_REGION'])
+            r = ssm.describe_instance_information(
+                Filters=[{'Key': 'InstanceIds', 'Values': [os.environ['INSTANCE_ID']]}],
+            )
+            info = r.get('InstanceInformationList', [])
+            print(info[0]['PingStatus'] if info else 'NotRegistered')
+      environment:
+        AWS_REGION: "{{ aws_region }}"
+        INSTANCE_ID: "{{ _instance_id }}"
       register: _ssm_ping
       retries: 60
       delay: 10
@@ -239,23 +250,26 @@
     # Reset the Administrator password to the value we just generated so the
     # AAP credential we patch below actually matches what's on the host. This
     # is what makes the playbook safe to re-run against an already-provisioned
-    # iis-demo instance. Using argv form + JSON via to_json so the password
-    # passes through unmangled regardless of which shell-special chars happen
-    # to land in it.
+    # iis-demo instance. Password is passed as an env var (not a Jinja-rendered
+    # argv element) so it never lands in process listings or no_log-bypass logs.
     - name: Reset Administrator password via SSM Run Command
       ansible.builtin.command:
         argv:
-          - aws
-          - ssm
-          - send-command
-          - --region
-          - "{{ aws_region }}"
-          - --cli-input-json
-          - "{{ {'InstanceIds': [_instance_id], 'DocumentName': 'AWS-RunPowerShellScript', 'Parameters': {'commands': ['net user Administrator \"' ~ admin_password ~ '\"']}} | to_json }}"
-          - --query
-          - Command.CommandId
-          - --output
-          - text
+          - python3
+          - -c
+          - |
+            import boto3, os
+            ssm = boto3.client('ssm', region_name=os.environ['AWS_REGION'])
+            r = ssm.send_command(
+                InstanceIds=[os.environ['INSTANCE_ID']],
+                DocumentName='AWS-RunPowerShellScript',
+                Parameters={'commands': [f'net user Administrator "{os.environ["ADMIN_PASSWORD"]}"']},
+            )
+            print(r['Command']['CommandId'])
+      environment:
+        AWS_REGION: "{{ aws_region }}"
+        INSTANCE_ID: "{{ _instance_id }}"
+        ADMIN_PASSWORD: "{{ admin_password }}"
       register: _ssm_cmd
       changed_when: true
       no_log: true
@@ -263,19 +277,23 @@
     - name: Wait for SSM password-reset command to complete
       ansible.builtin.command:
         argv:
-          - aws
-          - ssm
-          - get-command-invocation
-          - --region
-          - "{{ aws_region }}"
-          - --command-id
-          - "{{ _ssm_cmd.stdout }}"
-          - --instance-id
-          - "{{ _instance_id }}"
-          - --query
-          - Status
-          - --output
-          - text
+          - python3
+          - -c
+          - |
+            import boto3, os
+            ssm = boto3.client('ssm', region_name=os.environ['AWS_REGION'])
+            try:
+                r = ssm.get_command_invocation(
+                    CommandId=os.environ['COMMAND_ID'],
+                    InstanceId=os.environ['INSTANCE_ID'],
+                )
+                print(r['Status'])
+            except ssm.exceptions.InvocationDoesNotExist:
+                print('Pending')
+      environment:
+        AWS_REGION: "{{ aws_region }}"
+        INSTANCE_ID: "{{ _instance_id }}"
+        COMMAND_ID: "{{ _ssm_cmd.stdout }}"
       register: _ssm_status
       retries: 30
       delay: 5
