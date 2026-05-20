@@ -21,11 +21,15 @@
 - name: Lightspeed self-heal
   hosts: all
 
+  # LIGHTSPEED_WEBHOOK_TOKEN is injected as an EDA extra_var on the
+  # "Lightspeed Self-Heal" activation (see eda_rulebook_activations.d/lightspeed_demo.yml).
+  # That pattern avoids defining a custom EDA credential type just to inject one
+  # env var — set the vault var lightspeed_webhook_token and dispatch.
   sources:
     - redhat.insights.insights_events:
         host: 0.0.0.0
         port: 5000
-        token: "{{ lookup('env','LIGHTSPEED_WEBHOOK_TOKEN') }}"
+        token: "{{ LIGHTSPEED_WEBHOOK_TOKEN }}"
 
   rules:
 

@@ -20,12 +20,18 @@ bring those up before enabling them.
 
 Three prerequisites must be met before it can start successfully:
 
-1. **`LIGHTSPEED_WEBHOOK_TOKEN`** set on the activation as an environment variable.
-2. The activation's listener port (5000) reachable from console.redhat.com
-   (typically via an OpenShift Route + Service or external NLB).
-3. **`Lightspeed Demo Secrets`** credential created in AAP, providing
-   `rh_console_offline_token` (Service Account refresh token from
-   console.redhat.com) and optionally `slack_webhook_url`. Attach it to the
+1. **Vault var `lightspeed_webhook_token`** — any long random string
+   (`openssl rand -hex 32`). The activation extra_vars substitute it as
+   `LIGHTSPEED_WEBHOOK_TOKEN`, which the rulebook source uses to authenticate
+   inbound POSTs. Same value goes into the console.redhat.com webhook
+   integration so they match.
+2. **Listener reachable from console.redhat.com.** Either an AAP Event Stream
+   (preferred — AAP creates a managed public URL) or a manual OCP Route
+   fronting a Service on the activation pod's port 5000.
+3. **`Lightspeed Demo Secrets`** credential populated with real values
+   (`rh_console_offline_token`, optional `slack_webhook_url`). The credential
+   and credential type ship empty/placeholder via CaC; replace via AAP UI or
+   update the vault-backed inputs. Already attached to the
    `Lightspeed - Apply remediation playbook` JT.
 
 Once those are in place, flip `enabled: true` in

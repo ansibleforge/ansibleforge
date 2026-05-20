@@ -1,9 +1,12 @@
 ---
-# Disabled by default. Three prerequisites before enabling:
-#   1. Set LIGHTSPEED_WEBHOOK_TOKEN as an env var on this activation.
-#   2. Make the activation listener (port 5000) reachable from console.redhat.com.
-#   3. Create the "Lightspeed Demo Secrets" credential and attach it to the
-#      "Lightspeed - Apply remediation playbook" JT.
+# Disabled by default. Before flipping enabled: true:
+#   1. Set vault var lightspeed_webhook_token (any long random string —
+#      `openssl rand -hex 32`). The dispatch playbook substitutes it into the
+#      extra_vars below so the rulebook can validate inbound webhook POSTs.
+#   2. Make the activation listener (port 5000) reachable from console.redhat.com,
+#      either via an OCP Route or — recommended — an AAP Event Stream.
+#   3. Populate the "Lightspeed Demo Secrets" credential (rh_console_offline_token,
+#      slack_webhook_url) with real values.
 # See playbooks/lightspeed-demo/README.md for the full walkthrough.
 eda_rulebook_activations:
   - name: Lightspeed Self-Heal
@@ -16,3 +19,5 @@ eda_rulebook_activations:
     enabled: false
     eda_credentials:
       - AAP Controller Admin
+    extra_vars:
+      LIGHTSPEED_WEBHOOK_TOKEN: "{{ lightspeed_webhook_token | default('changeme-set-vault-lightspeed_webhook_token') }}"
