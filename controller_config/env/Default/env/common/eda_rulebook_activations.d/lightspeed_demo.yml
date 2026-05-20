@@ -1,0 +1,18 @@
+---
+# Disabled by default. Three prerequisites before enabling:
+#   1. Set LIGHTSPEED_WEBHOOK_TOKEN as an env var on this activation.
+#   2. Make the activation listener (port 5000) reachable from console.redhat.com.
+#   3. Create the "Lightspeed Demo Secrets" credential and attach it to the
+#      "Lightspeed - Apply remediation playbook" JT.
+# See playbooks/lightspeed-demo/README.md for the full walkthrough.
+eda_rulebook_activations:
+  - name: Lightspeed Self-Heal
+    description: Reacts to Lightspeed (Insights) events and dispatches remediation JTs.
+    organization: Default
+    project: AnsibleForge
+    rulebook: lightspeed-self-heal.yml
+    decision_environment: Default Decision Environment
+    restart_policy: on-failure
+    enabled: false
+    eda_credentials:
+      - AAP Controller Admin

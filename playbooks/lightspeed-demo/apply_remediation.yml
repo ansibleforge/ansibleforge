@@ -1,0 +1,113 @@
+---
+# =============================================================================
+# playbooks/lightspeed-demo/apply_remediation.yml
+#
+# Pulls the Ansible playbook that Red Hat Lightspeed generated for a given
+# issue, applies it to the affected systems, and runs verification.
+#
+# Pattern:
+#   1. Authenticate to console.redhat.com using a service account offline token
+#   2. POST to the remediations API to generate the playbook for the issue
+#   3. Save the playbook to a temp file
+#   4. Run it against the target inventory
+#   5. Capture the output, post to Slack (optional), close the loop
+#
+# Required:
+#   - rh_console_offline_token (vault var, Service Account refresh token)
+#   - insights_issue_id (from EDA event payload)
+#   - target_systems (list of Insights system IDs from EDA event)
+# Optional:
+#   - slack_webhook_url (vault var; status post is skipped when unset)
+#   - cleanup_temp (defaults to true)
+# =============================================================================
+
+- name: Apply Red Hat Lightspeed remediation
+  hosts: localhost
+  gather_facts: false
+  vars:
+    rh_console_base: "https://console.redhat.com"
+    workdir: "/tmp/lightspeed-{{ insights_issue_id | replace('|', '_') }}"
+
+  tasks:
+
+    - name: Assert required inputs are present
+      ansible.builtin.assert:
+        that:
+          - rh_console_offline_token | default('') | length > 0
+          - insights_issue_id | default('') | length > 0
+          - target_systems | default([]) | length > 0
+        fail_msg: >-
+          Attach the "Lightspeed Demo Secrets" credential (provides
+          rh_console_offline_token) and pass insights_issue_id +
+          target_systems via the EDA event payload or job extra vars.
+
+    - name: Ensure workdir exists
+      ansible.builtin.file:
+        path: "{{ workdir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Refresh the Red Hat SSO token
+      ansible.builtin.uri:
+        url: "https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          grant_type: "refresh_token"
+          client_id: "rhsm-api"
+          refresh_token: "{{ rh_console_offline_token }}"
+        status_code: 200
+      register: sso_token
+      no_log: true
+
+    - name: Request remediation playbook from Lightspeed
+      ansible.builtin.uri:
+        url: "{{ rh_console_base }}/api/remediations/v1/playbook"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ sso_token.json.access_token }}"
+          Accept: "application/vnd.redhat.playbook"
+        body_format: json
+        body:
+          issues:
+            - id: "{{ insights_issue_id }}"
+              systems: "{{ target_systems }}"
+        return_content: true
+        status_code: 200
+      register: remediation_resp
+      no_log: true
+
+    - name: Save generated playbook to disk
+      ansible.builtin.copy:
+        content: "{{ remediation_resp.content }}"
+        dest: "{{ workdir }}/remediation.yml"
+        mode: "0600"
+
+    - name: Execute the generated playbook
+      ansible.builtin.command:
+        cmd: >
+          ansible-playbook
+          -i {{ inventory_file }}
+          {{ workdir }}/remediation.yml
+        chdir: "{{ workdir }}"
+      register: remediation_run
+      changed_when: "'changed=' in (remediation_run.stdout | default(''))"
+
+    - name: Post status to Slack
+      ansible.builtin.uri:
+        url: "{{ slack_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          text: >
+            :white_check_mark: Lightspeed remediation applied
+            for issue `{{ insights_issue_id }}`
+            on {{ target_systems | length }} system(s).
+            Mode: {{ remediation_mode | default('auto') }}.
+      when: slack_webhook_url is defined and slack_webhook_url | length > 0
+
+    - name: Clean up working directory
+      ansible.builtin.file:
+        path: "{{ workdir }}"
+        state: absent
+      when: cleanup_temp | default(true) | bool

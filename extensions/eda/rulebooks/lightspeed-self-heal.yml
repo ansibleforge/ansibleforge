@@ -1,0 +1,121 @@
+---
+# =============================================================================
+# extensions/eda/rulebooks/lightspeed-self-heal.yml
+#
+# Self-healing rulebook: Red Hat Lightspeed (formerly Insights) events trigger
+# Ansible Automation Platform job templates with environment-aware behavior.
+#
+# Non-prod high-severity findings auto-remediate.
+# Prod findings open a ServiceNow CR and wait for human approval.
+# Compliance drift findings always go through a workflow with re-scan.
+#
+# Required collections (already declared in the DE/EE requirements.yaml):
+#   - redhat.insights
+#   - ansible.eda
+#
+# Only Rule 1 has a concrete job template defined in CaC. Rules 2-4 reference
+# workflow templates that are not yet provisioned — bring those up before
+# enabling the corresponding rule in production.
+# =============================================================================
+
+- name: Lightspeed self-heal
+  hosts: all
+
+  sources:
+    - redhat.insights.insights_events:
+        host: 0.0.0.0
+        port: 5000
+        token: "{{ lookup('env','LIGHTSPEED_WEBHOOK_TOKEN') }}"
+
+  rules:
+
+    # -------------------------------------------------------------------------
+    # Rule 1 — Critical CVE on non-prod: auto-remediate, log, notify
+    # -------------------------------------------------------------------------
+    - name: Auto-remediate critical CVE (CVSS >= 9.0) on non-prod systems
+      condition: >
+        event.application == "vulnerability"
+        and event.event_type == "new-cve-cvss"
+        and event.payload.cvss_score >= 9.0
+        and event.payload.system_tags is search("env:nonprod")
+      action:
+        run_job_template:
+          name: "Lightspeed - Apply remediation playbook"
+          organization: "Default"
+          job_args:
+            extra_vars:
+              insights_issue_id: "{{ event.payload.issue_id }}"
+              target_systems: "{{ event.payload.systems }}"
+              remediation_mode: "auto"
+              notification_channel: "#ops-nonprod-autofix"
+            job_tags: "remediate,verify"
+            verbosity: 1
+
+    # -------------------------------------------------------------------------
+    # Rule 2 — Severity 7+ on prod: open CR, await human approval
+    # -------------------------------------------------------------------------
+    - name: Open ServiceNow CR for prod CVE (human-in-the-loop)
+      condition: >
+        event.application == "vulnerability"
+        and event.event_type == "new-cve-cvss"
+        and event.payload.cvss_score >= 7.0
+        and event.payload.system_tags is search("env:prod")
+      action:
+        run_workflow_template:
+          name: "Lightspeed - Prod CVE workflow with approval"
+          organization: "Default"
+          job_args:
+            extra_vars:
+              insights_issue_id: "{{ event.payload.issue_id }}"
+              target_systems: "{{ event.payload.systems }}"
+              change_window_required: true
+              cab_approver_group: "platform-cab"
+
+    # -------------------------------------------------------------------------
+    # Rule 3 — Compliance drift: always run with re-scan, regardless of env
+    # -------------------------------------------------------------------------
+    - name: Compliance drift detected - remediate and re-scan
+      condition: >
+        event.application == "compliance"
+        and event.event_type == "report-upload-failed"
+        or event.event_type == "policy-failed"
+      action:
+        run_workflow_template:
+          name: "Lightspeed - Compliance remediate + OpenSCAP re-scan"
+          organization: "Default"
+          job_args:
+            extra_vars:
+              insights_issue_id: "{{ event.payload.issue_id }}"
+              compliance_profile: "{{ event.payload.profile_ref_id | default('xccdf_org.ssgproject.content_profile_stig') }}"
+
+    # -------------------------------------------------------------------------
+    # Rule 4 — Malware detected: isolate first, then investigate
+    # -------------------------------------------------------------------------
+    - name: Malware finding - isolate and forward to SIEM
+      condition: >
+        event.application == "malware-detection"
+        and event.event_type == "detected-malware"
+      action:
+        run_workflow_template:
+          name: "Lightspeed - Malware isolation workflow"
+          organization: "Default"
+          job_args:
+            extra_vars:
+              insights_issue_id: "{{ event.payload.issue_id }}"
+              affected_systems: "{{ event.payload.systems }}"
+              isolation_method: "nftables-deny-all-egress"
+              forward_to_siem: true
+              create_incident: true
+              incident_severity: "P1"
+
+    # -------------------------------------------------------------------------
+    # Rule 5 — Catch-all: forward unmatched Lightspeed events to SIEM
+    # -------------------------------------------------------------------------
+    - name: Forward all other Lightspeed events to SIEM for analysis
+      condition: event.application is defined
+      action:
+        post_event:
+          event:
+            destination: "splunk-hec"
+            source: "lightspeed-eda"
+            payload: "{{ event }}"

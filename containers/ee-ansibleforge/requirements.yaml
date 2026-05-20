@@ -28,3 +28,5 @@ collections:
   - name: cloud.terraform_ops
   - name: ansible.utils
   - name: community.hashi_vault
+  - name: redhat.insights
+    source: https://console.redhat.com/api/automation-hub/
