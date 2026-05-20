@@ -2,3 +2,7 @@ title = "ansibleforge gitleaks config"
 
 [extend]
 useDefault = true
+
+[allowlist]
+description = "Historical Keycloak OIDC client secret in keycloak-idp.yaml. The Red Hat Workshops cluster that hosted the realm (cluster-mp7gr.dynamic.redhatworkshops.io) is gone (NXDOMAIN); the client and secret no longer exist. File was moved out of this repo in c8f2461."
+commits = ["d19373dafdd783bde88b698771c0c400e94d6145"]
