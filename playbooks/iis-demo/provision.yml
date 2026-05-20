@@ -392,7 +392,33 @@
           vars:
             _act_id: "{{ _act_lookup.json.results[0].id }}"
           block:
-            - name: Patch activation extra_var + re-enable
+            # EDA enforces a precondition on extra_var edits: the activation
+            # must be both disabled and stopped, otherwise PATCH returns 409.
+            # Disable → wait for status=stopped → patch → enable.
+            - name: Disable activation
+              ansible.builtin.uri:
+                url: "{{ _controller_host }}/api/eda/v1/activations/{{ _act_id }}/disable/"
+                method: POST
+                user: "{{ _controller_user }}"
+                password: "{{ _controller_pass }}"
+                force_basic_auth: true
+                validate_certs: false
+                status_code: [200, 204, 409]
+
+            - name: Wait until activation status is stopped
+              ansible.builtin.uri:
+                url: "{{ _controller_host }}/api/eda/v1/activations/{{ _act_id }}/"
+                method: GET
+                user: "{{ _controller_user }}"
+                password: "{{ _controller_pass }}"
+                force_basic_auth: true
+                validate_certs: false
+              register: _act_state
+              retries: 30
+              delay: 5
+              until: _act_state.json.status == "stopped"
+
+            - name: Patch activation extra_var
               ansible.builtin.uri:
                 url: "{{ _controller_host }}/api/eda/v1/activations/{{ _act_id }}/"
                 method: PATCH
@@ -402,15 +428,14 @@
                 validate_certs: false
                 body_format: json
                 body:
-                  is_enabled: true
                   # extra_var is a CharField on the EDA API and runs through
                   # yaml.safe_load — must be a serialized string, not a dict.
                   extra_var: "{{ {'IIS_HEALTH_URL': 'http://' ~ _public_ip ~ '/health.aspx'} | to_nice_yaml }}"
                 status_code: [200]
 
-            - name: Restart activation so the new URL takes effect
+            - name: Enable activation (auto-starts on enable)
               ansible.builtin.uri:
-                url: "{{ _controller_host }}/api/eda/v1/activations/{{ _act_id }}/restart/"
+                url: "{{ _controller_host }}/api/eda/v1/activations/{{ _act_id }}/enable/"
                 method: POST
                 user: "{{ _controller_user }}"
                 password: "{{ _controller_pass }}"
@@ -472,9 +497,10 @@
         Add-WebConfigurationProperty -Filter /system.webServer/defaultDocument/files -Name . -Value @{value='Default.aspx'}
       changed_when: false
 
-    - name: Restart IIS to pick up configuration
-      ansible.windows.win_shell: iisreset
-      changed_when: true
+    - name: Restart W3SVC to pick up configuration
+      ansible.windows.win_service:
+        name: W3SVC
+        state: restarted
 
     - name: Display demo URL
       ansible.builtin.debug:
