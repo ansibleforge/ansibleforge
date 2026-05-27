@@ -13,7 +13,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: activate
-        image: registry.redhat.io/ansible-automation-platform-26/ee-supported-rhel9:latest
+        image: registry.redhat.io/ansible-automation-platform-27/ee-supported-rhel9:latest
         env:
         - name: CONTROLLER_HOST
           value: "https://aap-aap.{{ .Values.clusterDomain }}"

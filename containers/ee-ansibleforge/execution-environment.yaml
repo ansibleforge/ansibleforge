@@ -1,7 +1,7 @@
 version: 3
 images:
   base_image:
-    name: registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest
+    name: registry.redhat.io/ansible-automation-platform-27/ee-minimal-rhel9:latest
 dependencies:
   galaxy: requirements.yaml
   python: requirements.txt
@@ -28,10 +28,10 @@ additional_build_steps:
   prepend_galaxy:
     - ADD _build/configs/ansible.cfg /etc/ansible/ansible.cfg
   prepend_builder:
-    - ENV PKGMGR_OPTS="--nodocs --setopt=install_weak_deps=0 --setopt=ansible-automation-platform-2.6-for-rhel-9-x86_64-rpms.enabled=true"
+    - ENV PKGMGR_OPTS="--nodocs --setopt=install_weak_deps=0 --setopt=ansible-automation-platform-2.7-for-rhel-9-x86_64-rpms.enabled=true"
     - ADD _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
   prepend_final:
-    - ENV PKGMGR_OPTS="--nodocs --setopt=install_weak_deps=0 --setopt=ansible-automation-platform-2.6-for-rhel-9-x86_64-rpms.enabled=true"
+    - ENV PKGMGR_OPTS="--nodocs --setopt=install_weak_deps=0 --setopt=ansible-automation-platform-2.7-for-rhel-9-x86_64-rpms.enabled=true"
     - ADD _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
     - COPY --from=registry.redhat.io/openshift4/ose-cli:latest /usr/bin/oc /usr/local/bin/oc
     - COPY --from=registry.redhat.io/openshift4/ose-cli:latest /usr/bin/kubectl /usr/local/bin/kubectl
