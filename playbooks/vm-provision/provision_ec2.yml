@@ -121,9 +121,9 @@
             description: AnsibleForge VM provision demo SG (SSH/HTTP/HTTPS/RDP/WinRM)
             vpc_id: "{{ _vpc_id }}"
             rules:
-              - {proto: tcp, from_port: 22,   to_port: 22,   cidr_ip: 0.0.0.0/0, rule_desc: SSH}
-              - {proto: tcp, from_port: 80,   to_port: 80,   cidr_ip: 0.0.0.0/0, rule_desc: HTTP}
-              - {proto: tcp, from_port: 443,  to_port: 443,  cidr_ip: 0.0.0.0/0, rule_desc: HTTPS}
+              - {proto: tcp, from_port: 22, to_port: 22, cidr_ip: 0.0.0.0/0, rule_desc: SSH}
+              - {proto: tcp, from_port: 80, to_port: 80, cidr_ip: 0.0.0.0/0, rule_desc: HTTP}
+              - {proto: tcp, from_port: 443, to_port: 443, cidr_ip: 0.0.0.0/0, rule_desc: HTTPS}
               - {proto: tcp, from_port: 3389, to_port: 3389, cidr_ip: 0.0.0.0/0, rule_desc: RDP}
               - {proto: tcp, from_port: 5985, to_port: 5985, cidr_ip: 0.0.0.0/0, rule_desc: WinRM HTTP}
             purge_rules: false
