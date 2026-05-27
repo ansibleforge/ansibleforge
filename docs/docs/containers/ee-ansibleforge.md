@@ -1,12 +1,12 @@
 # ee-ansibleforge
 
 **Source:** `containers/ee-ansibleforge/`
-**Base:** `registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest`
+**Base:** `registry.redhat.io/ansible-automation-platform-27/ee-minimal-rhel9:latest`
 **Used by:** Ansible Automation Platform job execution
 
 ## Overview
 
-`ee-ansibleforge` is a custom Ansible Execution Environment (EE) built on the AAP 2.6 minimal RHEL 9 base image.
+`ee-ansibleforge` is a custom Ansible Execution Environment (EE) built on the AAP 2.7 minimal RHEL 9 base image.
 It extends the base with the same collection set used in the developer workspace, plus Terraform and OpenShift client tools, so automation written in the DevSpaces workspace runs identically in AAP.
 
 ## Build process

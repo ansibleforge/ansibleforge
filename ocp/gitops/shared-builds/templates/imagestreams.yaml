@@ -45,7 +45,7 @@ spec:
   - name: latest
     from:
       kind: DockerImage
-      name: registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest
+      name: registry.redhat.io/ansible-automation-platform-27/ee-minimal-rhel9:latest
     importPolicy:
       scheduled: true
     referencePolicy:

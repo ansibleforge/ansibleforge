@@ -24,7 +24,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  channel: stable-2.6
+  channel: stable-2.7
   name: ansible-automation-platform-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
