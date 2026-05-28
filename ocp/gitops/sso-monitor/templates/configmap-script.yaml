@@ -58,6 +58,11 @@ data:
     AWS_SAML_ENABLED = os.environ.get("AWS_SAML_ENABLED", "false").lower() == "true"
     AWS_ROLE_ARN = os.environ.get("AWS_ROLE_ARN", "")
     AWS_PROVIDER_ARN = os.environ.get("AWS_PROVIDER_ARN", "")
+    # AWS uses a separate probe identity because the aws-admin-browser flow
+    # requires the realm 'admins' role; the default TEST_USERNAME does not
+    # have it and would always 401 at the admin gate.
+    AWS_TEST_USERNAME = os.environ.get("AWS_TEST_USERNAME") or TEST_USERNAME
+    AWS_TEST_PASSWORD = os.environ.get("AWS_TEST_PASSWORD") or TEST_PASSWORD
 
     TOKEN_URL = f"{KEYCLOAK_URL}/realms/{REALM}/protocol/openid-connect/token"
     SAML_IDP_URL = f"{KEYCLOAK_URL}/realms/{REALM}/protocol/saml/clients/urn:amazon:webservices"
@@ -149,7 +154,7 @@ data:
             login_url = action_match.group(1).replace("&amp;", "&")
             resp = session.post(
                 login_url,
-                data={"username": TEST_USERNAME, "password": TEST_PASSWORD},
+                data={"username": AWS_TEST_USERNAME, "password": AWS_TEST_PASSWORD},
                 verify=False,
                 allow_redirects=True,
             )
@@ -213,7 +218,7 @@ data:
         # Step 3: Test AWS SAML flow
         if AWS_SAML_ENABLED:
             aws_ok, aws_dur = probe_aws_saml()
-            VALIDATION_SUCCESS.labels(service="aws", user=TEST_USERNAME).set(1 if aws_ok else 0)
+            VALIDATION_SUCCESS.labels(service="aws", user=AWS_TEST_USERNAME).set(1 if aws_ok else 0)
             log.info("validate service=aws result=%s duration=%.2fs", "ok" if aws_ok else "FAIL", aws_dur)
 
 

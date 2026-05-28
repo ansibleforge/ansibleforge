@@ -28,6 +28,11 @@ aws:
   enabled: true
   roleArn: ""
   providerArn: ""
+  # Dedicated probe user with the realm 'admins' role required by the
+  # aws-admin-browser flow's admin gate. Password is in Vault at
+  # secret/keycloak#aws-monitor-bot-password.
+  testUser:
+    username: aws-monitor-bot
 
 # Alerting
 alerting:
