@@ -61,6 +61,13 @@ spec:
           value: {{ .Values.aws.roleArn | quote }}
         - name: AWS_PROVIDER_ARN
           value: {{ .Values.aws.providerArn | quote }}
+        - name: AWS_TEST_USERNAME
+          value: {{ .Values.aws.testUser.username | quote }}
+        - name: AWS_TEST_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: sso-monitor-credentials
+              key: aws-bot-password
         {{- end }}
         volumeMounts:
         - name: script
