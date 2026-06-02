@@ -1,0 +1,37 @@
+VXLAN VTEP: HER-tunnel-without-unicast-tunnel report
+====================================================
+Command : show platform trident vxlan vtep detail
+Looking : remote VTEP IPs that have a HER tunnel but NO unicast vxlan tunnel
+Verify  : each suspect IP's leading-zero-stripped hex key searched in
+          "platform trident diag d chg MPLS_ENTRY_SINGLE" (present / ABSENT)
+
+{% set ns = namespace(suspect_hosts=0, total_suspect=0, no_data=0, clean=0) -%}
+{% for h in ansible_play_hosts_all | sort %}
+{%- set r = hostvars[h].vtep_report | default(none) %}
+{%- if r is none %}
+[NO DATA] {{ h }} — device errored or returned nothing (see job log)
+{%- set ns.no_data = ns.no_data + 1 %}
+{%- elif r.suspect_count | int > 0 %}
+[SUSPECT] {{ h }} — {{ r.suspect_count }}/{{ r.total }} VTEP(s): {{ r.suspect_ips | join(', ') }}
+{%- for hit in hostvars[h].vtep_mpls_hits | default([]) %}
+            {{ hit.ip }}  hex={{ hit.hex }}  MPLS_ENTRY_SINGLE: {{ ('present - ' ~ hit.match_count ~ ' line(s)') if hit.found else 'ABSENT' }}
+{%- endfor %}
+{%- set ns.suspect_hosts = ns.suspect_hosts + 1 %}
+{%- set ns.total_suspect = ns.total_suspect + (r.suspect_count | int) %}
+{%- else %}
+{%- set ns.clean = ns.clean + 1 %}
+{%- endif %}
+{%- endfor %}
+
+----------------------------------------------------
+Devices total            : {{ ansible_play_hosts_all | length }}
+Devices clean            : {{ ns.clean }}
+Devices with suspect VTEP: {{ ns.suspect_hosts }}
+Devices with no data     : {{ ns.no_data }}
+Suspect VTEP entries     : {{ ns.total_suspect }}
+----------------------------------------------------
+
+Note: a HER tunnel with no unicast tunnel is a SCREENING signal, not a proven
+fault. It can be legitimate when no remote MACs are yet learned behind that
+VTEP. Investigate the listed devices/IPs; do not assume they are broken.
+See README.md for what this means and next steps.

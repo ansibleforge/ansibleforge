@@ -1,0 +1,18 @@
+---
+# Offline self-test inventory for selftest_vxlan_vtep.yml. Two fake "devices"
+# that run on localhost (no Machine credential needed) and read canned `show`
+# output from files under tests/ instead of talking to a real switch.
+#
+# Paths in sample_file / mpls_file are relative to the playbook (VTEP/), which
+# is why they start with "tests/".
+all:
+  children:
+    arista_vxlan:
+      hosts:
+        leaf-clean:
+          sample_file: tests/clean.sample.txt
+        leaf-suspect:
+          sample_file: tests/suspect.sample.txt
+          mpls_file: tests/suspect.mpls.txt
+      vars:
+        ansible_connection: local

@@ -1,0 +1,7 @@
+---
+# Collections needed by this playbook. These ship in the standard AAP
+# "Network" execution environment; listed here for self-built EEs and for
+# local `ansible-galaxy collection install -r requirements.yml`.
+collections:
+  - name: arista.eos
+  - name: ansible.netcommon

@@ -1,0 +1,112 @@
+---
+# Offline SELF-TEST for check_vxlan_vtep.yml — runnable in AAP with NO Arista
+# hardware and NO Machine credential.
+#
+# It mirrors the production playbook's logic EXACTLY — same parse_vxlan_vtep /
+# trident_mpls_hits filters, same suspect/assert/report tasks — but swaps the
+# live `arista.eos.eos_command` SSH calls for canned sample files (under
+# tests/), so you can watch the playbook pass (clean device) and fail (suspect
+# device) in a Job Template.
+#
+# This file lives in VTEP/ (next to filter_plugins/) ON PURPOSE: AAP discovers
+# the custom filters because they sit ADJACENT to the playbook. It would NOT
+# find them if this playbook lived under tests/.
+#
+# Local run (from VTEP/):
+#   # see it WORK (suspect host reported, run still succeeds):
+#   ansible-playbook -i tests/inventory.test.yml selftest_vxlan_vtep.yml
+#   # see it FAIL (assert trips on the suspect host):
+#   ansible-playbook -i tests/inventory.test.yml selftest_vxlan_vtep.yml -e fail_on_suspect=true
+#
+# AAP: Job Template -> playbook = VTEP/selftest_vxlan_vtep.yml, Inventory =
+# tests/inventory.test.yml sourced from the project. See README -> "Self-test in AAP".
+
+- name: Collect and analyze Arista VXLAN VTEP hardware state (offline self-test)
+  hosts: "{{ target_hosts | default('arista_vxlan') }}"
+  gather_facts: false
+  vars:
+    her_token: "vxlanHwHerTunnel"
+    uni_token: "vxlanTunnel"
+    artifacts_dir: "{{ playbook_dir }}/artifacts"
+    fail_on_suspect: false
+
+  tasks:
+    # --- the ONLY difference from production: canned output, no SSH ---
+    - name: "[MOCK] Read canned VXLAN VTEP detail output instead of eos_command"
+      ansible.builtin.set_fact:
+        vtep_raw: "{{ lookup('file', playbook_dir ~ '/' ~ sample_file) }}"
+
+    - name: Parse the output into a structured report
+      ansible.builtin.set_fact:
+        vtep_report: "{{ vtep_raw | parse_vxlan_vtep(her_token, uni_token) }}"
+
+    - name: Cross-check suspect VTEP IPs against the hardware MPLS entry table
+      when: vtep_report.suspect_count | int > 0
+      block:
+        - name: "[MOCK] Read canned MPLS entry table instead of eos_command"
+          ansible.builtin.set_fact:
+            mpls_raw: "{{ lookup('file', playbook_dir ~ '/' ~ mpls_file) }}"
+
+        - name: Search the MPLS table for each suspect VTEP's hex key
+          ansible.builtin.set_fact:
+            vtep_mpls_hits: "{{ vtep_report.suspect_ips | trident_mpls_hits(mpls_raw) }}"
+
+        - name: Per-suspect hardware-entry result
+          ansible.builtin.debug:
+            msg: >-
+              {{ inventory_hostname }} {{ item.ip }} (hex {{ item.hex }}):
+              {{ ('FOUND in MPLS_ENTRY_SINGLE - ' ~ item.match_count ~ ' line(s)')
+                 if item.found else 'NOT found in MPLS_ENTRY_SINGLE' }}
+          loop: "{{ vtep_mpls_hits }}"
+          loop_control:
+            label: "{{ item.ip }}"
+
+    - name: Per-device result
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}:
+          {{ vtep_report.suspect_count }} suspect / {{ vtep_report.total }} total VTEP(s)
+          {{ ('-> ' ~ (vtep_report.suspect_ips | join(', '))) if vtep_report.suspect_count | int > 0 else '' }}
+
+    - name: Ensure artifacts directory exists
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Save this device's raw output
+      ansible.builtin.copy:
+        content: "{{ vtep_raw }}"
+        dest: "{{ artifacts_dir }}/{{ inventory_hostname }}.raw.txt"
+        mode: "0644"
+      delegate_to: localhost
+
+    - name: Optionally fail this host if it has a suspect VTEP
+      ansible.builtin.assert:
+        that:
+          - vtep_report.suspect_count | int == 0
+        fail_msg: >-
+          {{ inventory_hostname }} has {{ vtep_report.suspect_count }} HER-without-unicast
+          VTEP(s): {{ vtep_report.suspect_ips | join(', ') }}
+        success_msg: "{{ inventory_hostname }} clean"
+      when: fail_on_suspect | bool
+
+- name: Build consolidated report
+  hosts: "{{ target_hosts | default('arista_vxlan') }}"
+  gather_facts: false
+  run_once: true
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/artifacts"
+  tasks:
+    - name: Render summary report
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/report.j2"
+        dest: "{{ artifacts_dir }}/vxlan_vtep_report.txt"
+        mode: "0644"
+      delegate_to: localhost
+
+    - name: Where to find the report
+      ansible.builtin.debug:
+        msg: "Summary report: {{ artifacts_dir }}/vxlan_vtep_report.txt"

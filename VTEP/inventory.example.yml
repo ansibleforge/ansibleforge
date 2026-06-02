@@ -1,0 +1,15 @@
+---
+# Example inventory. In AAP you normally manage the 500 hosts in an Inventory
+# object instead of a file, but the group name and connection vars are the same.
+all:
+  children:
+    arista_vxlan:
+      hosts:
+        leaf01:
+          ansible_host: 10.1.1.1
+        leaf02:
+          ansible_host: 10.1.1.2
+        # ... up to 500 ...
+      vars:
+        # Connection settings live in group_vars/arista_vxlan.yml so they apply
+        # in AAP too. They are shown there, not duplicated here.

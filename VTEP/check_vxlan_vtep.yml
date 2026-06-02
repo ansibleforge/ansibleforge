@@ -1,0 +1,138 @@
+---
+# Collect "show platform trident vxlan vtep detail" from Arista EOS devices and
+# flag any remote VTEP IP that has a HER (head-end-replication) tunnel but no
+# unicast VXLAN tunnel programmed in hardware.
+#
+# Run from Ansible Automation Platform as a Job Template (see README.md), or
+# locally with:
+#   ansible-playbook -i inventory.example.yml check_vxlan_vtep.yml
+
+- name: Collect and analyze Arista VXLAN VTEP hardware state
+  hosts: "{{ target_hosts | default('arista_vxlan') }}"
+  gather_facts: false
+  vars:
+    # The exact show command. Keep this as one string.
+    vtep_command: "show platform trident vxlan vtep detail"
+    # Broadcom diag-shell dump of the hardware MPLS entry table. For every
+    # suspect VTEP IP we convert the IP to its leading-zero-stripped hex form
+    # and search this output for that hex key, to confirm whether a hardware
+    # entry actually exists for the VTEP. Keep this as one string.
+    mpls_command: "platform trident diag d chg MPLS_ENTRY_SINGLE"
+    # Token strings the parser looks for. Change ONLY if your EOS build labels
+    # them differently (see README -> Step 0). Matching is case/space-insensitive.
+    her_token: "vxlanHwHerTunnel"
+    uni_token: "vxlanTunnel"
+    # Where raw output + the summary report are written on the controller/EE.
+    artifacts_dir: "{{ playbook_dir }}/artifacts"
+    # Fail the play if ANY device has a suspect VTEP? Off by default so a run
+    # across 500 devices completes and produces a full report.
+    fail_on_suspect: false
+
+  tasks:
+    - name: Run the VXLAN VTEP detail command
+      arista.eos.eos_command:
+        commands:
+          - "{{ vtep_command }}"
+      register: vtep_out
+
+    - name: Capture raw output
+      ansible.builtin.set_fact:
+        vtep_raw: "{{ vtep_out.stdout[0] }}"
+
+    - name: Parse the output into a structured report
+      ansible.builtin.set_fact:
+        vtep_report: "{{ vtep_raw | parse_vxlan_vtep(her_token, uni_token) }}"
+
+    - name: Cross-check suspect VTEP IPs against the hardware MPLS entry table
+      when: vtep_report.suspect_count | int > 0
+      block:
+        - name: Dump the hardware MPLS entry table
+          arista.eos.eos_command:
+            commands:
+              - "{{ mpls_command }}"
+          register: mpls_out
+
+        - name: Capture raw MPLS table output
+          ansible.builtin.set_fact:
+            mpls_raw: "{{ mpls_out.stdout[0] }}"
+
+        - name: Search the MPLS table for each suspect VTEP's hex key
+          ansible.builtin.set_fact:
+            vtep_mpls_hits: "{{ vtep_report.suspect_ips | trident_mpls_hits(mpls_raw) }}"
+
+        - name: Per-suspect hardware-entry result
+          ansible.builtin.debug:
+            msg: >-
+              {{ inventory_hostname }} {{ item.ip }} (hex {{ item.hex }}):
+              {{ ('FOUND in MPLS_ENTRY_SINGLE - ' ~ item.match_count ~ ' line(s)')
+                 if item.found else 'NOT found in MPLS_ENTRY_SINGLE' }}
+          loop: "{{ vtep_mpls_hits }}"
+          loop_control:
+            label: "{{ item.ip }}"
+
+    - name: Warn if nothing parsed (device may not run VXLAN / command unsupported)
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: parser found 0 VTEP IPs. Either this device
+          has no VXLAN VTEPs, or the output layout differs - inspect
+          {{ artifacts_dir }}/{{ inventory_hostname }}.raw.txt
+      when: not vtep_report.parsed_ok
+
+    - name: Per-device result
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}:
+          {{ vtep_report.suspect_count }} suspect / {{ vtep_report.total }} total VTEP(s)
+          {{ ('-> ' ~ (vtep_report.suspect_ips | join(', '))) if vtep_report.suspect_count | int > 0 else '' }}
+
+    - name: Ensure artifacts directory exists on the controller
+      ansible.builtin.file:
+        path: "{{ artifacts_dir }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Save this device's raw output on the controller
+      ansible.builtin.copy:
+        content: "{{ vtep_raw }}"
+        dest: "{{ artifacts_dir }}/{{ inventory_hostname }}.raw.txt"
+        mode: "0644"
+      delegate_to: localhost
+
+    - name: Save this device's MPLS entry table on the controller
+      ansible.builtin.copy:
+        content: "{{ mpls_raw }}"
+        dest: "{{ artifacts_dir }}/{{ inventory_hostname }}.mpls_entry.txt"
+        mode: "0644"
+      delegate_to: localhost
+      when: vtep_report.suspect_count | int > 0
+
+    - name: Optionally fail this host if it has a suspect VTEP
+      ansible.builtin.assert:
+        that:
+          - vtep_report.suspect_count | int == 0
+        fail_msg: >-
+          {{ inventory_hostname }} has {{ vtep_report.suspect_count }} HER-without-unicast
+          VTEP(s): {{ vtep_report.suspect_ips | join(', ') }}
+        success_msg: "{{ inventory_hostname }} clean"
+      when: fail_on_suspect | bool
+
+# Second play renders one consolidated report after every device has been parsed.
+- name: Build consolidated report
+  hosts: "{{ target_hosts | default('arista_vxlan') }}"
+  gather_facts: false
+  run_once: true
+  vars:
+    artifacts_dir: "{{ playbook_dir }}/artifacts"
+  tasks:
+    - name: Render summary report on the controller
+      ansible.builtin.template:
+        src: templates/report.j2
+        dest: "{{ artifacts_dir }}/vxlan_vtep_report.txt"
+        mode: "0644"
+      delegate_to: localhost
+
+    - name: Where to find the report
+      ansible.builtin.debug:
+        msg: "Summary report: {{ artifacts_dir }}/vxlan_vtep_report.txt  (per-device raw output alongside it)"

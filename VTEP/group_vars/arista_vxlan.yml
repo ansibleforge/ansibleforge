@@ -1,0 +1,18 @@
+---
+# Connection settings for the arista_vxlan group.
+# In AAP, the username/password (or SSH key) come from the Machine credential
+# attached to the Job Template, so do NOT hard-code ansible_user/ansible_password
+# here. The vars below are safe to keep in source control.
+
+ansible_connection: ansible.netcommon.network_cli
+ansible_network_os: arista.eos.eos
+
+# Platform/trident show commands require enable (privileged) mode.
+ansible_become: true
+ansible_become_method: enable
+# If your devices use an enable secret, supply it via the credential's
+# "Privilege Escalation Password", not here.
+
+# Tune for a 500-device run; AAP "forks" on the Job Template also caps concurrency.
+ansible_command_timeout: 60
+ansible_connect_timeout: 30

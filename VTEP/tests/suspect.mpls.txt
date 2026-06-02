@@ -1,0 +1,4 @@
+MPLS_ENTRY_SINGLE table dump
+idx 0   data 0x0a01010a  valid=1
+idx 1   data 0x0a020214  valid=1   <- 10.2.2.20 lives here (hex a020214)
+idx 2   data 0x0a01010b  valid=1
