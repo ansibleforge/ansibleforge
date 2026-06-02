@@ -5,6 +5,9 @@ warn_list:
   - args[module]
 mock_modules:
   - redhat.openshift.openshift_build
+  # VTEP/check_vxlan_vtep.yml targets Arista switches via the AAP Network EE;
+  # arista.eos is not in this repo's EE collection set, so mock it for lint.
+  - arista.eos.eos_command
 exclude_paths:
   - docs/
   - infra/
