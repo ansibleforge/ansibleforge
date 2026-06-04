@@ -9,6 +9,7 @@ collections:
   - name: infra.ah_configuration
   - name: microsoft.ad
   - name: amazon.aws
+  - name: community.vmware
   - name: onepassword.connect
   - name: ansible.controller
   - name: ansible.eda
