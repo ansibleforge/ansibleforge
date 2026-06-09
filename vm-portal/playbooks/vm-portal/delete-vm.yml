@@ -1,0 +1,30 @@
+---
+# Self-Service Portal — Delete VM workflow
+#
+# Removes a host record from the target AAP inventory. Takes vm_name as
+# extra_var (the portal looks up the host by id and passes its name through).
+- name: Remove VM record from AAP inventory
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    target_inventory: "{{ aap_inventory | default('Demo Inventory') }}"
+
+  tasks:
+    - name: Validate launch payload
+      ansible.builtin.assert:
+        that:
+          - vm_name is defined and vm_name | length > 0
+        fail_msg: "vm_name is required"
+
+    - name: Remove host record
+      ansible.controller.host:
+        name: "{{ vm_name }}"
+        inventory: "{{ target_inventory }}"
+        state: absent
+        request_timeout: 10
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: "Removed VM record {{ vm_name }} from inventory '{{ target_inventory }}'."

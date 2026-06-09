@@ -1,0 +1,26 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DescribeInstancesForTerminalTargeting",
+      "Effect": "Allow",
+      "Action": "ec2:DescribeInstances",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "aws:RequestedRegion": ["us-east-2"] }
+      }
+    },
+    {
+      "Sid": "PushEphemeralKeyToManagedInstancesOnly",
+      "Effect": "Allow",
+      "Action": "ec2-instance-connect:SendSSHPublicKey",
+      "Resource": "arn:aws:ec2:us-east-2:*:instance/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/ManagedBy": "ansible",
+          "ec2:osuser": "ec2-user"
+        }
+      }
+    }
+  ]
+}

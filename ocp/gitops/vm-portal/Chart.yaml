@@ -1,0 +1,4 @@
+apiVersion: v2
+name: vm-portal
+version: 0.1.0
+description: Self-service VM portal (React SPA) + WebSocket-to-SSH terminal gateway, fronting AAP

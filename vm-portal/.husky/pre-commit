@@ -1,0 +1,12 @@
+# Lint (and auto-fix) staged TypeScript files.
+npx lint-staged
+
+# Fast local secrets scan on the staged diff. TruffleHog runs in CI only
+# (heavier; verifies findings against live services), so Gitleaks is the
+# local fast-path here. Skip gracefully if the binary isn't installed.
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --config .gitleaks.toml
+else
+  echo "⚠️  gitleaks not found — skipping local secrets scan."
+  echo "   Install it to catch secrets before they're committed: brew install gitleaks"
+fi

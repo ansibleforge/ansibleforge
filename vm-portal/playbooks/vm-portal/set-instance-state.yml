@@ -1,0 +1,62 @@
+---
+# Self-Service Portal — Start or stop an EC2 instance
+#
+# Same safety gate as Terminate: refuses any instance that doesn't carry the
+# ManagedBy=ansible tag. Stop is reversible but loses ephemeral instance
+# storage, so we treat it as worth a guard.
+- name: Set EC2 instance power state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    aws_region: "{{ region | default('us-east-2') }}"
+
+  tasks:
+    - name: Validate launch payload
+      ansible.builtin.assert:
+        that:
+          - instance_id is defined and instance_id | length > 0
+          - instance_id is match('^i-[0-9a-f]+$')
+          - desired_state in ['running', 'stopped']
+        fail_msg: "instance_id and desired_state (running|stopped) are required."
+
+    - name: Look up instance
+      amazon.aws.ec2_instance_info:
+        instance_ids:
+          - "{{ instance_id }}"
+        region: "{{ aws_region }}"
+      register: ec2_info
+
+    - name: Defensive — must find exactly one instance
+      ansible.builtin.assert:
+        that:
+          - ec2_info.instances | length == 1
+        fail_msg: "Could not find a unique EC2 instance with id {{ instance_id }} in {{ aws_region }}."
+
+    - name: Safety gate — ManagedBy=ansible tag is required
+      ansible.builtin.assert:
+        that:
+          - ec2_info.instances[0].tags.ManagedBy | default('') == 'ansible'
+        fail_msg: >-
+          Refusing to change state of {{ instance_id }}
+          ({{ ec2_info.instances[0].tags.Name | default('unnamed') }}):
+          ManagedBy=ansible tag is not present.
+
+    - name: Apply desired state
+      amazon.aws.ec2_instance:
+        instance_ids:
+          - "{{ instance_id }}"
+        region: "{{ aws_region }}"
+        state: "{{ desired_state }}"
+        # Block until EC2 reports the requested state — the chained
+        # inventory sync (always_node) then captures the final state
+        # rather than something transient like "pending" or "stopping".
+        wait: true
+        wait_timeout: 180
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: >-
+          {{ instance_id }} ({{ ec2_info.instances[0].tags.Name | default('unnamed') }})
+          power state set to {{ desired_state }} in {{ aws_region }}.

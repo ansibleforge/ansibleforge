@@ -291,3 +291,25 @@ components:
         jqPathExpressions:
           - .data
           - .stringData
+
+  # Disabled until the build-time VITE_* AAP config, AAP OAuth client, AWS Vault
+  # keys, and ghcr pull secret are wired. See ocp/gitops/vm-portal/README.md.
+  vm-portal:
+    enabled: false
+    syncWave: "3"
+    path: ocp/gitops/vm-portal
+    destination:
+      namespace: vm-portal
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true
+    ignoreDifferences:
+      - group: external-secrets.io
+        kind: ExternalSecret
+        jqPathExpressions:
+          - .spec.data[].remoteRef.conversionStrategy
+          - .spec.data[].remoteRef.decodingStrategy
+          - .spec.data[].remoteRef.metadataPolicy
+          - .spec.target.creationPolicy
+          - .spec.target.deletionPolicy

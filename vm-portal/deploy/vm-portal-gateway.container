@@ -1,0 +1,44 @@
+# systemd quadlet for the vm-portal SSH terminal gateway.
+#
+# Install on the host at: ~/.config/containers/systemd/vm-portal-gateway.container
+# then: systemctl --user daemon-reload && systemctl --user start vm-portal-gateway
+#
+# AWS credentials are supplied via podman secrets (never plaintext here):
+#   podman secret create vmp_aws_access_key_id  -   # paste the key id, Ctrl-D
+#   podman secret create vmp_aws_secret_access_key - # paste the secret, Ctrl-D
+[Unit]
+Description=vm-portal SSH terminal gateway
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=vm-portal-gateway
+Image=localhost/vm-portal-gateway:latest
+# Host 8091 → container 8081; the portal nginx proxies /ws/terminal here via
+# host.containers.internal:8091.
+PublishPort=8091:8081
+
+Environment=PORT=8081
+Environment=AAP_BASE_URL=https://host.containers.internal
+Environment=AAP_TLS_HOST=aap1.local
+# Sandbox only — the AAP cert is self-signed. Replace with a CA bundle before
+# exposing beyond a sandbox.
+Environment=AAP_TLS_INSECURE=true
+Environment=AWS_REGION=us-east-2
+Environment=AWS_EC2_METADATA_DISABLED=true
+Environment=DEFAULT_SSH_USER=ec2-user
+Environment=REQUIRE_MANAGED_BY_ANSIBLE=true
+Environment=IDLE_TIMEOUT_MS=600000
+Environment=MAX_SESSION_MS=3600000
+Environment=MAX_SESSIONS=50
+Environment=MAX_SESSIONS_PER_USER=5
+
+Secret=vmp_aws_access_key_id,type=env,target=AWS_ACCESS_KEY_ID
+Secret=vmp_aws_secret_access_key,type=env,target=AWS_SECRET_ACCESS_KEY
+
+[Service]
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

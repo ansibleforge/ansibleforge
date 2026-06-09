@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vm-portal
+  namespace: vm-portal
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vm-portal
+  template:
+    metadata:
+      labels:
+        app: vm-portal
+    spec:
+      {{- if .Values.image.pullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecret }}
+      {{- end }}
+      containers:
+        # SPA served by nginx; also reverse-proxies /api, /o and /ws to AAP and
+        # the gateway sidecar (see the vm-portal-nginx ConfigMap).
+        - name: portal
+          image: {{ .Values.image.registry }}/vm-portal:{{ .Values.image.portalTag }}
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/vm-portal.conf
+              subPath: vm-portal.conf
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+
+        # WebSocket-to-SSH terminal gateway (EC2 Instance Connect). nginx in the
+        # portal container proxies /ws/terminal to 127.0.0.1:8081.
+        - name: gateway
+          image: {{ .Values.image.registry }}/vm-portal-gateway:{{ .Values.image.gatewayTag }}
+          ports:
+            - containerPort: 8081
+              name: ws
+          env:
+            - name: PORT
+              value: "8081"
+            - name: AAP_BASE_URL
+              value: https://aap-aap.{{ .Values.clusterDomain }}
+            - name: AAP_TLS_HOST
+              value: aap-aap.{{ .Values.clusterDomain }}
+            - name: AAP_TLS_INSECURE
+              value: {{ .Values.gateway.aapTlsInsecure | quote }}
+            - name: AWS_REGION
+              value: {{ .Values.gateway.awsRegion | quote }}
+            - name: AWS_EC2_METADATA_DISABLED
+              value: "true"
+            - name: DEFAULT_SSH_USER
+              value: {{ .Values.gateway.defaultSshUser | quote }}
+            - name: REQUIRE_MANAGED_BY_ANSIBLE
+              value: {{ .Values.gateway.requireManagedByAnsible | quote }}
+            - name: IDLE_TIMEOUT_MS
+              value: {{ .Values.gateway.idleTimeoutMs | quote }}
+            - name: MAX_SESSION_MS
+              value: {{ .Values.gateway.maxSessionMs | quote }}
+            - name: MAX_SESSIONS
+              value: {{ .Values.gateway.maxSessions | quote }}
+            - name: MAX_SESSIONS_PER_USER
+              value: {{ .Values.gateway.maxSessionsPerUser | quote }}
+          envFrom:
+            - secretRef:
+                name: vm-portal-gateway-aws
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: vm-portal-nginx

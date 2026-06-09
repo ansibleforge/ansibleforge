@@ -1,0 +1,51 @@
+---
+# Self-Service Portal — Add or remove the ManagedBy=ansible tag
+#
+# The Terminate EC2 workflow's safety gate keys on this exact tag, so the
+# portal owns its lifecycle. Idempotent: re-applying or re-removing is fine.
+- name: Manage ManagedBy tag on EC2 instance
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    aws_region: "{{ region | default('us-east-2') }}"
+
+  tasks:
+    - name: Validate launch payload
+      ansible.builtin.assert:
+        that:
+          - instance_id is defined and instance_id | length > 0
+          - instance_id is match('^i-[0-9a-f]+$')
+          - tag_present is defined
+        fail_msg: "instance_id and tag_present (true|false) are required."
+
+    - name: Coerce tag_present to bool
+      ansible.builtin.set_fact:
+        _present: "{{ tag_present | bool }}"
+
+    - name: Add ManagedBy=ansible tag
+      amazon.aws.ec2_tag:
+        resource: "{{ instance_id }}"
+        region: "{{ aws_region }}"
+        tags:
+          ManagedBy: ansible
+        state: present
+      when: _present | bool
+
+    - name: Remove ManagedBy tag (regardless of current value)
+      # Passing a null value for the tag key tells ec2_tag to remove by key
+      # only, so a tag like ManagedBy=claude-code is still deleted.
+      amazon.aws.ec2_tag:
+        resource: "{{ instance_id }}"
+        region: "{{ aws_region }}"
+        tags:
+          ManagedBy: null
+        state: absent
+      when: not _present | bool
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: >-
+          ManagedBy=ansible tag {{ _present | ternary('applied to', 'removed from') }}
+          {{ instance_id }}.

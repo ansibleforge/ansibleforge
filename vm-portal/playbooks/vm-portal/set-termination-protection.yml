@@ -1,0 +1,47 @@
+---
+# Self-Service Portal — Toggle EC2 termination protection
+#
+# Sets the DisableApiTermination attribute on the target instance. Idempotent:
+# requesting the current state is a no-op.
+- name: Set EC2 termination protection
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    aws_region: "{{ region | default('us-east-2') }}"
+
+  tasks:
+    - name: Validate launch payload
+      ansible.builtin.assert:
+        that:
+          - instance_id is defined and instance_id | length > 0
+          - instance_id is match('^i-[0-9a-f]+$')
+          - termination_protection is defined
+        fail_msg: "instance_id and termination_protection (true|false) are required."
+
+    - name: Coerce termination_protection to bool
+      ansible.builtin.set_fact:
+        _enabled: "{{ termination_protection | bool }}"
+
+    - name: Look up current state (for the report)
+      amazon.aws.ec2_instance_info:
+        instance_ids:
+          - "{{ instance_id }}"
+        region: "{{ aws_region }}"
+      register: ec2_info
+
+    - name: Apply termination protection
+      amazon.aws.ec2_instance:
+        instance_ids:
+          - "{{ instance_id }}"
+        region: "{{ aws_region }}"
+        termination_protection: "{{ _enabled }}"
+        state: present
+        wait: false
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: >-
+          Termination protection set to {{ _enabled }} on
+          {{ instance_id }} ({{ ec2_info.instances[0].tags.Name | default('unnamed') }}).

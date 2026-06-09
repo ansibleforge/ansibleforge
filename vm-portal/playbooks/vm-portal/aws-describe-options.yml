@@ -1,0 +1,128 @@
+---
+# Self-Service Portal — Describe EC2 provisioning options for one region.
+#
+# Read-only. Returns the subnets, key pairs, security groups, and a *curated*
+# AMI list for `region` so the portal's Create VM form can populate its
+# dropdowns. Results are emitted via set_stats so they surface on the job's
+# `artifacts` (the portal reads GET /api/controller/v2/jobs/{id}/).
+- name: Describe EC2 provisioning options
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    aws_region: "{{ region | default('us-east-2') }}"
+    # Curated AMI families: owner account(s) + a name glob. One newest image
+    # is kept per family so the artifacts payload stays tiny.
+    ami_families:
+      - { key: "rhel9", owners: ["309956199498"], name: "RHEL-9.*_HVM-*-x86_64-*-Hourly2-GP3" }
+      - { key: "rhel8", owners: ["309956199498"], name: "RHEL-8.*_HVM-*-x86_64-*-Hourly2-GP3" }
+      - { key: "al2023", owners: ["amazon"], name: "al2023-ami-2023.*-kernel-6.1-x86_64" }
+      - { key: "ubuntu22", owners: ["099720109477"], name: "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" }
+      - { key: "win2022", owners: ["amazon"], name: "Windows_Server-2022-English-Full-Base-*" }
+
+  tasks:
+    - name: Validate region
+      ansible.builtin.assert:
+        that:
+          - aws_region is match('^[a-z]{2}-[a-z]+-[0-9]$')
+        fail_msg: "region is required and must look like an AWS region id (e.g. us-east-2)."
+
+    - name: Describe subnets
+      amazon.aws.ec2_vpc_subnet_info:
+        region: "{{ aws_region }}"
+      register: subnet_info
+
+    - name: Describe key pairs
+      amazon.aws.ec2_key_info:
+        region: "{{ aws_region }}"
+      register: key_info
+
+    - name: Describe security groups
+      amazon.aws.ec2_security_group_info:
+        region: "{{ aws_region }}"
+      register: sg_info
+
+    - name: Describe AMIs per curated family
+      amazon.aws.ec2_ami_info:
+        region: "{{ aws_region }}"
+        owners: "{{ item.owners }}"
+        filters:
+          name: "{{ item.name }}"
+          state: available
+          architecture: x86_64
+      loop: "{{ ami_families }}"
+      loop_control:
+        label: "{{ item.key }}"
+      register: ami_results
+
+    - name: Reduce each family to its newest image
+      ansible.builtin.set_fact:
+        curated_amis: >-
+          {{ curated_amis | default([])
+             + [ (res.images | sort(attribute='creation_date') | last
+                   | combine({'family': res.item.key})) ] }}
+      loop: "{{ ami_results.results }}"
+      loop_control:
+        loop_var: res
+        label: "{{ res.item.key }}"
+      when: res.images | length > 0
+
+    # Build trimmed dicts with plain Jinja (no json_query — the community.general
+    # collection isn't in the execution environment).
+    - name: Build subnet options
+      ansible.builtin.set_fact:
+        opt_subnets: >-
+          {{ opt_subnets | default([]) + [{
+               'id': item.subnet_id,
+               'name': (item.tags | default({})).Name | default(''),
+               'cidr': item.cidr_block,
+               'az': item.availability_zone,
+               'vpc_id': item.vpc_id }] }}
+      loop: "{{ subnet_info.subnets | default([]) }}"
+      loop_control:
+        label: "{{ item.subnet_id }}"
+
+    - name: Build key pair options
+      ansible.builtin.set_fact:
+        opt_key_pairs: >-
+          {{ opt_key_pairs | default([]) + [{ 'name': item.key_name, 'id': item.key_pair_id }] }}
+      loop: "{{ key_info.keypairs | default([]) }}"
+      loop_control:
+        label: "{{ item.key_name }}"
+
+    - name: Build security group options
+      ansible.builtin.set_fact:
+        opt_sgs: >-
+          {{ opt_sgs | default([]) + [{
+               'id': item.group_id,
+               'name': item.group_name,
+               'description': item.description | default(''),
+               'vpc_id': item.vpc_id }] }}
+      loop: "{{ sg_info.security_groups | default([]) }}"
+      loop_control:
+        label: "{{ item.group_id }}"
+
+    - name: Build AMI options
+      ansible.builtin.set_fact:
+        opt_amis: >-
+          {{ opt_amis | default([]) + [{
+               'id': item.image_id,
+               'name': item.name,
+               'family': item.family,
+               'description': item.description | default(''),
+               'creation_date': item.creation_date | default('') }] }}
+      loop: "{{ curated_amis | default([]) }}"
+      loop_control:
+        label: "{{ item.image_id }}"
+
+    - name: Emit trimmed options as job artifacts
+      ansible.builtin.set_stats:
+        aggregate: false
+        data:
+          ec2_options:
+            region: "{{ aws_region }}"
+            subnets: "{{ opt_subnets | default([]) }}"
+            key_pairs: "{{ opt_key_pairs | default([]) }}"
+            security_groups: "{{ opt_sgs | default([]) }}"
+            amis: "{{ opt_amis | default([]) }}"
