@@ -1,0 +1,130 @@
+---
+# =============================================================================
+# playbooks/security-patch/apply_cve.yml
+#
+# Patch a single, named CVE across RHEL and Windows hosts, then report whether
+# each host needs a reboot to finish applying the fix.
+#
+# You get an advisory email naming a CVE -> pass it in and run this. It does
+# NOT do a blanket "dnf update everything"; it applies only the errata (RHEL)
+# or KB (Windows) that fix the named CVE, so the change stays targeted and
+# auditable.
+#
+# Required:
+#   cve             CVE identifier, e.g. "CVE-2024-3094"
+#
+# Optional:
+#   windows_kb      KB article that fixes the CVE on Windows, e.g. "KB5037853".
+#                   Windows Update tracks fixes by KB, not by CVE -- look the
+#                   CVE up in the MSRC Security Update Guide to get the KB.
+#                   If unset, the Windows play falls back to applying all
+#                   pending Security + Critical updates.
+#   auto_reboot     Reboot hosts automatically when the patch requires it.
+#                   Default: false -- apply + report only, so you reboot in a
+#                   maintenance window. Set true to reboot inside the run.
+#   reboot_timeout  Seconds to wait for a host to return. Default: 1800.
+#   rhel_hosts      Inventory group/pattern for RHEL hosts. Default: "linux".
+#   windows_hosts   Inventory group/pattern for Windows hosts. Default:
+#                   "windows".
+#
+# Run:
+#   ansible-playbook playbooks/security-patch/apply_cve.yml \
+#     -e cve=CVE-2024-3094 -e windows_kb=KB5037853
+#   # add -e auto_reboot=true to let it reboot inside the run
+# =============================================================================
+
+- name: Validate inputs
+  hosts: localhost
+  gather_facts: false
+  tasks:
+
+    - name: Require a well-formed CVE identifier
+      ansible.builtin.assert:
+        that:
+          - cve is defined
+          - cve | string is match('^CVE-[0-9]{4}-[0-9]{4,}$')
+        fail_msg: >-
+          Pass the CVE from the advisory email, e.g. -e cve=CVE-2024-3094
+
+- name: Patch {{ cve }} on RHEL hosts
+  hosts: "{{ rhel_hosts | default('linux') }}"
+  gather_facts: false
+  become: true
+  vars:
+    auto_reboot: "{{ auto_reboot | default(false) }}"
+    reboot_timeout: "{{ reboot_timeout | default(1800) }}"
+  tasks:
+
+    - name: Ensure needs-restarting (dnf-utils) is available
+      ansible.builtin.dnf:
+        name: dnf-utils
+        state: present
+
+    # The ansible.builtin.dnf module has no CVE filter, so we drive dnf
+    # directly. upgrade-minimal applies the smallest update that resolves the
+    # CVE, which is what you want for a targeted security patch.
+    - name: Apply the errata that fix {{ cve }}
+      ansible.builtin.command:
+        cmd: "dnf upgrade-minimal --cve {{ cve }} --assumeyes"
+      register: dnf_cve
+      changed_when: "'Nothing to do' not in dnf_cve.stdout"
+      failed_when:
+        - dnf_cve.rc != 0
+        - "'Nothing to do' not in dnf_cve.stdout"
+
+    - name: Determine whether a reboot is required
+      ansible.builtin.command:
+        cmd: needs-restarting -r
+      register: needs_restart
+      changed_when: false
+      failed_when: needs_restart.rc not in [0, 1]
+
+    - name: Record reboot requirement
+      ansible.builtin.set_fact:
+        reboot_required: "{{ needs_restart.rc == 1 }}"
+
+    - name: Reboot to finish applying {{ cve }}
+      ansible.builtin.reboot:
+        reboot_timeout: "{{ reboot_timeout | int }}"
+        msg: "Rebooting to finish applying {{ cve }}"
+      when:
+        - reboot_required | bool
+        - auto_reboot | bool
+      register: rhel_reboot
+
+    - name: Report RHEL result for {{ cve }}
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: patched={{ dnf_cve is changed }}
+          reboot_required={{ reboot_required }}
+          reboot_performed={{ rhel_reboot is defined and rhel_reboot is changed }}
+
+- name: Patch {{ cve }} on Windows hosts
+  hosts: "{{ windows_hosts | default('windows') }}"
+  gather_facts: false
+  vars:
+    auto_reboot: "{{ auto_reboot | default(false) }}"
+    reboot_timeout: "{{ reboot_timeout | default(1800) }}"
+  tasks:
+
+    # Windows Update is keyed on KB articles, not CVEs. When windows_kb is
+    # given we accept_list just that KB; otherwise we apply all pending
+    # Security + Critical updates as a safe superset.
+    - name: Apply the update that fixes {{ cve }}
+      ansible.windows.win_updates:
+        category_names:
+          - SecurityUpdates
+          - CriticalUpdates
+        accept_list: "{{ [windows_kb] if (windows_kb | default('') | length > 0) else omit }}"
+        reboot: "{{ auto_reboot | bool }}"
+        reboot_timeout: "{{ reboot_timeout | int }}"
+        state: installed
+      register: win_result
+
+    - name: Report Windows result for {{ cve }}
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}:
+          installed={{ win_result.installed_update_count | default(0) }}
+          failed={{ win_result.failed_update_count | default(0) }}
+          reboot_required={{ win_result.reboot_required | default(false) }}
