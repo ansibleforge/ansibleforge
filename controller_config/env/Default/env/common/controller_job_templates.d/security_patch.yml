@@ -1,0 +1,68 @@
+---
+# Security patching job template, managed as config-as-code.
+#
+# Feed it a CVE from an advisory email and it applies the targeted errata (RHEL)
+# or KB (Windows) and reports whether each host needs a reboot. The operator
+# picks the target inventory + machine credentials at launch, so one template
+# serves any host group rather than hardcoding a single fleet.
+controller_templates:
+  - name: "Security - Apply CVE Patch"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/security-patch/apply_cve.yml
+    execution_environment: "EE AnsibleForge"
+    description: >-
+      Patch a single named CVE across RHEL and Windows hosts and report reboot
+      requirements. RHEL uses 'dnf upgrade-minimal --cve'; Windows applies the
+      KB you supply (CVE->KB via the MSRC Security Update Guide). Defaults to
+      apply-and-report; set Auto-reboot to true to reboot inside the run.
+    ask_inventory_on_launch: true
+    ask_credential_on_launch: true
+    survey_enabled: true
+    survey_spec:
+      name: Apply CVE Patch
+      description: Provide the CVE from the advisory and choose reboot behavior.
+      spec:
+        - question_name: CVE
+          variable: cve
+          type: text
+          required: true
+          question_description: >-
+            CVE identifier from the advisory email, e.g. CVE-2024-3094.
+        - question_name: Windows KB
+          variable: windows_kb
+          type: text
+          required: false
+          default: ""
+          question_description: >-
+            KB article that fixes the CVE on Windows (e.g. KB5037853). Windows
+            Update is keyed on KB, not CVE -- look the CVE up in the MSRC
+            Security Update Guide. Leave blank to apply all pending Security +
+            Critical updates instead.
+        - question_name: Auto-reboot
+          variable: auto_reboot
+          type: multiplechoice
+          required: true
+          default: "false"
+          choices:
+            - "false"
+            - "true"
+          question_description: >-
+            true reboots hosts that need it inside this run; false applies the
+            patch and only reports which hosts require a reboot.
+        - question_name: RHEL host pattern
+          variable: rhel_hosts
+          type: text
+          required: false
+          default: "linux"
+          question_description: >-
+            Inventory group/pattern for RHEL hosts in the selected inventory.
+        - question_name: Windows host pattern
+          variable: windows_hosts
+          type: text
+          required: false
+          default: "windows"
+          question_description: >-
+            Inventory group/pattern for Windows hosts in the selected inventory.
+    state: present
