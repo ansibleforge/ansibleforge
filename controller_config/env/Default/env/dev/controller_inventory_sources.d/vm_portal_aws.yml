@@ -1,0 +1,33 @@
+---
+controller_inventory_sources:
+  - name: "VM Portal - AWS EC2"
+    inventory: "VM Portal - AWS"
+    organization: Default
+    source: ec2
+    credential: "AWS - AnsibleForge"
+    overwrite: true
+    update_on_launch: true
+    update_cache_timeout: 60
+    source_vars:
+      # Regions mirror the portal's allowedRegions (src/config.ts). Add/remove
+      # as needed.
+      regions:
+        - us-east-1
+        - us-east-2
+        - us-west-2
+        - eu-west-1
+        - ap-southeast-2
+      # Show everything that isn't terminated so the portal can offer the
+      # "Apply ManagedBy=ansible tag" action on untagged instances too; the
+      # portal gates destructive actions on the ManagedBy tag itself.
+      filters:
+        instance-state-name:
+          - pending
+          - running
+          - stopping
+          - stopped
+      hostnames:
+        - tag:Name
+        - instance-id
+      compose:
+        ansible_host: public_ip_address

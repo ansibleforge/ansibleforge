@@ -1,0 +1,90 @@
+---
+# Job templates backing the self-service VM Portal (vm-portal/). The portal
+# launches the workflow wrappers in controller_workflow_job_templates.d/vm_portal.yml
+# for every action except "AWS Describe Options", which it launches as a job
+# template directly. All playbooks run on localhost against the AWS API.
+controller_templates:
+  - name: "VM Portal - Provision EC2"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: vm-portal/playbooks/vm-portal/provision-ec2.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "AWS - AnsibleForge"
+    ask_variables_on_launch: true
+    description: "Launch and tag (ManagedBy=ansible) an EC2 instance from the portal Create VM form"
+
+  - name: "VM Portal - Delete VM"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: vm-portal/playbooks/vm-portal/delete-vm.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      # Uses ansible.controller.host to drop the record from an AAP inventory.
+      - "AAP Controller Admin"
+    ask_variables_on_launch: true
+    description: "Remove a VM host record from the target AAP inventory"
+
+  - name: "VM Portal - Terminate EC2"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: vm-portal/playbooks/vm-portal/terminate-ec2.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "AWS - AnsibleForge"
+    ask_variables_on_launch: true
+    description: "Terminate an EC2 instance (gated on ManagedBy=ansible)"
+
+  - name: "VM Portal - Set Termination Protection"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: vm-portal/playbooks/vm-portal/set-termination-protection.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "AWS - AnsibleForge"
+    ask_variables_on_launch: true
+    description: "Toggle DisableApiTermination on an EC2 instance"
+
+  - name: "VM Portal - Set ManagedBy Tag"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: vm-portal/playbooks/vm-portal/set-managed-by-tag.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "AWS - AnsibleForge"
+    ask_variables_on_launch: true
+    description: "Add or remove the ManagedBy=ansible tag on an EC2 instance"
+
+  - name: "VM Portal - Set Instance State"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: vm-portal/playbooks/vm-portal/set-instance-state.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "AWS - AnsibleForge"
+    ask_variables_on_launch: true
+    description: "Start or stop an EC2 instance (gated on ManagedBy=ansible)"
+
+  - name: "VM Portal - AWS Describe Options"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: vm-portal/playbooks/vm-portal/aws-describe-options.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "AWS - AnsibleForge"
+    ask_variables_on_launch: true
+    description: "Return per-region AMIs, subnets, keys and security groups for the Create VM form"
