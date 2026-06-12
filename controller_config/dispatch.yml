@@ -14,6 +14,13 @@
     CONTROLLER_REQUEST_TIMEOUT: "{{ lookup('env', 'CONTROLLER_REQUEST_TIMEOUT') | default('', true) or '10' }}"
     AAP_REQUEST_TIMEOUT: "{{ lookup('env', 'AAP_REQUEST_TIMEOUT') | default('', true) or '10' }}"
     TOWER_REQUEST_TIMEOUT: "{{ lookup('env', 'TOWER_REQUEST_TIMEOUT') | default('', true) or '10' }}"
+    # AAP 2.7 moved OAuth tokens to the gateway, so the EE's ansible.controller
+    # modules 404 trying to self-mint one at the controller's old endpoint. Hand
+    # them a gateway token (minted in pre_tasks below) so they skip that path.
+    # Empty until the pre_task sets the fact; the modules then prefer it over
+    # username/password.
+    CONTROLLER_OAUTH_TOKEN: "{{ _cac_gateway_oauth_token | default('') }}"
+    TOWER_OAUTH_TOKEN: "{{ _cac_gateway_oauth_token | default('') }}"
   vars:
     cluster_domain: "{{ lookup('env', 'CONTROLLER_HOST') | default('', true) | regex_replace('^https?://aap-aap\\.', '') }}"
     controller_hostname: "{{ lookup('env', 'CONTROLLER_HOST') | default('https://aap-aap.' ~ cluster_domain, true) }}"
@@ -58,6 +65,37 @@
           Controller connection not configured. Either attach an
           "AAP Controller Admin" credential or pass controller_password
           as an extra var.
+
+    # AAP 2.7 relocated OAuth token management from the controller to the
+    # gateway (/api/gateway/v1/tokens/). The ansible.controller modules in the
+    # EE still try to self-mint a token at the controller's old /api/v2/tokens/
+    # when authenticating by username/password — now a 404 ("Failed to get
+    # token: HTTP Error 404") that aborts every controller role. Mint a gateway
+    # token here and feed it to the modules via CONTROLLER_OAUTH_TOKEN (set in
+    # the play environment above) so they use it directly and skip the 404 path.
+    - name: Mint a gateway OAuth token for the controller modules
+      ansible.builtin.uri:
+        url: "{{ aap_hostname }}/api/gateway/v1/tokens/"
+        method: POST
+        user: "{{ aap_username }}"
+        password: "{{ aap_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ aap_validate_certs }}"
+        body_format: json
+        body:
+          scope: write
+          description: "infra.aap_configuration CaC run"
+        status_code: [201]
+      register: _cac_gateway_token
+      no_log: true
+
+    - name: Expose the gateway token to the controller modules
+      ansible.builtin.set_fact:
+        # Referenced by CONTROLLER_OAUTH_TOKEN/TOWER_OAUTH_TOKEN in the play
+        # environment. Field name matches the controller token response the
+        # EDA pre-task below already consumes (.json.token).
+        _cac_gateway_oauth_token: "{{ _cac_gateway_token.json.token }}"
+      no_log: true
 
     # EDA filetree load. include_vars with `dir:` overwrites same-named vars
     # across files, so for directories that may contain multiple files that
