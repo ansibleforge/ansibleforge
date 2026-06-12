@@ -3,6 +3,17 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  # The ansible.controller modules read request_timeout straight from these env
+  # vars, which the runner injects as empty strings (""). Newer
+  # infra.aap_configuration (pulled in by the AAP 2.6->2.7 bump) no longer
+  # tolerates that — the module fails to cast "" to float ("cannot be converted
+  # to a float") in the controller_credential_types async wait, aborting the
+  # whole apply. Override them with a numeric default here at the play level so
+  # every module call (including the async ones) sees a real timeout.
+  environment:
+    CONTROLLER_REQUEST_TIMEOUT: "{{ lookup('env', 'CONTROLLER_REQUEST_TIMEOUT') | default('', true) or '10' }}"
+    AAP_REQUEST_TIMEOUT: "{{ lookup('env', 'AAP_REQUEST_TIMEOUT') | default('', true) or '10' }}"
+    TOWER_REQUEST_TIMEOUT: "{{ lookup('env', 'TOWER_REQUEST_TIMEOUT') | default('', true) or '10' }}"
   vars:
     cluster_domain: "{{ lookup('env', 'CONTROLLER_HOST') | default('', true) | regex_replace('^https?://aap-aap\\.', '') }}"
     controller_hostname: "{{ lookup('env', 'CONTROLLER_HOST') | default('https://aap-aap.' ~ cluster_domain, true) }}"
@@ -13,11 +24,9 @@
     aap_username: "{{ controller_username }}"
     aap_password: "{{ controller_password }}"
     aap_validate_certs: "{{ controller_validate_certs }}"
-    # Force a numeric request timeout. The *_REQUEST_TIMEOUT env vars are injected
-    # empty ("") by the runner; newer infra.aap_configuration (pulled in by the
-    # AAP 2.7 bump) passes that empty string straight to the controller modules,
-    # which then fail to cast it to float ("cannot be converted to a float") in
-    # the controller_credential_types async wait. `'' or 10` coerces empty to 10.
+    # Numeric request timeout for any role that reads these play vars (the
+    # operative fix for the empty-env-var crash is the play-level `environment:`
+    # block above, which is what the controller modules actually read).
     aap_request_timeout: "{{ lookup('env', 'AAP_REQUEST_TIMEOUT') | default('', true) or 10 }}"
     controller_request_timeout: "{{ lookup('env', 'CONTROLLER_REQUEST_TIMEOUT') | default('', true) or 10 }}"
     dir_orgs_vars: "{{ playbook_dir }}/env"
