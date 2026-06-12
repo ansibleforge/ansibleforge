@@ -1,0 +1,16 @@
+---
+# Gateway OAuth application for the VM Portal SPA. In AAP 2.5+ OAuth
+# applications live on the gateway (/api/gateway/v1/applications/), not the
+# controller — the controller endpoint 404s — so this is a gateway_applications
+# (aap_applications) entry, not controller_applications. AAP generates the
+# client_id on creation; read it back after applying and feed it to the portal
+# image build as VITE_AAP_CLIENT_ID. redirect_uris must exactly match the SPA's
+# window.location.origin + /oauth/callback.
+aap_applications:
+  - name: "VM Portal"
+    organization: Default
+    authorization_grant_type: authorization-code
+    client_type: public
+    description: "OAuth2 PKCE application for the self-service VM Portal SPA"
+    redirect_uris:
+      - "https://vm-portal.apps.ocp.spark.ansibleforge.dev/oauth/callback"
