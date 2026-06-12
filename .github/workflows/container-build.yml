@@ -9,6 +9,7 @@ on:
       - "keycloak-extensions/github-org-mapper/**"
       - "containers/devfile-registry/**"
       - "devfile.yaml"
+      - "vm-portal/**"
       - ".github/workflows/container-build.yml"
   workflow_dispatch:
     inputs:
@@ -21,6 +22,8 @@ on:
           - ee-ansibleforge
           - keycloak-github-org-mapper
           - devfile-registry
+          - vm-portal
+          - vm-portal-gateway
           - all
 
 permissions:
@@ -40,6 +43,7 @@ jobs:
       ee-ansibleforge: ${{ steps.changes.outputs.ee-ansibleforge }}
       keycloak-github-org-mapper: ${{ steps.changes.outputs.keycloak-github-org-mapper }}
       devfile-registry: ${{ steps.changes.outputs.devfile-registry }}
+      vm-portal: ${{ steps.changes.outputs.vm-portal }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
@@ -55,6 +59,8 @@ jobs:
             devfile-registry:
               - 'containers/devfile-registry/**'
               - 'devfile.yaml'
+            vm-portal:
+              - 'vm-portal/**'
 
   build-tools-ansibleforge:
     runs-on: ubuntu-latest
@@ -246,3 +252,65 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/devfile-registry:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/devfile-registry:${{ github.sha }}
+
+  build-vm-portal:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: >-
+      always() && !failure() && (
+        github.event_name == 'workflow_dispatch' && (inputs.image == 'vm-portal' || inputs.image == 'all') ||
+        github.event_name == 'push' && needs.detect-changes.outputs.vm-portal == 'true'
+      )
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push vm-portal
+        uses: docker/build-push-action@v7
+        with:
+          context: vm-portal
+          file: vm-portal/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/vm-portal:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/vm-portal:${{ github.sha }}
+
+  build-vm-portal-gateway:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: >-
+      always() && !failure() && (
+        github.event_name == 'workflow_dispatch' && (inputs.image == 'vm-portal-gateway' || inputs.image == 'all') ||
+        github.event_name == 'push' && needs.detect-changes.outputs.vm-portal == 'true'
+      )
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push vm-portal-gateway
+        uses: docker/build-push-action@v7
+        with:
+          context: vm-portal/gateway
+          file: vm-portal/gateway/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/vm-portal-gateway:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/vm-portal-gateway:${{ github.sha }}

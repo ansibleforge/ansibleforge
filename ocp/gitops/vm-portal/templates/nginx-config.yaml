@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vm-portal-nginx
+  namespace: vm-portal
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  # Cluster variant of the app's baked-in nginx.conf. The image ships a config
+  # that proxies to the rootless-podman host alias (host.containers.internal);
+  # here we mount this over /etc/nginx/conf.d/vm-portal.conf so the upstreams
+  # resolve in-cluster: AAP via its Route, the terminal gateway via the
+  # localhost sidecar in this same pod.
+  vm-portal.conf: |
+    server {
+        listen 8080;
+        listen [::]:8080;
+        server_name _;
+
+        root /usr/share/nginx/html;
+        index index.html;
+
+        client_max_body_size 16m;
+
+        # ----- AAP reverse proxy (same-origin /api and /o) -----------------
+        location /api/ {
+            proxy_pass         https://aap-aap.{{ .Values.clusterDomain }}/api/;
+            proxy_set_header   Host              aap-aap.{{ .Values.clusterDomain }};
+            proxy_ssl_name     aap-aap.{{ .Values.clusterDomain }};
+            proxy_set_header   X-Real-IP         $remote_addr;
+            proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Proto https;
+            # TODO: tighten to `on` with a CA bundle once AAP presents a trusted cert.
+            proxy_ssl_verify   off;
+            proxy_ssl_server_name on;
+            proxy_http_version 1.1;
+            proxy_set_header   Connection        "";
+            proxy_read_timeout 120s;
+        }
+
+        location ~ ^/o/(token|revoke_token)/ {
+            proxy_pass         https://aap-aap.{{ .Values.clusterDomain }};
+            proxy_set_header   Host              aap-aap.{{ .Values.clusterDomain }};
+            proxy_ssl_name     aap-aap.{{ .Values.clusterDomain }};
+            proxy_set_header   X-Real-IP         $remote_addr;
+            proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Proto https;
+            proxy_ssl_verify   off;
+            proxy_ssl_server_name on;
+            proxy_http_version 1.1;
+            proxy_set_header   Connection        "";
+        }
+
+        # ----- In-browser SSH terminal gateway (localhost sidecar) ---------
+        location /ws/terminal {
+            proxy_pass         http://127.0.0.1:8081;
+            proxy_http_version 1.1;
+            proxy_set_header   Upgrade           $http_upgrade;
+            proxy_set_header   Connection        "upgrade";
+            proxy_set_header   Host              $host;
+            proxy_set_header   X-Real-IP         $remote_addr;
+            proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Proto $scheme;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+            proxy_buffering    off;
+        }
+
+        # ----- Static assets -----------------------------------------------
+        location /assets/ {
+            access_log off;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            try_files $uri =404;
+        }
+
+        # SPA fallback.
+        location / {
+            add_header Cache-Control "no-cache, no-store, must-revalidate";
+            try_files $uri $uri/ /index.html;
+        }
+    }

@@ -1,0 +1,58 @@
+---
+# Self-Service Portal — Terminate EC2 instance
+#
+# Safety gate: refuses to terminate anything that doesn't carry the
+# ManagedBy=ansible tag. The portal applies the same check client-side,
+# but this play re-verifies against the live EC2 API so a stale UI or a
+# crafted launch payload can't sneak a destructive call through.
+- name: Terminate EC2 instance
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    aws_region: "{{ region | default('us-east-2') }}"
+
+  tasks:
+    - name: Validate launch payload
+      ansible.builtin.assert:
+        that:
+          - instance_id is defined and instance_id | length > 0
+          - instance_id is match('^i-[0-9a-f]+$')
+        fail_msg: "instance_id is required and must look like an EC2 instance id."
+
+    - name: Look up instance
+      amazon.aws.ec2_instance_info:
+        instance_ids:
+          - "{{ instance_id }}"
+        region: "{{ aws_region }}"
+      register: ec2_info
+
+    - name: Defensive — must find exactly one instance
+      ansible.builtin.assert:
+        that:
+          - ec2_info.instances | length == 1
+        fail_msg: "Could not find a unique EC2 instance with id {{ instance_id }} in {{ aws_region }}."
+
+    - name: Safety gate — ManagedBy=ansible tag is required
+      ansible.builtin.assert:
+        that:
+          - ec2_info.instances[0].tags.ManagedBy | default('') == 'ansible'
+        fail_msg: >-
+          Refusing to terminate {{ instance_id }} ({{ ec2_info.instances[0].tags.Name | default('unnamed') }}):
+          ManagedBy=ansible tag is not present.
+
+    - name: Terminate instance
+      amazon.aws.ec2_instance:
+        instance_ids:
+          - "{{ instance_id }}"
+        region: "{{ aws_region }}"
+        state: absent
+        wait: false
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: >-
+          Termination initiated for {{ instance_id }}
+          ({{ ec2_info.instances[0].tags.Name | default('unnamed') }})
+          in {{ aws_region }}.

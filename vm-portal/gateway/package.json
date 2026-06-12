@@ -1,0 +1,30 @@
+{
+  "name": "vm-portal-gateway",
+  "private": true,
+  "version": "0.0.0",
+  "description": "WebSocket↔SSH gateway for the vm-portal in-browser terminal (EC2 Instance Connect)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "node --watch --experimental-strip-types src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ec2": "^3.717.0",
+    "@aws-sdk/client-ec2-instance-connect": "^3.717.0",
+    "ssh2": "^1.16.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/ssh2": "^1.15.1",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

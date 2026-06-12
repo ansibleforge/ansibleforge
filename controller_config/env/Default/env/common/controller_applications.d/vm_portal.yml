@@ -1,0 +1,13 @@
+---
+# Public PKCE OAuth application for the VM Portal SPA. AAP generates the
+# client_id on creation; read it back after applying CaC and feed it to the
+# portal image build as VITE_AAP_CLIENT_ID (the portal's hardcoded default is a
+# stale sandbox value). redirect_uris must exactly match the SPA's
+# window.location.origin + /oauth/callback.
+controller_applications:
+  - name: "VM Portal"
+    organization: Default
+    authorization_grant_type: authorization-code
+    client_type: public
+    description: "OAuth2 PKCE application for the self-service VM Portal SPA"
+    redirect_uris: "https://vm-portal.apps.ocp.spark.ansibleforge.dev/oauth/callback"

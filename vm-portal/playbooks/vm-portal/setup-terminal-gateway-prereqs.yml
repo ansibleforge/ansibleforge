@@ -1,0 +1,228 @@
+---
+# Self-Service Portal — provision the prerequisites for the in-browser SSH
+# terminal gateway. Designed to run as an AAP job template (survey-friendly).
+#
+# This automates the "operator pieces" of the gateway deploy (see deploy/README.md):
+#   1. An IAM managed policy (least privilege: DescribeInstances + tag/region/
+#      osuser-scoped ec2-instance-connect:SendSSHPublicKey).
+#   2. An IAM user with that policy attached, plus a fresh access key.
+#   3. A security-group ingress rule allowing SSH (22) from the gateway host's
+#      egress IP — without it, EIC connections time out (ssh_connect_timeout).
+#   4. (optional) The two podman secrets on the gateway host, created from the
+#      new access key, so the gateway container can authenticate to AWS.
+#
+# Collections required in the execution environment:
+#   amazon.aws (>= 7.0.0)        — iam_managed_policy, iam_user, iam_access_key,
+#                                  ec2_security_group, aws_caller_info
+# (Step 4 shells out to `podman` via ansible.builtin.command, so no extra
+#  collection is needed; the gateway host just needs podman on PATH.)
+#
+# The AWS credential used by the job template needs IAM write permissions
+# (CreatePolicy/CreateUser/CreateAccessKey) and ec2:AuthorizeSecurityGroupIngress —
+# broader than the EC2-only credential used for provisioning. Use a dedicated
+# admin credential for this setup job.
+#
+# Required extra vars (survey):
+#   target_security_group_id : sg-xxxx — the security group your instances use
+#   gateway_egress_cidr      : the gateway host's PUBLIC egress IP as a /32
+#                              (find it on the host: `curl -s https://checkip.amazonaws.com`)
+# Optional extra vars:
+#   aws_region            (default us-east-2)
+#   gateway_iam_user_name (default vm-portal-gateway)
+#   gateway_policy_name   (default vm-portal-gateway)
+#   gateway_ssh_user      (default ec2-user) — must match the gateway's DEFAULT_SSH_USER
+#   manage_podman_secrets (default false) — when true, also create the podman secrets
+#   gateway_host          (default "gateway") — inventory host where podman runs
+#                          (the 192.168.64.5 box); only used when managing secrets
+
+- name: Gateway AWS prerequisites (IAM + security group)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    aws_region: "{{ region | default('us-east-2') }}"
+    gateway_iam_user_name: "{{ iam_user_name | default('vm-portal-gateway') }}"
+    gateway_policy_name: "{{ policy_name | default('vm-portal-gateway') }}"
+    gateway_ssh_user: "{{ ssh_user | default('ec2-user') }}"
+
+  tasks:
+    - name: Validate inputs
+      ansible.builtin.assert:
+        that:
+          - target_security_group_id is defined
+          - target_security_group_id is match('^sg-[0-9a-f]+$')
+          - gateway_egress_cidr is defined
+          - gateway_egress_cidr | length > 0
+        fail_msg: >-
+          target_security_group_id (sg-...) and gateway_egress_cidr (e.g. 203.0.113.7/32)
+          are required.
+
+    - name: Look up the AWS account id
+      amazon.aws.aws_caller_info:
+        region: "{{ aws_region }}"
+      register: caller
+
+    - name: Ensure the least-privilege IAM managed policy exists
+      amazon.aws.iam_managed_policy:
+        policy_name: "{{ gateway_policy_name }}"
+        policy:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: DescribeInstancesForTerminalTargeting
+              Effect: Allow
+              Action: ec2:DescribeInstances
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  aws:RequestedRegion:
+                    - "{{ aws_region }}"
+            - Sid: PushEphemeralKeyToManagedInstancesOnly
+              Effect: Allow
+              Action: ec2-instance-connect:SendSSHPublicKey
+              Resource: "arn:aws:ec2:{{ aws_region }}:{{ caller.account }}:instance/*"
+              Condition:
+                StringEquals:
+                  aws:ResourceTag/ManagedBy: ansible
+                  ec2:osuser: "{{ gateway_ssh_user }}"
+        state: present
+      register: managed_policy
+
+    - name: Ensure the IAM user exists with the policy attached
+      amazon.aws.iam_user:
+        name: "{{ gateway_iam_user_name }}"
+        managed_policies:
+          - "{{ managed_policy.policy.arn }}"
+        purge_policies: false
+        state: present
+
+    - name: Check for existing access keys on the gateway user
+      amazon.aws.iam_access_key_info:
+        user_name: "{{ gateway_iam_user_name }}"
+      register: existing_keys
+
+    # When installing podman secrets we NEED a usable secret, but AWS only
+    # returns it at creation — an existing key's secret can't be retrieved. So
+    # in that mode, rotate: delete existing keys first, then create a fresh one.
+    - name: Rotate — delete existing access keys (only when installing secrets)
+      amazon.aws.iam_access_key:
+        user_name: "{{ gateway_iam_user_name }}"
+        id: "{{ item.access_key_id }}"
+        state: absent
+      loop: "{{ existing_keys.access_keys }}"
+      loop_control:
+        label: "{{ item.access_key_id }}"
+      when:
+        - manage_podman_secrets | default(false) | bool
+        - existing_keys.access_keys | length > 0
+
+    - name: Create an access key for the gateway user
+      # Create when rotating for secrets, or when the user has no key at all.
+      # Otherwise skip so re-runs don't pile up keys (AWS caps at 2/user).
+      amazon.aws.iam_access_key:
+        user_name: "{{ gateway_iam_user_name }}"
+        state: present
+      register: gateway_key
+      no_log: true
+      when: >-
+        (manage_podman_secrets | default(false) | bool)
+        or (existing_keys.access_keys | length == 0)
+
+    - name: Look up the target security group (need its name/description/vpc)
+      amazon.aws.ec2_security_group_info:
+        region: "{{ aws_region }}"
+        filters:
+          group-id: "{{ target_security_group_id }}"
+      register: sg_info
+
+    - name: Confirm the security group exists
+      ansible.builtin.assert:
+        that:
+          - sg_info.security_groups | length == 1
+        fail_msg: "Security group {{ target_security_group_id }} not found in {{ aws_region }}."
+
+    - name: Allow SSH (22) from the gateway egress IP on the target security group
+      # ec2_security_group requires name/description even when matching by id;
+      # we pass the existing values so nothing is renamed. purge_rules: false
+      # adds the ingress rule without disturbing existing ingress/egress.
+      amazon.aws.ec2_security_group:
+        group_id: "{{ target_security_group_id }}"
+        name: "{{ sg_info.security_groups[0].group_name }}"
+        description: "{{ sg_info.security_groups[0].description }}"
+        vpc_id: "{{ sg_info.security_groups[0].vpc_id }}"
+        region: "{{ aws_region }}"
+        rules:
+          - proto: tcp
+            ports:
+              - 22
+            cidr_ip: "{{ gateway_egress_cidr }}"
+            rule_desc: "vm-portal terminal gateway (EIC) SSH"
+        purge_rules: false
+        purge_rules_egress: false
+        state: present
+
+    - name: Stash the new access key for the optional podman-secret play
+      ansible.builtin.add_host:
+        name: _gateway_key_holder
+        gw_access_key_id: "{{ gateway_key.access_key_id | default('') }}"
+        gw_secret_access_key: "{{ gateway_key.secret_access_key | default('') }}"
+      changed_when: false
+      no_log: true
+
+    - name: Summary (no secrets printed)
+      ansible.builtin.debug:
+        msg: >-
+          IAM user '{{ gateway_iam_user_name }}' is ready with policy
+          '{{ gateway_policy_name }}' ({{ managed_policy.policy.arn }}).
+          SSH(22) is allowed from {{ gateway_egress_cidr }} on
+          {{ target_security_group_id }}.
+          {% if gateway_key.access_key_id is defined -%}
+          A new access key was created — {{ 'it will be installed as podman secrets below.' if (manage_podman_secrets | default(false) | bool) else 'create the podman secrets from it (see deploy/README.md).' }}
+          {%- endif %}
+
+# Optional: install the AWS credentials as podman secrets on the gateway host so
+# the gateway container can authenticate. Runs only when manage_podman_secrets=true.
+# Requires `gateway_host` to be an inventory host that reaches the rootless podman
+# on 192.168.64.5 (i.e. SSH as the user that owns the vm-portal-gateway container).
+- name: Install AWS credentials as podman secrets on the gateway host
+  hosts: "{{ gateway_host | default('gateway') }}"
+  gather_facts: false
+
+  vars:
+    gw_access_key_id: "{{ hostvars['_gateway_key_holder'].gw_access_key_id | default('') }}"
+    gw_secret_access_key: "{{ hostvars['_gateway_key_holder'].gw_secret_access_key | default('') }}"
+
+  # Use ansible.builtin.command (not containers.podman.podman_secret) so the
+  # playbook loads even where the containers.podman collection isn't installed
+  # (e.g. the default AAP execution environment). The secret value is passed on
+  # stdin, never in argv. Each secret is removed first so re-runs rotate it.
+  tasks:
+    - name: Manage podman secrets (rotate from the new access key)
+      when:
+        - manage_podman_secrets | default(false) | bool
+        - gw_access_key_id | length > 0
+        - gw_secret_access_key | length > 0
+      block:
+        - name: Remove existing podman secrets if present
+          ansible.builtin.command:
+            cmd: "podman secret rm {{ item }}"
+          loop:
+            - vmp_aws_access_key_id
+            - vmp_aws_secret_access_key
+          register: secret_rm
+          changed_when: secret_rm.rc == 0
+          failed_when: false
+
+        - name: Create AWS access-key-id podman secret
+          ansible.builtin.command:
+            cmd: podman secret create vmp_aws_access_key_id -
+            stdin: "{{ gw_access_key_id }}"
+          no_log: true
+          changed_when: true
+
+        - name: Create AWS secret-access-key podman secret
+          ansible.builtin.command:
+            cmd: podman secret create vmp_aws_secret_access_key -
+            stdin: "{{ gw_secret_access_key }}"
+          no_log: true
+          changed_when: true

@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vm-portal
+  namespace: vm-portal
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  selector:
+    app: vm-portal
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: vm-portal
+  namespace: vm-portal
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  host: vm-portal.{{ .Values.clusterDomain }}
+  to:
+    kind: Service
+    name: vm-portal
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

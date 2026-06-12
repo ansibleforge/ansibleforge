@@ -1,0 +1,73 @@
+---
+# Single-node workflow wrappers for the VM Portal. The portal's HttpAapClient
+# launches each action via POST /workflow_job_templates/{id}/launch/ with
+# extra_vars, so each action needs a workflow (not just a job template).
+# ask_variables_on_launch passes the portal's extra_vars through to the node.
+# (AWS Describe Options is intentionally absent — the portal launches it as a
+# job template directly.)
+controller_workflows:
+  - name: "VM Portal - Provision EC2 Workflow"
+    description: "Portal Create VM action"
+    organization: Default
+    inventory: Localhost
+    ask_variables_on_launch: true
+    simplified_workflow_nodes:
+      - identifier: provision
+        unified_job_template:
+          name: "VM Portal - Provision EC2"
+          type: job_template
+
+  - name: "VM Portal - Delete VM Workflow"
+    description: "Portal Delete VM action (manual records)"
+    organization: Default
+    inventory: Localhost
+    ask_variables_on_launch: true
+    simplified_workflow_nodes:
+      - identifier: delete
+        unified_job_template:
+          name: "VM Portal - Delete VM"
+          type: job_template
+
+  - name: "VM Portal - Terminate EC2 Workflow"
+    description: "Portal Terminate action for AWS instances"
+    organization: Default
+    inventory: Localhost
+    ask_variables_on_launch: true
+    simplified_workflow_nodes:
+      - identifier: terminate
+        unified_job_template:
+          name: "VM Portal - Terminate EC2"
+          type: job_template
+
+  - name: "VM Portal - Set Termination Protection Workflow"
+    description: "Portal termination-protection toggle"
+    organization: Default
+    inventory: Localhost
+    ask_variables_on_launch: true
+    simplified_workflow_nodes:
+      - identifier: set_protection
+        unified_job_template:
+          name: "VM Portal - Set Termination Protection"
+          type: job_template
+
+  - name: "VM Portal - Set ManagedBy Tag Workflow"
+    description: "Portal ManagedBy=ansible tag toggle"
+    organization: Default
+    inventory: Localhost
+    ask_variables_on_launch: true
+    simplified_workflow_nodes:
+      - identifier: set_tag
+        unified_job_template:
+          name: "VM Portal - Set ManagedBy Tag"
+          type: job_template
+
+  - name: "VM Portal - Set Instance State Workflow"
+    description: "Portal start/stop action"
+    organization: Default
+    inventory: Localhost
+    ask_variables_on_launch: true
+    simplified_workflow_nodes:
+      - identifier: set_state
+        unified_job_template:
+          name: "VM Portal - Set Instance State"
+          type: job_template
