@@ -31,15 +31,6 @@
     aap_username: "{{ controller_username }}"
     aap_password: "{{ controller_password }}"
     aap_validate_certs: "{{ controller_validate_certs }}"
-    # Literal integers (NOT templated strings). The infra.aap_configuration
-    # roles validate aap_request_timeout against an argument_spec typed `float`;
-    # the role's own default sources it from the AAP_REQUEST_TIMEOUT env var as a
-    # string, which the float validator rejects ("AnsibleUnicode ... cannot be
-    # converted to a float"). A native int play var outranks that default and
-    # satisfies the type. (The module/connection timeout is separately handled by
-    # CONTROLLER_REQUEST_TIMEOUT in the play environment block above.)
-    aap_request_timeout: 10
-    controller_request_timeout: 10
     dir_orgs_vars: "{{ playbook_dir }}/env"
     orgs: "{{ target_org | default('Default') }}"
     assign_default_ee_to_jt: false
@@ -100,6 +91,18 @@
         # EDA pre-task below already consumes (.json.token).
         _cac_gateway_oauth_token: "{{ _cac_gateway_token.json.token }}"
       no_log: true
+
+    # Force aap_request_timeout to a native int. The infra.aap_configuration
+    # roles source it from the *_REQUEST_TIMEOUT env var (a string) in their own
+    # role vars, then validate it against a `float` argument_spec that rejects
+    # the string ("AnsibleUnicode ... cannot be converted to a float"). Play vars
+    # and env values both lose to role vars; a set_fact (higher precedence than
+    # role vars) wins and gives the validator a real number. Verified: with this
+    # the apply clears controller_credentials and reconciles all objects.
+    - name: Force aap_request_timeout to a native integer
+      ansible.builtin.set_fact:
+        aap_request_timeout: 10
+        controller_request_timeout: 10
 
     # EDA filetree load. include_vars with `dir:` overwrites same-named vars
     # across files, so for directories that may contain multiple files that
