@@ -92,17 +92,35 @@
         _cac_gateway_oauth_token: "{{ _cac_gateway_token.json.token }}"
       no_log: true
 
-    # Force aap_request_timeout to a native int. The infra.aap_configuration
-    # roles source it from the *_REQUEST_TIMEOUT env var (a string) in their own
-    # role vars, then validate it against a `float` argument_spec that rejects
-    # the string ("AnsibleUnicode ... cannot be converted to a float"). Play vars
-    # and env values both lose to role vars; a set_fact (higher precedence than
-    # role vars) wins and gives the validator a real number. Verified: with this
-    # the apply clears controller_credentials and reconciles all objects.
-    - name: Force aap_request_timeout to a native integer
+    # Gateway OAuth applications (aap_applications) are NOT scanned by
+    # infra.controller_configuration.filetree_read (it only handles controller_*
+    # objects), so load them here — same find/include_vars/flatten approach used
+    # for the EDA vars below — into the aap_applications list that the dispatcher's
+    # gateway_applications role consumes.
+    - name: Find gateway application config files
+      ansible.builtin.find:
+        paths:
+          - "{{ playbook_dir }}/env/Default/env/common/aap_applications.d"
+        file_type: file
+        patterns: "*.yml,*.yaml"
+      register: _aap_app_files
+
+    - name: Load each gateway application file
+      ansible.builtin.include_vars:
+        file: "{{ _aap_app_file.path }}"
+      loop: "{{ _aap_app_files.files }}"
+      loop_control:
+        loop_var: _aap_app_file
+        label: "{{ _aap_app_file.path | basename }}"
+      register: _aap_app_contents
+
+    - name: Concatenate gateway application lists across all loaded files
       ansible.builtin.set_fact:
-        aap_request_timeout: 10
-        controller_request_timeout: 10
+        aap_applications: >-
+          {{ _aap_app_contents.results
+             | rejectattr('ansible_facts.aap_applications', 'undefined')
+             | map(attribute='ansible_facts.aap_applications')
+             | ansible.builtin.flatten }}
 
     # EDA filetree load. include_vars with `dir:` overwrites same-named vars
     # across files, so for directories that may contain multiple files that
