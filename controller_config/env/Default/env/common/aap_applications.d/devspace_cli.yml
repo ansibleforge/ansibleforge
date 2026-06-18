@@ -1,0 +1,13 @@
+---
+# Moved from controller_applications to the gateway: AAP 2.5+ removed the
+# ansible.controller.application module, so the controller_applications role
+# can't even load (unresolvable module) and aborts the whole CaC apply. OAuth
+# applications now live on the gateway (gateway_applications / aap_applications).
+aap_applications:
+  - name: "DevSpace CLI"
+    organization: Default
+    authorization_grant_type: authorization-code
+    client_type: public
+    description: "OAuth2 application for devspace CLI access to AAP API"
+    redirect_uris:
+      - "http://localhost:8080/callback"
