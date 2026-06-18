@@ -4,5 +4,6 @@ title = "ansibleforge gitleaks config"
 useDefault = true
 
 [allowlist]
-description = "Historical Keycloak OIDC client secret in keycloak-idp.yaml. The Red Hat Workshops cluster that hosted the realm (cluster-mp7gr.dynamic.redhatworkshops.io) is gone (NXDOMAIN); the client and secret no longer exist. File was moved out of this repo in c8f2461."
+description = "Allowlist: (1) historical Keycloak OIDC client secret in keycloak-idp.yaml — the Red Hat Workshops cluster that hosted the realm (cluster-mp7gr.dynamic.redhatworkshops.io) is gone (NXDOMAIN); the client and secret no longer exist; file was moved out of this repo in c8f2461. (2) The VM Portal OAuth client_id — a PUBLIC PKCE client identifier (no client_secret; sent in the browser auth request), used as a Vite build-arg in container-build.yml."
 commits = ["d19373dafdd783bde88b698771c0c400e94d6145"]
+regexes = ['''VEN5kDMHk04eb4vkD9iTbS13QYgUtrdhZp4Infu3''']
