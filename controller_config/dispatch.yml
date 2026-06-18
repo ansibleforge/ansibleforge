@@ -43,12 +43,18 @@
     # in a custom task AFTER building team_id_by_name / org_id_by_name lookup
     # dicts, so per-org YAML can reference team and org IDs by name without
     # racing the team's creation in the same run.
+    # Also skip controller_applications: AAP 2.5+ removed the
+    # ansible.controller.application module, so that role can't even load on the
+    # current EE (unresolvable module) and aborts the whole dispatcher loop. The
+    # dispatcher includes it regardless of an empty var, so it must be filtered
+    # out here. OAuth apps are handled by gateway_applications (aap_applications).
     aap_configuration_dispatcher_roles: >-
       {{ (gateway_configuration_dispatcher_roles
           + hub_configuration_dispatcher_roles
           + controller_configuration_dispatcher_roles
           + eda_configuration_dispatcher_roles)
-         | rejectattr('role', 'equalto', 'gateway_role_user_assignments') | list }}
+         | rejectattr('role', 'equalto', 'gateway_role_user_assignments')
+         | rejectattr('role', 'equalto', 'controller_applications') | list }}
   pre_tasks:
     - name: Validate controller connection
       ansible.builtin.assert:
