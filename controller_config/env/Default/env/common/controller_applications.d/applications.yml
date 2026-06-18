@@ -1,8 +1,0 @@
----
-controller_applications:
-  - name: "DevSpace CLI"
-    organization: Default
-    authorization_grant_type: authorization-code
-    client_type: public
-    description: "OAuth2 application for devspace CLI access to AAP API"
-    redirect_uris: "http://localhost:8080/callback"
