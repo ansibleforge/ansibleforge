@@ -280,6 +280,23 @@ jobs:
           context: vm-portal
           file: vm-portal/Dockerfile
           push: true
+          # Spark deployment wiring (Vite inlines these at build). Non-secret:
+          # the client_id is a public PKCE client; IDs/URLs map to the AAP
+          # objects created by CaC (templates 56-62, inventory 5/source 49).
+          build-args: |
+            VITE_AAP_CLIENT_ID=VEN5kDMHk04eb4vkD9iTbS13QYgUtrdhZp4Infu3
+            VITE_AAP_AUTHORIZE_URL=https://aap-aap.apps.ocp.spark.ansibleforge.dev/o/authorize/
+            VITE_AAP_REDIRECT_URI=https://vm-portal.apps.ocp.spark.ansibleforge.dev/oauth/callback
+            VITE_AAP_INVENTORY_ID=1
+            VITE_AAP_PROVISION_EC2_WORKFLOW_ID=57
+            VITE_AAP_DELETE_WORKFLOW_ID=58
+            VITE_AAP_TERMINATE_EC2_WORKFLOW_ID=59
+            VITE_AAP_TERMINATION_PROTECTION_WORKFLOW_ID=60
+            VITE_AAP_MANAGED_BY_TAG_WORKFLOW_ID=61
+            VITE_AAP_INSTANCE_STATE_WORKFLOW_ID=62
+            VITE_AAP_AWS_DESCRIBE_OPTIONS_JT_ID=56
+            VITE_AAP_AWS_INVENTORY_ID=5
+            VITE_AAP_AWS_SOURCE_ID=49
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/vm-portal:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/vm-portal:${{ github.sha }}
