@@ -17,6 +17,16 @@ import type {
 } from "../types/vm";
 
 /**
+ * Restrict the Runs/activity views to this portal's own jobs. AAP's /jobs/ list
+ * is instance-wide, so on a shared controller it would otherwise show every
+ * template's runs. All vm-portal job templates are named "VM Portal - …", so we
+ * filter by that name prefix. Override the prefix via VITE_AAP_RUNS_NAME_PREFIX
+ * if your templates use a different naming convention.
+ */
+const RUNS_NAME_PREFIX = import.meta.env.VITE_AAP_RUNS_NAME_PREFIX ?? "VM Portal";
+const RUNS_NAME_FILTER = `&name__startswith=${encodeURIComponent(RUNS_NAME_PREFIX)}`;
+
+/**
  * Resource ids that pin domain operations onto specific AAP objects. These
  * will eventually come from configuration; until the workflow templates
  * exist in AAP, create/delete will surface a meaningful error.
@@ -168,9 +178,11 @@ export class HttpVmAutomationService implements VmAutomationService {
   }
 
   async listRuns(): Promise<AutomationRun[]> {
-    // GET /api/controller/v2/jobs/?order_by=-created&page_size=25
+    // Scope to this portal's own jobs. On a shared AAP the unfiltered jobs list
+    // surfaces every template's runs (CaC, SCCM, EE builds, …); all vm-portal
+    // job templates are named "VM Portal - …", so filter by that name prefix.
     const data = await this.get<JobsResponse>(
-      "/api/controller/v2/jobs/?order_by=-created&page_size=25",
+      `/api/controller/v2/jobs/?order_by=-created&page_size=25${RUNS_NAME_FILTER}`,
     );
     return data.results.map(jobToRun);
   }
@@ -179,7 +191,7 @@ export class HttpVmAutomationService implements VmAutomationService {
     const page = Math.max(1, Math.floor(opts.page ?? 1));
     const pageSize = Math.max(1, Math.min(200, Math.floor(opts.pageSize ?? 25)));
     const data = await this.get<JobsResponse>(
-      `/api/controller/v2/jobs/?order_by=-created&page=${page}&page_size=${pageSize}`,
+      `/api/controller/v2/jobs/?order_by=-created&page=${page}&page_size=${pageSize}${RUNS_NAME_FILTER}`,
     );
     return {
       runs: data.results.map(jobToRun),
