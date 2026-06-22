@@ -293,9 +293,10 @@ components:
           - .stringData
 
   # Disabled until the build-time VITE_* AAP config, AAP OAuth client, AWS Vault
-  # keys, and ghcr pull secret are wired. See ocp/gitops/vm-portal/README.md.
+  # Images built in-cluster (shared-builds); gateway AWS creds reuse Vault
+  # secret/aws; OAuth app + templates created via CaC. See ocp/gitops/vm-portal/README.md.
   vm-portal:
-    enabled: false
+    enabled: true
     syncWave: "3"
     path: ocp/gitops/vm-portal
     destination:
