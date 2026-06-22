@@ -31,6 +31,13 @@ spec:
             - name: nginx-config
               mountPath: /etc/nginx/conf.d/vm-portal.conf
               subPath: vm-portal.conf
+            # OpenShift runs the container as a random non-root UID, which can't
+            # write the stock nginx cache/temp + pid dirs. Back them with
+            # emptyDirs so nginx can create client_temp/proxy_temp + nginx.pid.
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
           readinessProbe:
             httpGet:
               path: /
@@ -83,3 +90,7 @@ spec:
         - name: nginx-config
           configMap:
             name: vm-portal-nginx
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
