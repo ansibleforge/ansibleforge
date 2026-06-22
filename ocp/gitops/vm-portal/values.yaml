@@ -2,13 +2,15 @@
 clusterDomain: ""
 
 image:
-  # ghcr namespace the container-build workflow pushes to (ghcr.io/<owner>).
-  # NOTE: confirm the owner matches where CI publishes (github.repository_owner).
-  registry: ghcr.io/ansibleforge
+  # Built in-cluster by the shared-builds BuildConfigs (bc-vm-portal,
+  # bc-vm-portal-gateway) and served from the internal registry — same pattern
+  # as the site app. No pull secret needed: shared-builds grants
+  # system:image-puller to system:authenticated. (The ghcr images still build in
+  # CI for external use; switch registry to ghcr.io/ansibleforge + set a
+  # pullSecret to deploy from there instead.)
+  registry: image-registry.openshift-image-registry.svc:5000/shared-builds
   portalTag: latest
   gatewayTag: latest
-  # Name of an image pull secret in the vm-portal namespace, if the ghcr
-  # packages are private. Leave "" if they are public. TODO: create + reference.
   pullSecret: ""
 
 gateway:

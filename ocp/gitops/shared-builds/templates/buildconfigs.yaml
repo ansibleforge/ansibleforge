@@ -98,3 +98,81 @@ spec:
       name: site-ansibleforge:latest
   triggers:
   - type: ConfigChange
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: bc-vm-portal
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  source:
+    git:
+      uri: {{ .Values.sourceRepo }}
+      ref: {{ .Values.sourceRevision }}
+    contextDir: vm-portal
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+      # Vite inlines these into the SPA bundle at build time. Spark deployment
+      # wiring (non-secret: the client_id is a public PKCE identifier; IDs map to
+      # the CaC-created AAP objects). Mirror of the ghcr build's build-args.
+      buildArgs:
+      - name: VITE_AAP_CLIENT_ID
+        value: "VEN5kDMHk04eb4vkD9iTbS13QYgUtrdhZp4Infu3"
+      - name: VITE_AAP_AUTHORIZE_URL
+        value: "https://aap-aap.apps.ocp.spark.ansibleforge.dev/o/authorize/"
+      - name: VITE_AAP_REDIRECT_URI
+        value: "https://vm-portal.apps.ocp.spark.ansibleforge.dev/oauth/callback"
+      - name: VITE_AAP_INVENTORY_ID
+        value: "1"
+      - name: VITE_AAP_PROVISION_EC2_WORKFLOW_ID
+        value: "57"
+      - name: VITE_AAP_DELETE_WORKFLOW_ID
+        value: "58"
+      - name: VITE_AAP_TERMINATE_EC2_WORKFLOW_ID
+        value: "59"
+      - name: VITE_AAP_TERMINATION_PROTECTION_WORKFLOW_ID
+        value: "60"
+      - name: VITE_AAP_MANAGED_BY_TAG_WORKFLOW_ID
+        value: "61"
+      - name: VITE_AAP_INSTANCE_STATE_WORKFLOW_ID
+        value: "62"
+      - name: VITE_AAP_AWS_DESCRIBE_OPTIONS_JT_ID
+        value: "56"
+      - name: VITE_AAP_AWS_INVENTORY_ID
+        value: "5"
+      - name: VITE_AAP_AWS_SOURCE_ID
+        value: "49"
+  output:
+    to:
+      kind: ImageStreamTag
+      name: vm-portal:latest
+  triggers:
+  - type: ConfigChange
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: bc-vm-portal-gateway
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  source:
+    git:
+      uri: {{ .Values.sourceRepo }}
+      ref: {{ .Values.sourceRevision }}
+    contextDir: vm-portal/gateway
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: vm-portal-gateway:latest
+  triggers:
+  - type: ConfigChange
