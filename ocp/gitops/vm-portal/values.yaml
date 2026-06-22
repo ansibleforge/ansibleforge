@@ -7,9 +7,13 @@ image:
   registry: ghcr.io/ansibleforge
   portalTag: latest
   gatewayTag: latest
-  # Name of an image pull secret in the vm-portal namespace, if the ghcr
-  # packages are private. Leave "" if they are public. TODO: create + reference.
-  pullSecret: ""
+  # Name of the image pull secret for the (private) ghcr vm-portal images.
+  # Rendered as a Vault-backed dockerconfigjson ExternalSecret of this name
+  # (templates/ghcr-pull-secret.yaml) and attached to the pod. Requires Vault
+  # entries vm-portal/ghcr-username + vm-portal/ghcr-token (a read:packages PAT).
+  # Set to "" instead if you make the ghcr packages public — then no pull
+  # secret / Vault entry is needed.
+  pullSecret: "vm-portal-ghcr"
 
 gateway:
   awsRegion: us-east-2
