@@ -5,6 +5,10 @@ controller_inventory_sources:
     organization: Default
     source: ec2
     credential: "AWS - AnsibleForge"
+    # Must be an EE with boto3/botocore for the amazon.aws.aws_ec2 plugin.
+    # The org-default EE (EE AnsibleForge) lacks the AWS SDK, so the sync
+    # fails to parse; use the same EE the vm-portal job templates use.
+    execution_environment: "Default execution environment"
     overwrite: true
     update_on_launch: true
     update_cache_timeout: 60
