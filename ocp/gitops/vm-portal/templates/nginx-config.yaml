@@ -23,30 +23,29 @@ data:
         client_max_body_size 16m;
 
         # ----- AAP reverse proxy (same-origin /api and /o) -----------------
+        # Proxy to the AAP gateway's in-cluster Service (HTTP), NOT the external
+        # route: proxying to aap-aap.<domain> resolves to the public LB and makes
+        # the pod hairpin out to the internet, where the upstream TLS handshake
+        # gets dropped (token exchange hangs). The internal service is plain HTTP
+        # on :80; we keep the external Host header + X-Forwarded-Proto https so
+        # the gateway routes/validates the request normally (and doesn't 426).
         location /api/ {
-            proxy_pass         https://aap-aap.{{ .Values.clusterDomain }}/api/;
+            proxy_pass         http://aap.aap.svc.cluster.local/api/;
             proxy_set_header   Host              aap-aap.{{ .Values.clusterDomain }};
-            proxy_ssl_name     aap-aap.{{ .Values.clusterDomain }};
             proxy_set_header   X-Real-IP         $remote_addr;
             proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
             proxy_set_header   X-Forwarded-Proto https;
-            # TODO: tighten to `on` with a CA bundle once AAP presents a trusted cert.
-            proxy_ssl_verify   off;
-            proxy_ssl_server_name on;
             proxy_http_version 1.1;
             proxy_set_header   Connection        "";
             proxy_read_timeout 120s;
         }
 
         location ~ ^/o/(token|revoke_token)/ {
-            proxy_pass         https://aap-aap.{{ .Values.clusterDomain }};
+            proxy_pass         http://aap.aap.svc.cluster.local;
             proxy_set_header   Host              aap-aap.{{ .Values.clusterDomain }};
-            proxy_ssl_name     aap-aap.{{ .Values.clusterDomain }};
             proxy_set_header   X-Real-IP         $remote_addr;
             proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
             proxy_set_header   X-Forwarded-Proto https;
-            proxy_ssl_verify   off;
-            proxy_ssl_server_name on;
             proxy_http_version 1.1;
             proxy_set_header   Connection        "";
         }
