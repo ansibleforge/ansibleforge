@@ -317,6 +317,50 @@
       ansible.builtin.set_fact:
         eda_rulebook_activations: "{{ _eda_ra_serialized }}"
 
+    # Refresh the EDA project(s) before reconciling activations. Unlike the
+    # controller project, the EDA project does NOT auto-sync on CaC runs, so when
+    # a rulebook is added/changed the EDA project goes stale and activation
+    # creation fails with "Rulebook <name> not found for project". Sync every EDA
+    # project and wait for the import so activations see current rulebooks.
+    - name: List EDA projects to refresh
+      ansible.builtin.uri:
+        url: "{{ controller_hostname }}/api/eda/v1/projects/?page_size=100"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ controller_validate_certs }}"
+      register: _eda_projects_state
+
+    - name: Trigger EDA project sync
+      ansible.builtin.uri:
+        url: "{{ controller_hostname }}/api/eda/v1/projects/{{ item.id }}/sync/"
+        method: POST
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ controller_validate_certs }}"
+        status_code: [200, 202, 409]
+      loop: "{{ _eda_projects_state.json.results | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Wait for EDA project imports to complete
+      ansible.builtin.uri:
+        url: "{{ controller_hostname }}/api/eda/v1/projects/{{ item.id }}/"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ controller_validate_certs }}"
+      register: _eda_project_import
+      until: _eda_project_import.json.import_state in ['completed', 'failed']
+      retries: 30
+      delay: 5
+      loop: "{{ _eda_projects_state.json.results | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+
     # Delete-and-recreate any managed activations that already exist. The
     # ansible.eda.rulebook_activation module refuses to update a running
     # activation ("Activation is not in disabled mode and in stopped
