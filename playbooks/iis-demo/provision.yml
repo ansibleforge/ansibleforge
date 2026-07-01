@@ -12,7 +12,7 @@
     vm_name: "iis-demo"
     os_ami_owner: "801119661308"
     os_ami_filter: "Windows_Server-2022-English-Full-Base-*"
-    instance_type: "t3a.large"
+    instance_type: "t3a.medium"
     disk_size_gb: 50
     # admin_password is set in pre_tasks as a fact so the lookup runs exactly
     # once (play vars re-evaluate the expression on every access, which would
