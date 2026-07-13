@@ -7,6 +7,11 @@ controller_credentials:
       host: "https://aap-aap.{{ cluster_domain }}"
       username: admin
       verify_ssl: false
+      # The RHAAP credential type injects aap_request_timeout as an extra_var
+      # (highest precedence). Left unset it injects "", which newer
+      # infra.aap_configuration rejects at role arg-spec validation ("cannot
+      # be converted to a float") — killing every CaC run using this credential.
+      request_timeout: "10"
     input_sources:
       - source_credential: Vault Lookup
         target: password
