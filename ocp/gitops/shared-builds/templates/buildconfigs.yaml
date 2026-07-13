@@ -79,6 +79,47 @@ spec:
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
+  name: bc-de-ansibleforge
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  source:
+    git:
+      uri: {{ .Values.sourceRepo }}
+      ref: {{ .Values.sourceRevision }}
+    contextDir: containers/de-ansibleforge/context
+  strategy:
+    type: Docker
+    dockerStrategy:
+      volumes:
+      - name: etc-pki-entitlement
+        mounts:
+        - destinationPath: /etc/pki/entitlement
+        source:
+          type: Secret
+          secret:
+            secretName: etc-pki-entitlement
+      # /etc/ansible/ansible.cfg carries the Automation Hub token so
+      # ansible-galaxy can resolve certified-only collections (redhat.insights).
+      - name: ansible-config
+        mounts:
+        - destinationPath: /etc/ansible
+        source:
+          type: Secret
+          secret:
+            secretName: ansible-config
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: de-ansibleforge:latest
+  triggers:
+  - type: ConfigChange
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
   name: bc-site-ansibleforge
   namespace: {{ .Values.namespace }}
   annotations:
