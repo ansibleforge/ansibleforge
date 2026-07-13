@@ -31,6 +31,11 @@
     aap_username: "{{ controller_username }}"
     aap_password: "{{ controller_password }}"
     aap_validate_certs: "{{ controller_validate_certs }}"
+    # Newer infra.aap_configuration also validates aap_request_timeout as a
+    # role argument (type: float). Its default reads the same ""-injected
+    # env vars the environment block above works around, but arg-spec
+    # validation sees the variable, not the env — so pin it numerically here.
+    aap_request_timeout: 10
     dir_orgs_vars: "{{ playbook_dir }}/env"
     orgs: "{{ target_org | default('Default') }}"
     assign_default_ee_to_jt: false
