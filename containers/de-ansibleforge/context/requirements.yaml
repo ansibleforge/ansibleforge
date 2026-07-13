@@ -2,6 +2,6 @@ collections:
   - name: servicenow.itsm
   - name: community.hashi_vault
   - name: ansible.eda
-  # Automation Hub only (not on public Galaxy) — the build resolves it via
-  # the ansible-config secret mounted at /etc/ansible by the BuildConfig.
-  - name: redhat.insights
+  # Insights event source for the Lightspeed Self-Heal rulebook
+  # (redhatinsights.eda.insights).
+  - name: redhatinsights.eda

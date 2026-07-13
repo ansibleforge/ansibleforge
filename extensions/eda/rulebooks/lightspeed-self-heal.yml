@@ -10,7 +10,7 @@
 # Compliance drift findings always go through a workflow with re-scan.
 #
 # Required collections (already declared in the DE/EE requirements.yaml):
-#   - redhat.insights
+#   - redhatinsights.eda  (provides the insights event source)
 #   - ansible.eda
 #
 # Only Rule 1 has a concrete job template defined in CaC. Rules 2-4 reference
@@ -26,7 +26,7 @@
   # That pattern avoids defining a custom EDA credential type just to inject one
   # env var — set the vault var lightspeed_webhook_token and dispatch.
   sources:
-    - redhat.insights.insights_events:
+    - redhatinsights.eda.insights:
         host: 0.0.0.0
         port: 5000
         token: "{{ LIGHTSPEED_WEBHOOK_TOKEN }}"
