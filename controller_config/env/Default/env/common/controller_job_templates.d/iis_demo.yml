@@ -34,6 +34,18 @@ controller_templates:
       - "IIS Demo Secrets"
     description: "Clear fail.flag, bump the restart counter, and run iisreset. Invoked by the EDA rulebook on health failure."
 
+  - name: "IIS Demo - Rotate Password"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/iis-demo/rotate_password.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "AWS - AnsibleForge"
+      - "AAP Controller Admin"
+    description: "Generate a new Administrator password, push it to the iis-demo host via SSM, and patch the IIS Demo Secrets credential. Scheduled to run every 90 days."
+
   - name: "IIS Demo - Destroy"
     job_type: run
     organization: Default

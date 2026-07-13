@@ -1,0 +1,7 @@
+---
+controller_schedules:
+  - name: "IIS Demo - Rotate Password (90 Days)"
+    unified_job_template: "IIS Demo - Rotate Password"
+    rrule: "DTSTART;TZID=America/New_York:20260514T030000 RRULE:FREQ=DAILY;INTERVAL=90"
+    enabled: true
+    description: "Rotate the iis-demo Administrator password every 90 days at 3 AM ET."
