@@ -4,6 +4,12 @@
   connection: local
   gather_facts: false
   vars:
+    # The EE carries multiple Pythons; interpreter discovery picks
+    # /usr/bin/python3.12, which lacks the kubernetes lib — so every
+    # kubernetes.core.k8s secret-copy task fails ("Failed to import ...
+    # kubernetes"). /usr/bin/python3 is the interpreter with the EE's
+    # python deps (kubernetes 35.x); pin localhost tasks to it.
+    ansible_python_interpreter: /usr/bin/python3
     keycloak_url: "https://keycloak.{{ cluster_domain }}"
     keycloak_admin_user: "{{ lookup('env', 'KC_ADMIN_USER') | default('admin', true) }}"
     keycloak_admin_pass: "{{ lookup('env', 'KC_ADMIN_PASS') }}"
