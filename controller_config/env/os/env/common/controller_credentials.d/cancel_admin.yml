@@ -17,6 +17,10 @@ controller_credentials:
     inputs:
       host: "{{ controller_hostname }}"
       verify_ssl: false
+      # RHAAP-type credentials must set request_timeout: left unset, the type
+      # injects aap_request_timeout="" as an extra_var and newer
+      # infra.aap_configuration fails role arg-spec validation (float cast).
+      request_timeout: "10"
     input_sources:
       - source_credential: OS Vault Lookup
         target: oauth_token

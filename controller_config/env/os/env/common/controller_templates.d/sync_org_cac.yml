@@ -12,7 +12,6 @@ controller_templates:
       - OS Cancel Admin
     extra_vars:
       target_org: os
-      aap_request_timeout: 10
     ask_variables_on_launch: false
     survey_enabled: false
     state: present

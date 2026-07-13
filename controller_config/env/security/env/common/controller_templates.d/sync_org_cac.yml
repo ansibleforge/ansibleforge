@@ -12,7 +12,6 @@ controller_templates:
       - Security Cancel Admin
     extra_vars:
       target_org: security
-      aap_request_timeout: 10
     ask_variables_on_launch: false
     survey_enabled: false
     state: present
