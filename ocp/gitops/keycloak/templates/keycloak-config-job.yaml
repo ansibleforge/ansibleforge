@@ -67,6 +67,11 @@ spec:
                 secretKeyRef:
                   name: keycloak-gitlab-client-secret
                   key: client-secret
+            - name: GITEA_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-gitea-client-secret
+                  key: client-secret
             - name: AAP_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:

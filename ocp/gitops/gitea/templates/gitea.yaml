@@ -1,0 +1,158 @@
+{{- $clusterDomain := .Values.clusterDomain }}
+{{- if not $clusterDomain }}
+{{- $ingressConfig := lookup "config.openshift.io/v1" "Ingress" "" "cluster" }}
+{{- if and $ingressConfig $ingressConfig.spec }}
+{{- $clusterDomain = $ingressConfig.spec.domain }}
+{{- end }}
+{{- end }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitea-data
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: {{ .Values.storageSize }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # RWO PVC + SQLite: never two writers
+  selector:
+    matchLabels:
+      app: gitea
+  template:
+    metadata:
+      labels:
+        app: gitea
+    spec:
+      containers:
+        - name: gitea
+          image: {{ .Values.image }}
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: GITEA_WORK_DIR
+              value: /var/lib/gitea
+            - name: GITEA_CUSTOM
+              value: /var/lib/gitea/custom
+            - name: GITEA__server__ROOT_URL
+              value: https://gitea.{{ $clusterDomain }}
+            - name: GITEA__server__DOMAIN
+              value: gitea.{{ $clusterDomain }}
+            - name: GITEA__server__HTTP_PORT
+              value: "3000"
+            - name: GITEA__server__DISABLE_SSH
+              value: "true"
+            - name: GITEA__database__DB_TYPE
+              value: sqlite3
+            - name: GITEA__database__PATH
+              value: /var/lib/gitea/data/gitea.db
+            - name: GITEA__security__INSTALL_LOCK
+              value: "true"
+            - name: GITEA__service__DISABLE_REGISTRATION
+              value: "true"
+            # SSO users arrive via the Keycloak OIDC auth source; create
+            # their Gitea account on first login and link by email.
+            - name: GITEA__oauth2_client__ENABLE_AUTO_REGISTRATION
+              value: "true"
+            - name: GITEA__oauth2_client__ACCOUNT_LINKING
+              value: auto
+            - name: GITEA__oauth2_client__USERNAME
+              value: nickname
+            - name: GITEA__openid__ENABLE_OPENID_SIGNIN
+              value: "false"
+            - name: GITEA__openid__ENABLE_OPENID_SIGNUP
+              value: "false"
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/gitea
+      initContainers:
+        # Initialize the DB and ensure the admin account exists before the
+        # server starts. Idempotent: user create fails harmlessly if present.
+        - name: init-admin
+          image: {{ .Values.image }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              gitea migrate
+              gitea admin user create --admin \
+                --username "$ADMIN_USERNAME" \
+                --password "$ADMIN_PASSWORD" \
+                --email "$ADMIN_USERNAME@{{ $clusterDomain }}" \
+                --must-change-password=false \
+                || echo "admin user already exists"
+          env:
+            - name: GITEA_WORK_DIR
+              value: /var/lib/gitea
+            - name: GITEA_CUSTOM
+              value: /var/lib/gitea/custom
+            - name: GITEA__database__DB_TYPE
+              value: sqlite3
+            - name: GITEA__database__PATH
+              value: /var/lib/gitea/data/gitea.db
+            - name: GITEA__security__INSTALL_LOCK
+              value: "true"
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-admin-credentials
+                  key: username
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-admin-credentials
+                  key: password
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/gitea
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: gitea-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  selector:
+    app: gitea
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

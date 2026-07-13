@@ -86,6 +86,15 @@ components:
           - .spec.target.creationPolicy
           - .spec.target.deletionPolicy
 
+  gitea:
+    enabled: true
+    syncWave: "1"
+    path: ocp/gitops/gitea
+    retry: true
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+
   gitlab:
     enabled: true
     syncWave: "1"

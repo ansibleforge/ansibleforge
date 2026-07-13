@@ -1,0 +1,20 @@
+{{- $clusterDomain := .Values.clusterDomain }}
+{{- if not $clusterDomain }}
+{{- $ingressConfig := lookup "config.openshift.io/v1" "Ingress" "" "cluster" }}
+{{- if and $ingressConfig $ingressConfig.spec }}
+{{- $clusterDomain = $ingressConfig.spec.domain }}
+{{- end }}
+{{- end }}
+apiVersion: console.openshift.io/v1
+kind: ConsoleLink
+metadata:
+  name: gitea
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  applicationMenu:
+    section: AnsibleForge
+    imageURL: https://gitea.{{ $clusterDomain }}/assets/img/favicon.svg
+  href: https://gitea.{{ $clusterDomain }}
+  location: ApplicationMenu
+  text: Gitea
