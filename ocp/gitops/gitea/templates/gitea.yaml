@@ -48,6 +48,11 @@ spec:
               value: /var/lib/gitea
             - name: GITEA_CUSTOM
               value: /var/lib/gitea/custom
+            # Shared config path on the PVC so the init container's CLI runs
+            # and the server see the same app.ini (the rootless entrypoint
+            # renders GITEA__* env into this file on every start).
+            - name: GITEA_APP_INI
+              value: /var/lib/gitea/custom/conf/app.ini
             - name: GITEA__server__ROOT_URL
               value: https://gitea.{{ $clusterDomain }}
             - name: GITEA__server__DOMAIN
@@ -106,6 +111,10 @@ spec:
             - /bin/sh
             - -ec
             - |
+              # The gitea CLI needs an app.ini; render one from the GITEA__*
+              # env vars the same way the image entrypoint does.
+              mkdir -p /var/lib/gitea/custom/conf
+              environment-to-ini --config "$GITEA_APP_INI"
               gitea migrate
               gitea admin user create --admin \
                 --username "$ADMIN_USERNAME" \
@@ -118,6 +127,8 @@ spec:
               value: /var/lib/gitea
             - name: GITEA_CUSTOM
               value: /var/lib/gitea/custom
+            - name: GITEA_APP_INI
+              value: /var/lib/gitea/custom/conf/app.ini
             - name: GITEA__database__DB_TYPE
               value: sqlite3
             - name: GITEA__database__PATH
