@@ -1,0 +1,5 @@
+apiVersion: v2
+name: gitea
+description: Gitea git server with Keycloak SSO for AnsibleForge
+type: application
+version: 0.1.0

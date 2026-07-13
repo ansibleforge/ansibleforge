@@ -1,0 +1,5 @@
+clusterDomain: ""
+namespace: gitea
+image: docker.io/gitea/gitea:1.24-rootless
+storageSize: 10Gi
+adminUser: gitea-admin

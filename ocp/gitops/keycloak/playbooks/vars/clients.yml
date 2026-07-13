@@ -42,6 +42,29 @@ keycloak_clients:
     protocol_mappers:
       - *groups_mapper
 
+  - client_id: gitea
+    enabled: true
+    protocol: openid-connect
+    public_client: false
+    standard_flow_enabled: true
+    direct_access_grants_enabled: false
+    secret: "{{ lookup('env', 'GITEA_CLIENT_SECRET') | default(gitea_client_secret, true) }}"
+    redirect_uris:
+      - "https://gitea.{{ cluster_domain }}/user/oauth2/keycloak/callback"
+    web_origins:
+      - "https://gitea.{{ cluster_domain }}"
+    default_client_scopes:
+      - profile
+      - email
+      - roles
+      - web-origins
+    optional_client_scopes:
+      - groups
+    attributes:
+      pkce.code.challenge.method: S256
+    protocol_mappers:
+      - *groups_mapper
+
   - client_id: idp-4-ocp
     enabled: true
     protocol: openid-connect

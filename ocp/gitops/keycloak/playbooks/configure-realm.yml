@@ -936,6 +936,21 @@
                       - admins
       no_log: true
 
+    - name: Copy Gitea OIDC client secret to gitea namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: gitea-keycloak-oidc
+            namespace: gitea
+          type: Opaque
+          stringData:
+            client-id: gitea
+            client-secret: "{{ lookup('env', 'GITEA_CLIENT_SECRET') | default(gitea_client_secret, true) }}"
+      no_log: true
+
     - name: Copy RHDH client secret to rhdh namespace
       kubernetes.core.k8s:
         state: present

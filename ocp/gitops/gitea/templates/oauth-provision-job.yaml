@@ -1,0 +1,138 @@
+{{- $clusterDomain := .Values.clusterDomain }}
+{{- if not $clusterDomain }}
+{{- $ingressConfig := lookup "config.openshift.io/v1" "Ingress" "" "cluster" }}
+{{- if and $ingressConfig $ingressConfig.spec }}
+{{- $clusterDomain = $ingressConfig.spec.domain }}
+{{- end }}
+{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitea-oauth-provisioner
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitea-oauth-provisioner
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  # Auth sources are CLI-only in Gitea (no REST endpoint), so the provision
+  # job execs into the running pod to register the Keycloak OIDC source.
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitea-oauth-provisioner
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+subjects:
+  - kind: ServiceAccount
+    name: gitea-oauth-provisioner
+    namespace: {{ .Values.namespace }}
+roleRef:
+  kind: Role
+  name: gitea-oauth-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gitea-oauth-provision-{{ .Release.Revision }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      serviceAccountName: gitea-oauth-provisioner
+      restartPolicy: OnFailure
+      containers:
+        - name: provision
+          image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+          env:
+            - name: GITEA_URL
+              value: http://gitea.{{ .Values.namespace }}.svc:3000
+            - name: GITEA_HOST
+              value: gitea.{{ $clusterDomain }}
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-admin-credentials
+                  key: username
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-admin-credentials
+                  key: password
+            - name: KC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-keycloak-oidc
+                  key: client-secret
+                  optional: true
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              echo "Waiting for Gitea to be ready..."
+              until curl -sf "$GITEA_URL/api/healthz" >/dev/null; do sleep 5; done
+
+              POD=$(oc get pods -l app=gitea -o jsonpath='{.items[?(@.status.phase=="Running")].metadata.name}' | awk '{print $1}')
+
+              # ── Keycloak OIDC auth source (CLI-only; idempotent) ──────────
+              if [ -n "$KC_CLIENT_SECRET" ]; then
+                if oc exec "$POD" -- gitea admin auth list | grep -q "keycloak"; then
+                  echo "Keycloak auth source already registered"
+                else
+                  oc exec "$POD" -- gitea admin auth add-oauth \
+                    --name keycloak \
+                    --provider openidConnect \
+                    --key gitea \
+                    --secret "$KC_CLIENT_SECRET" \
+                    --auto-discover-url "https://keycloak.{{ $clusterDomain }}/realms/sso/.well-known/openid-configuration" \
+                    --scopes "openid profile email groups" \
+                    --group-claim-name groups \
+                    --admin-group admins \
+                    --skip-local-2fa
+                  echo "Keycloak auth source registered"
+                fi
+              else
+                echo "gitea-keycloak-oidc secret not present yet; skipping OIDC registration (rerun on next sync)"
+              fi
+
+              # ── OAuth2 application for OpenShift cluster login ────────────
+              EXISTING=$(curl -sf -u "$ADMIN_USERNAME:$ADMIN_PASSWORD" \
+                "$GITEA_URL/api/v1/user/applications/oauth2" | grep -o '"name":"openshift"' || true)
+              if [ -z "$EXISTING" ]; then
+                RESP=$(curl -sf -u "$ADMIN_USERNAME:$ADMIN_PASSWORD" -X POST \
+                  -H "Content-Type: application/json" \
+                  "$GITEA_URL/api/v1/user/applications/oauth2" \
+                  -d "{\"name\":\"openshift\",\"confidential_client\":true,\"redirect_uris\":[\"https://oauth-openshift.{{ $clusterDomain }}/oauth2callback/gitea\"]}")
+                CLIENT_ID=$(echo "$RESP" | grep -o '"client_id":"[^"]*"' | cut -d'"' -f4)
+                CLIENT_SECRET=$(echo "$RESP" | grep -o '"client_secret":"[^"]*"' | cut -d'"' -f4)
+                oc create secret generic gitea-openshift-oauth \
+                  --from-literal=id="$CLIENT_ID" \
+                  --from-literal=secret="$CLIENT_SECRET" \
+                  --dry-run=client -o yaml | oc apply -f -
+                echo "OpenShift OAuth application created"
+              else
+                echo "OpenShift OAuth application already exists"
+              fi
