@@ -181,6 +181,62 @@
           cpu_cores/memory_gb (valid combination), disk_size_gb, vm_environment,
           subnet_id, and security_group_id are provided.
 
+    # Singleton safety valve for chaos VMs. The chaos rotator is supposed
+    # to keep ≤1 chaos VM alive at a time, but RITM/EDA timing or a stuck
+    # decom can lap the provision side and pile up orphans. AWS state is
+    # the source of truth — if any other chaos-vm-* is non-terminated,
+    # close this RITM as skipped and bail before launching anything.
+    - name: Singleton safety valve — block parallel chaos VM launches
+      when: vm_name.startswith('chaos-vm-')
+      block:
+        - name: Look up live chaos VMs in AWS
+          amazon.aws.ec2_instance_info:
+            region: "{{ aws_region }}"
+            filters:
+              "tag:Name": "chaos-vm-*"
+              instance-state-name:
+                - pending
+                - running
+                - stopping
+                - stopped
+          register: _live_chaos
+
+        - name: Set _other_chaos (live chaos VMs other than this one)
+          ansible.builtin.set_fact:
+            _other_chaos: >-
+              {{ _live_chaos.instances
+                 | rejectattr('tags.Name', 'equalto', vm_name)
+                 | list }}
+
+        - name: Skip launch if another chaos VM is already alive
+          when: _other_chaos | length > 0
+          block:
+            - name: Report skip
+              ansible.builtin.debug:
+                msg: >-
+                  Singleton safety valve — refusing to launch {{ vm_name }};
+                  {{ _other_chaos | length }} chaos VM(s) already alive in
+                  {{ aws_region }}:
+                  {{ _other_chaos
+                     | map(attribute='tags.Name') | join(', ') }}.
+
+            - name: Mark RITM closed_skipped
+              servicenow.itsm.api:
+                resource: sc_req_item
+                action: patch
+                sys_id: "{{ ritm_sys_id }}"
+                data:
+                  state: closed_skipped
+                  close_notes: >-
+                    Singleton safety valve fired —
+                    {{ _other_chaos | length }} chaos VM(s) already alive
+                    ({{ _other_chaos | map(attribute='tags.Name')
+                       | join(', ') }}).
+              when: ritm_sys_id | length > 0
+
+            - name: End play
+              ansible.builtin.meta: end_play
+
     - name: Resolve instance type
       ansible.builtin.set_fact:
         _instance_type: "{{ instance_type_map[cpu_cores | string + '_' + memory_gb | string] }}"
