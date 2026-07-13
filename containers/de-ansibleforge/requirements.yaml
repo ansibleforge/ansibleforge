@@ -2,5 +2,6 @@ collections:
   - name: servicenow.itsm
   - name: community.hashi_vault
   - name: ansible.eda
-  - name: redhat.insights
-    source: https://console.redhat.com/api/automation-hub/
+  # Insights event source for the Lightspeed Self-Heal rulebook
+  # (redhatinsights.eda.insights).
+  - name: redhatinsights.eda
