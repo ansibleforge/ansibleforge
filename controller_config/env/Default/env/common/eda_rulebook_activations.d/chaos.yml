@@ -1,0 +1,29 @@
+---
+# Chaos drivers for the self-heal demos. Both loop forever on a timer and
+# launch their tick JT — IIS Chaos feeds the IIS Auto-Heal loop (fault every
+# 90-120s), SN Chaos feeds the ServiceNow VM Provision loop (RITM churn every
+# ~5 min, capped at one VM by the singleton safety valve). They fire
+# continuously while enabled — disable them here when the demos are idle to
+# avoid failed-job noise (e.g. no iis-demo host provisioned).
+eda_rulebook_activations:
+  - name: IIS Chaos
+    description: Inject an IIS fault every 90-120s via IIS Demo - Chaos Tick
+    organization: Default
+    project: AnsibleForge
+    rulebook: iis-chaos.yml
+    decision_environment: Default Decision Environment
+    restart_policy: always
+    enabled: true
+    eda_credentials:
+      - AAP Controller Admin
+
+  - name: SN Chaos
+    description: Submit provision/decommission RITMs every ~5 min via SN Chaos Tick
+    organization: Default
+    project: AnsibleForge
+    rulebook: snow-chaos.yml
+    decision_environment: Default Decision Environment
+    restart_policy: always
+    enabled: true
+    eda_credentials:
+      - AAP Controller Admin

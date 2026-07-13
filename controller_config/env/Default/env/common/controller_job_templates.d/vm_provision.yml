@@ -52,6 +52,17 @@ controller_templates:
       business_justification: ""
     description: "Submit a ServiceNow catalog request to provision a new VM"
 
+  - name: "SN Chaos Tick"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/vm-provision/snow-chaos-tick.yml
+    inventory: Localhost
+    execution_environment: "Default execution environment"
+    credentials:
+      - "ServiceNow"
+    description: "Submit provision + decommission RITMs for the chaos VM cycle. Launched every ~5 min by the SN Chaos EDA activation."
+
   - name: "SN Keepalive"
     job_type: run
     organization: Default
