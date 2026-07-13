@@ -2,5 +2,8 @@
 eda_decision_environments:
   - name: Default Decision Environment
     description: Default DE for EDA rulebook activations (includes servicenow.itsm)
-    image_url: "image-registry.openshift-image-registry.svc:5000/aap-shared-builds/de-ansibleforge:latest"
+    # shared-builds is the GitOps-managed build namespace (Argo app
+    # shared-builds); aap-shared-builds was a manual clone whose DE image
+    # lacked Automation Hub auth and went stale.
+    image_url: "image-registry.openshift-image-registry.svc:5000/shared-builds/de-ansibleforge:latest"
     organization: Default
