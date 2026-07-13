@@ -46,7 +46,7 @@
         fail_msg: >-
           Pass the CVE from the advisory email, e.g. -e cve=CVE-2024-3094
 
-- name: Patch {{ cve }} on RHEL hosts
+- name: Patch the named CVE on RHEL hosts
   hosts: "{{ rhel_hosts | default('linux') }}"
   gather_facts: false
   become: true
@@ -99,7 +99,7 @@
           reboot_required={{ reboot_required }}
           reboot_performed={{ rhel_reboot is defined and rhel_reboot is changed }}
 
-- name: Patch {{ cve }} on Windows hosts
+- name: Patch the named CVE on Windows hosts
   hosts: "{{ windows_hosts | default('windows') }}"
   gather_facts: false
   vars:
