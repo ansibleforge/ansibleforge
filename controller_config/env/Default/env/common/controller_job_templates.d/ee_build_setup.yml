@@ -12,7 +12,7 @@ controller_templates:
       - GitHub PAT
       - Automation Hub Token
     extra_vars:
-      build_namespace: aap-shared-builds
+      build_namespace: shared-builds
       source_repo: https://github.com/hfenner/ansibleforge.git
       source_revision: main
     survey_enabled: true
