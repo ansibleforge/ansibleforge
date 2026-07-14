@@ -5,7 +5,7 @@
 
 ## Overview
 
-Keycloak is the identity provider for AnsibleForge, providing SSO across OpenShift, GitLab, GitHub, and other applications. It is deployed via the RHBK (Red Hat Build of Keycloak) Operator.
+Keycloak is the identity provider for AnsibleForge, providing SSO across OpenShift, Gitea, GitHub, and other applications. It is deployed via the RHBK (Red Hat Build of Keycloak) Operator.
 
 ## Components deployed
 
@@ -22,7 +22,6 @@ The `sso` realm is configured via a `KeycloakRealmImport` resource that includes
 - **idp-4-ocp** client — OIDC client used by OpenShift OAuth to authenticate users via Keycloak
 - **sysadmin** user — local Keycloak user with password from AWS Secrets Manager
 - **Identity providers** (conditionally enabled via Helm values):
-    - **GitLab** — OIDC broker for the cluster's GitLab instance
     - **GitHub** — GitHub App OAuth for external authentication
 
 ## Secrets
@@ -34,14 +33,10 @@ All secrets are stored in AWS Secrets Manager under per-cluster keys and synced 
 | `<clusterName>/keycloak` | `db-password` | `keycloak-db-secret` |
 | `<clusterName>/keycloak` | `sysadmin-password` | `keycloak-sysadmin-password` |
 | `<clusterName>/keycloak` | `ocp-client-secret` | `keycloak-ocp-client-secret` |
-| `<clusterName>/keycloak` | `gitlab-client-secret` | `keycloak-gitlab-client-secret` |
+| `<clusterName>/keycloak` | `gitea-client-secret` | `keycloak-gitea-client-secret` |
 | `<clusterName>/github-app` | `client-id`, `client-secret` | `github-app-credentials` |
 
 ## Identity providers
-
-### GitLab
-
-Enabled by setting `gitlab.broker: true` in the Keycloak Helm values. Uses OIDC to authenticate against the cluster's GitLab instance. The GitLab OAuth application must be created in GitLab and its credentials stored in AWS Secrets Manager.
 
 ### GitHub
 

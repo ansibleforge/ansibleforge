@@ -42,7 +42,7 @@ flowchart LR
         direction TB
         devspaces["💻 DevSpaces"]
         keycloak["🔓 Keycloak"]
-        gitlab["🦊 GitLab"]
+        gitea["🍵 Gitea"]
         aap["⚡ AAP"]
     end
 
@@ -73,7 +73,7 @@ flowchart LR
     eeimg -->|"workspace image"| workspace
     eeimg -->|"job execution"| aap
 
-    keycloak -->|"SSO"| gitlab
+    keycloak -->|"SSO"| gitea
     devspaces -->|"manages"| workspace
 
     classDef gitopsStyle fill:#e65100,color:#fff,stroke:#bf360c,font-size:15px,font-weight:bold
@@ -84,7 +84,7 @@ flowchart LR
 
     class bootstrap gitopsStyle
     class vault,eso,builds,pipelines platformStyle
-    class devspaces,gitlab,keycloak,aap appsStyle
+    class devspaces,gitea,keycloak,aap appsStyle
     class devimg,eeimg imageStyle
     class workspace,secrets,configmap userStyle
 ```
@@ -110,7 +110,7 @@ ansibleforge/
         ├── user-devspace/   # Per-user Helm chart (namespace, secrets, DevWorkspace)
         ├── user-projects/   # ApplicationSet + ArgoCD RBAC
         ├── pipelines/       # OpenShift Pipelines operator
-        ├── gitlab/          # GitLab operator
+        ├── gitea/           # Gitea git server
         ├── keycloak/        # Keycloak operator
         └── aap/             # Ansible Automation Platform operator
 ```

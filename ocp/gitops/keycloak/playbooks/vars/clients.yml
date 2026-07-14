@@ -19,28 +19,6 @@ _audience_mapper: &audience_mapper_template
     access.token.claim: "true"
 
 keycloak_clients:
-  - client_id: gitlab
-    enabled: true
-    protocol: openid-connect
-    public_client: false
-    standard_flow_enabled: true
-    direct_access_grants_enabled: false
-    secret: "{{ lookup('env', 'GITLAB_CLIENT_SECRET') | default(gitlab_client_secret, true) }}"
-    redirect_uris:
-      - "https://gitlab.{{ cluster_domain }}/users/auth/openid_connect/callback"
-    web_origins:
-      - "https://gitlab.{{ cluster_domain }}"
-    default_client_scopes:
-      - profile
-      - email
-      - roles
-      - web-origins
-    optional_client_scopes:
-      - groups
-    attributes:
-      pkce.code.challenge.method: S256
-    protocol_mappers:
-      - *groups_mapper
 
   - client_id: gitea
     enabled: true

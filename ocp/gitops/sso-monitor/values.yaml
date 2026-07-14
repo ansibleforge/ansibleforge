@@ -19,9 +19,6 @@ services:
   gitea:
     enabled: true
     validationPath: ""
-  gitlab:
-    enabled: true
-    validationPath: ""
   ocp:
     enabled: true
     validationPath: ""
