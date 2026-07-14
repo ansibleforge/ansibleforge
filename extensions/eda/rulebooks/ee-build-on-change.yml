@@ -7,6 +7,18 @@
         channels:
           - github
   rules:
+    - name: Push to main — run ansible-lint
+      condition: >-
+        event.meta.headers.X_GitHub_Event == "push" and
+        event.payload.ref == "refs/heads/main"
+      action:
+        run_job_template:
+          name: "CI - Ansible Lint"
+          organization: Default
+          job_args:
+            extra_vars:
+              git_ref: "{{ event.payload.after }}"
+
     - name: EE files changed — trigger build workflow
       condition: >-
         event.meta.headers.X_GitHub_Event == "push" and
