@@ -1,11 +1,12 @@
 ---
-# GitHub Webhook Credential is not yet defined in CaC, so this event stream
-# can't be created without a manual credential setup. Disabled until the
-# credential is wired up. See also eda_rulebook_activations.d/ee_build_on_change.yml.
+# HMAC-validated ingress for GitHub push events. The shared secret comes from
+# the GitHub Webhook Credential (eda_credentials.d/github_webhook.yml); the
+# webhook on the GitHub repo must point at this stream's ingress URL with the
+# same secret.
 eda_event_streams:
   - name: GitHub
     organization: Default
     credential_name: GitHub Webhook Credential
     event_stream_type: "GitHub Event Stream"
     forward_events: true
-    state: absent
+    state: present

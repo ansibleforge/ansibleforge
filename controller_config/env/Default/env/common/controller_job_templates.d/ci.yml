@@ -1,0 +1,16 @@
+---
+controller_templates:
+  - name: "CI - Ansible Lint"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/ci/ansible_lint.yml
+    inventory: Localhost
+    execution_environment: "EE AnsibleForge"
+    ask_variables_on_launch: true
+    extra_vars:
+      git_ref: main
+    description: >-
+      Clone the AnsibleForge repo at git_ref (branch or SHA) and run
+      ansible-lint. Launched by the GitHub Push Handler EDA activation on
+      every push to main.

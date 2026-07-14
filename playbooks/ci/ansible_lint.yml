@@ -1,0 +1,54 @@
+---
+# Run ansible-lint against a revision of the AnsibleForge repo. Launched by
+# the "GitHub Push Handler" EDA activation on every push to main (git_ref is
+# the pushed commit SHA), or manually with defaults for a main-branch check.
+- name: Ansible-lint the AnsibleForge repo
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    repo_url: "https://github.com/ansibleforge/ansibleforge.git"
+    git_ref: "main"
+
+  tasks:
+    - name: Create workspace
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: lint
+      register: _ws
+
+    # Plain clone can't fetch a bare SHA; init+fetch handles branch and SHA
+    # refs alike.
+    - name: Fetch {{ git_ref }}
+      ansible.builtin.shell:
+        cmd: |
+          set -e
+          git init -q .
+          git remote add origin "{{ repo_url }}"
+          git fetch -q --depth 1 origin "{{ git_ref }}"
+          git checkout -q FETCH_HEAD
+        chdir: "{{ _ws.path }}"
+      changed_when: true
+
+    - name: Run ansible-lint
+      ansible.builtin.command:
+        cmd: ansible-lint
+        chdir: "{{ _ws.path }}"
+      register: _lint
+      changed_when: false
+      failed_when: false
+
+    - name: Show lint output
+      ansible.builtin.debug:
+        msg: "{{ (_lint.stdout_lines | default([]))[-30:] + (_lint.stderr_lines | default([]))[-10:] }}"
+
+    - name: Clean up workspace
+      ansible.builtin.file:
+        path: "{{ _ws.path }}"
+        state: absent
+
+    - name: Fail the job if lint failed
+      ansible.builtin.fail:
+        msg: "ansible-lint reported violations for {{ git_ref }} (rc={{ _lint.rc }})"
+      when: _lint.rc != 0

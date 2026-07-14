@@ -393,6 +393,56 @@
            | list }}
       loop_control:
         label: "{{ item.name }} (id={{ item.id }})"
+    # GitHub webhook HMAC token — get-or-create in a k8s secret so every
+    # dispatch resolves the same value (value-preserving, like the MCP token
+    # pattern above). Consumed by eda_credentials.d/github_webhook.yml and by
+    # whoever registers the webhook on the GitHub repo.
+    - name: Check for GitHub webhook token secret
+      ansible.builtin.uri:
+        url: "{{ k8s_host }}/api/v1/namespaces/aap/secrets/eda-github-webhook"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ k8s_token }}"
+        validate_certs: false
+        status_code: [200, 404]
+      register: _gh_webhook_secret
+      when: k8s_token | length > 0
+
+    - name: Create GitHub webhook token secret
+      ansible.builtin.uri:
+        url: "{{ k8s_host }}/api/v1/namespaces/aap/secrets"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ k8s_token }}"
+        validate_certs: false
+        body_format: json
+        body:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: eda-github-webhook
+            namespace: aap
+          type: Opaque
+          stringData:
+            token: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=48') }}"
+        status_code: [201]
+      register: _gh_webhook_created
+      when:
+        - k8s_token | length > 0
+        - _gh_webhook_secret.status | default(0) == 404
+      no_log: true
+
+    - name: Resolve github_webhook_token fact
+      ansible.builtin.set_fact:
+        github_webhook_token: >-
+          {{ (_gh_webhook_created.json.data.token
+              if (_gh_webhook_created is not skipped and _gh_webhook_created.json is defined)
+              else _gh_webhook_secret.json.data.token | default('')) | b64decode }}
+      when:
+        - k8s_token | length > 0
+        - (_gh_webhook_secret.status | default(0) == 200) or (_gh_webhook_created is not skipped)
+      no_log: true
+
   roles:
     - infra.controller_configuration.filetree_read
     - infra.aap_configuration.dispatch

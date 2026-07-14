@@ -1,0 +1,10 @@
+---
+# HMAC secret shared with the GitHub repo webhook. The token value is
+# get-or-created in the eda-github-webhook k8s secret (aap namespace) by
+# dispatch.yml pre_tasks, so every CaC apply resolves the same value.
+eda_credentials:
+  - name: GitHub Webhook Credential
+    organization: Default
+    credential_type: GitHub Event Stream
+    inputs:
+      token: "{{ github_webhook_token | default('changeme-run-cac-with-k8s-token') }}"

@@ -9,3 +9,5 @@ ansible-builder
 pyvmomi
 # vSphere Automation SDK - required for the with_tags feature (tag syncing)
 git+https://github.com/vmware/vsphere-automation-sdk-python.git
+# CI - Ansible Lint job template (playbooks/ci/ansible_lint.yml)
+ansible-lint
