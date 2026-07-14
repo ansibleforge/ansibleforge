@@ -21,7 +21,6 @@
     github_mapper: false
     github_org: ""
     github_team: ""
-    gitlab_broker: false
     aws_saml: false
     aws_account_id: ""
 
@@ -446,51 +445,6 @@
       register: _kc_token
       no_log: true
 
-    # ── GitLab IDP (conditional) ───────────────────────────────────
-    - name: Configure GitLab broker IDP
-      when: gitlab_broker
-      block:
-        - name: Ensure GitLab IDP
-          community.general.keycloak_identity_provider:
-            <<: *kc_auth
-            realm: "{{ realm }}"
-            alias: gitlab
-            provider_id: oidc
-            enabled: true
-            trust_email: true
-            first_broker_login_flow_alias: "first broker login"
-            config:
-              clientId: "{{ lookup('env', 'GITLAB_BROKER_CLIENT_ID') | default(gitlab_broker_client_id, true) }}"
-              clientSecret: "{{ lookup('env', 'GITLAB_BROKER_CLIENT_SECRET') | default(gitlab_broker_client_secret, true) }}"
-              authorizationUrl: "https://gitlab.{{ cluster_domain }}/oauth/authorize"
-              tokenUrl: "https://gitlab.{{ cluster_domain }}/oauth/token"
-              userInfoUrl: "https://gitlab.{{ cluster_domain }}/oauth/userinfo"
-              issuer: "https://gitlab.{{ cluster_domain }}"
-              defaultScope: "openid profile email"
-              syncMode: FORCE
-              pkceEnabled: "true"
-              pkceMethod: S256
-            state: present
-          no_log: true
-
-        - name: Ensure GitLab username mapper
-          ansible.builtin.uri:
-            url: "{{ keycloak_url }}/admin/realms/{{ realm }}/identity-provider/instances/gitlab/mappers"
-            method: POST
-            headers:
-              Authorization: "Bearer {{ _kc_token.json.access_token }}"
-              Content-Type: application/json
-            body_format: json
-            body:
-              name: gitlab-username
-              identityProviderAlias: gitlab
-              identityProviderMapper: oidc-username-idp-mapper
-              config:
-                syncMode: INHERIT
-                template: "${CLAIM.preferred_username}"
-            validate_certs: "{{ keycloak_validate_certs }}"
-            status_code: [201, 400, 409]
-
     - name: Refresh admin token
       ansible.builtin.uri:
         url: "{{ keycloak_url }}/realms/master/protocol/openid-connect/token"
@@ -904,42 +858,6 @@
           type: Opaque
           stringData:
             clientSecret: "{{ lookup('env', 'OCP_CLIENT_SECRET') }}"
-      no_log: true
-
-    - name: Copy GitLab OIDC config to gitlab-system namespace
-      kubernetes.core.k8s:
-        state: present
-        definition:
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: gitlab-keycloak-oidc
-            namespace: gitlab-system
-          type: Opaque
-          stringData:
-            provider: |
-              name: openid_connect
-              label: Keycloak
-              args:
-                name: openid_connect
-                scope:
-                  - openid
-                  - profile
-                  - email
-                  - groups
-                response_type: code
-                issuer: https://keycloak.{{ cluster_domain }}/realms/sso
-                discovery: true
-                pkce: true
-                client_auth_method: basic
-                client_options:
-                  identifier: gitlab
-                  secret: {{ lookup('env', 'GITLAB_CLIENT_SECRET') }}
-                  redirect_uri: https://gitlab.{{ cluster_domain }}/users/auth/openid_connect/callback
-                  gitlab:
-                    groups_attribute: groups
-                    admin_groups:
-                      - admins
       no_log: true
 
     - name: Copy Gitea OIDC client secret to gitea namespace

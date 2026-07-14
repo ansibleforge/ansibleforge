@@ -11,6 +11,6 @@ A single bootstrap Application deploys everything via the app-of-apps pattern.
 | [DevSpaces](devspaces.md) | `devspaces` | Browser-based development environments |
 | [User Provisioning](user-provisioning.md) | per-user | Namespace, secrets, and workspace per user |
 | [OpenShift Pipelines](pipelines.md) | `openshift-operators` | Tekton CI/CD operator |
-| [GitLab](gitlab.md) | `gitlab` | Source control |
+| [Gitea](gitea.md) | `gitea` | Source control |
 | [Keycloak](keycloak.md) | `keycloak` | Identity provider and SSO |
 | [AAP](aap.md) | `aap` | Ansible Automation Platform |

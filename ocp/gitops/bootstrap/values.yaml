@@ -95,25 +95,6 @@ components:
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
 
-  gitlab:
-    enabled: true
-    syncWave: "1"
-    path: ocp/gitops/gitlab
-    retry: true
-    syncOptions:
-      - ServerSideApply=true
-      - SkipDryRunOnMissingResource=true
-      - RespectIgnoreDifferences=true
-    ignoreDifferences:
-      - group: external-secrets.io
-        kind: ExternalSecret
-        jqPathExpressions:
-          - .spec.data[].remoteRef.conversionStrategy
-          - .spec.data[].remoteRef.decodingStrategy
-          - .spec.data[].remoteRef.metadataPolicy
-          - .spec.target.creationPolicy
-          - .spec.target.deletionPolicy
-
   aap:
     enabled: true
     syncWave: "1"

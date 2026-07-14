@@ -2,10 +2,6 @@ clusterDomain: ""
 clusterName: ""
 namespace: keycloak
 
-# GitLab as identity broker in Keycloak SSO realm
-gitlab:
-  broker: false
-
 # GitHub as identity broker in Keycloak SSO realm
 github:
   broker: false

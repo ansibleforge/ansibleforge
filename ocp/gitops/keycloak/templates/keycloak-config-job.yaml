@@ -34,7 +34,6 @@ spec:
                 "github_mapper": {{ .Values.github.mapper }},
                 "github_org": {{ .Values.github.org | quote }},
                 "github_team": {{ .Values.github.team | default "" | quote }},
-                "gitlab_broker": {{ .Values.gitlab.broker }},
                 "aws_saml": {{ .Values.aws.saml }},
                 "aws_account_id": {{ .Values.aws.accountId | default "" | quote }},
                 "aws_saml_provider_suffix": {{ .Values.aws.samlProviderSuffix | default "" | quote }}
@@ -61,11 +60,6 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: keycloak-ocp-client-secret
-                  key: client-secret
-            - name: GITLAB_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: keycloak-gitlab-client-secret
                   key: client-secret
             - name: GITEA_CLIENT_SECRET
               valueFrom:
@@ -103,18 +97,6 @@ spec:
                 secretKeyRef:
                   name: github-app-credentials
                   key: client-secret
-            {{- end }}
-            {{- if .Values.gitlab.broker }}
-            - name: GITLAB_BROKER_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: gitlab-broker-credentials
-                  key: clientId
-            - name: GITLAB_BROKER_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: gitlab-broker-credentials
-                  key: clientSecret
             {{- end }}
           volumeMounts:
             - name: playbooks

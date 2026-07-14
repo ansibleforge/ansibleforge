@@ -12,7 +12,3 @@ keycloak:
 gitea:
   login: false
   host: ""
-
-gitlab:
-  login: false
-  host: ""

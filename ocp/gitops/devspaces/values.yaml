@@ -7,11 +7,6 @@ clusterDomain: ""
 github:
   scm: false     # Dev Spaces SCM OAuth (clone/push to GitHub from workspaces)
 
-# GitLab SCM integration for Dev Spaces workspaces
-gitlab:
-  scm: false     # Dev Spaces SCM OAuth (clone/push to GitLab from workspaces)
-  host: ""
-
 # Gitea SCM integration for Dev Spaces workspaces. DevSpaces has no native
 # Gitea OAuth support (supported SCM OAuth providers: GitHub/GitLab/Bitbucket/
 # Azure DevOps), so this publishes the Gitea bot PAT in Che's git-credentials

@@ -67,7 +67,7 @@ nav:
       - DevSpaces: infrastructure/devspaces.md
       - User Provisioning: infrastructure/user-provisioning.md
       - OpenShift Pipelines: infrastructure/pipelines.md
-      - GitLab: infrastructure/gitlab.md
+      - Gitea: infrastructure/gitea.md
       - Keycloak: infrastructure/keycloak.md
       - AAP: infrastructure/aap.md
       - RHDP Integration: infrastructure/rhdp.md
