@@ -2,7 +2,9 @@ name: "Container: Build and Push"
 
 on:
   push:
-    branches: [main]
+    # TEMPORARY: claude/rebuild-ee-ansibleforge-image-e4kvj7 added to rebuild
+    # ee-ansibleforge with the fixed base image tag; revert before merge.
+    branches: [main, claude/rebuild-ee-ansibleforge-image-e4kvj7]
     paths:
       - "containers/tools-ansibleforge/**"
       - "containers/ee-ansibleforge/**"
