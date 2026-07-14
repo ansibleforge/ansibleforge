@@ -9,6 +9,10 @@ htpasswd:
 keycloak:
   login: false
 
+gitea:
+  login: false
+  host: ""
+
 gitlab:
   login: false
   host: ""

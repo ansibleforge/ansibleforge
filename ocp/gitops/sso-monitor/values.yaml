@@ -16,6 +16,9 @@ testUser:
 
 # Services to validate tokens against after successful ROPC grant
 services:
+  gitea:
+    enabled: true
+    validationPath: ""
   gitlab:
     enabled: true
     validationPath: ""

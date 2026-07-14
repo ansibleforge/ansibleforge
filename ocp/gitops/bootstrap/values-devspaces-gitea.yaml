@@ -1,0 +1,58 @@
+# Minimal deployment: DevSpaces + Gitea with direct Gitea authentication
+# Gitea host is auto-detected from the cluster's DNS CR.
+#
+# Usage:
+#   helm install ansibleforge-bootstrap helm/ \
+#     --set "valueFiles[0]=values-devspaces-gitea.yaml"
+
+components:
+  # Keep infrastructure
+  gitops-config:
+    enabled: true
+
+  # Disable unneeded components
+  vault:
+    enabled: false
+  external-secrets:
+    enabled: false
+  pipelines:
+    enabled: false
+  keycloak:
+    enabled: false
+  aap:
+    enabled: false
+  noobaa-tuning:
+    enabled: false
+  local-users:
+    enabled: false
+  user-projects:
+    enabled: false
+  shared-builds:
+    enabled: false
+  web-terminal:
+    enabled: false
+
+  # Core components
+  gitea:
+    enabled: true
+    syncWave: "1"
+    path: ocp/gitops/gitea
+    retry: true
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+
+  devspaces:
+    enabled: true
+    syncWave: "2"
+    path: ocp/gitops/devspaces
+    helm:
+      parameters:
+        - name: gitea.scm
+          value: "true"
+        - name: gitea.login
+          value: "true"
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true

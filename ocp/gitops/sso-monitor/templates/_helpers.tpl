@@ -9,7 +9,9 @@ These are downstream services to validate tokens against after the ROPC grant.
 {{- range $name, $svc := .Values.services -}}
   {{- if $svc.enabled -}}
     {{- $serviceUrl := "" -}}
-    {{- if eq $name "gitlab" -}}
+    {{- if eq $name "gitea" -}}
+      {{- $serviceUrl = printf "https://gitea.%s" $clusterDomain -}}
+    {{- else if eq $name "gitlab" -}}
       {{- $serviceUrl = printf "https://gitlab.%s" $clusterDomain -}}
     {{- else if eq $name "ocp" -}}
       {{- $serviceUrl = printf "https://oauth-openshift.%s" $clusterDomain -}}
