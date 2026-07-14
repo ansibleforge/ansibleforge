@@ -1,0 +1,32 @@
+{{- if .Values.gitea.scm }}
+{{- $credSecret := lookup "v1" "Secret" "gitea" "gitea-devspaces-credentials" }}
+{{- if and $credSecret $credSecret.data }}
+{{- $giteaHost := .Values.gitea.host }}
+{{- if not $giteaHost }}
+{{- $dns := lookup "config.openshift.io/v1" "DNS" "" "cluster" }}
+{{- if $dns }}
+{{- $giteaHost = printf "gitea.apps.%s" $dns.spec.baseDomain }}
+{{- end }}
+{{- end }}
+{{/* DevSpaces has no gitea OAuth SCM provider, so instead of the
+     oauth-scm-configuration pattern the gitlab template uses, publish the
+     Gitea bot PAT as a Che git-credentials secret. Note: Che consumes
+     git-credentials from the *user's* workspace namespace — this secret in
+     openshift-devspaces is the distribution source (copy into user
+     namespaces, e.g. via the user-devspace chart, to activate). */}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitea-git-credentials
+  namespace: openshift-devspaces
+  labels:
+    app.kubernetes.io/part-of: che.eclipse.org
+    app.kubernetes.io/component: git-credential
+  annotations:
+    che.eclipse.org/scm-server-endpoint: https://{{ $giteaHost }}
+    argocd.argoproj.io/sync-wave: "0"
+type: Opaque
+data:
+  credentials: {{ printf "https://%s:%s@%s" (index $credSecret.data "username" | b64dec) (index $credSecret.data "token" | b64dec) $giteaHost | b64enc }}
+{{- end }}
+{{- end }}

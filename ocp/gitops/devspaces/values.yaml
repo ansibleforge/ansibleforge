@@ -11,3 +11,11 @@ github:
 gitlab:
   scm: false     # Dev Spaces SCM OAuth (clone/push to GitLab from workspaces)
   host: ""
+
+# Gitea SCM integration for Dev Spaces workspaces. DevSpaces has no native
+# Gitea OAuth support (supported SCM OAuth providers: GitHub/GitLab/Bitbucket/
+# Azure DevOps), so this publishes the Gitea bot PAT in Che's git-credentials
+# format instead; distribute it to user namespaces to activate.
+gitea:
+  scm: false
+  host: ""

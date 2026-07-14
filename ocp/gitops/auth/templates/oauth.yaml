@@ -40,6 +40,33 @@ spec:
           groups:
             - groups
 {{- end }}
+{{- if .Values.gitea.login }}
+{{- $gtSecret := lookup "v1" "Secret" "gitea" "gitea-openshift-oauth" }}
+{{- if and $gtSecret $gtSecret.data }}
+{{- $giteaHost := .Values.gitea.host }}
+{{- if not $giteaHost }}
+{{- $dns := lookup "config.openshift.io/v1" "DNS" "" "cluster" }}
+{{- if $dns }}
+{{- $giteaHost = printf "gitea.apps.%s" $dns.spec.baseDomain }}
+{{- end }}
+{{- end }}
+    - name: gitea
+      mappingMethod: claim
+      type: OpenID
+      openID:
+        clientID: {{ index $gtSecret.data "id" | b64dec }}
+        clientSecret:
+          name: gitea-oidc-secret
+        issuer: https://{{ $giteaHost }}
+        claims:
+          preferredUsername:
+            - preferred_username
+          name:
+            - name
+          email:
+            - email
+{{- end }}
+{{- end }}
 {{- if .Values.gitlab.login }}
 {{- $glSecret := lookup "v1" "Secret" "gitlab-system" "gitlab-openshift-oauth" }}
 {{- if and $glSecret $glSecret.data }}

@@ -34,6 +34,38 @@ rules:
     verbs: ["create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitea-oauth-provisioner
+  namespace: openshift-config
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["gitea-oidc-secret"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitea-oauth-provisioner
+  namespace: openshift-config
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+subjects:
+  - kind: ServiceAccount
+    name: gitea-oauth-provisioner
+    namespace: {{ .Values.namespace }}
+roleRef:
+  kind: Role
+  name: gitea-oauth-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: gitea-oauth-provisioner
@@ -135,4 +167,30 @@ spec:
                 echo "OpenShift OAuth application created"
               else
                 echo "OpenShift OAuth application already exists"
+              fi
+
+              # ── Publish cluster-login OIDC secret to openshift-config ─────
+              # (consumed by the auth chart's gitea.login IdP toggle)
+              if oc get secret gitea-openshift-oauth >/dev/null 2>&1; then
+                SECRET_VAL=$(oc get secret gitea-openshift-oauth -o jsonpath='{.data.secret}' | base64 -d)
+                oc create secret generic gitea-oidc-secret -n openshift-config \
+                  --from-literal=clientSecret="$SECRET_VAL" \
+                  --dry-run=client -o yaml | oc apply -f -
+                echo "gitea-oidc-secret published to openshift-config"
+              fi
+
+              # ── Bot PAT for DevSpaces git-credentials (gitea.scm toggle) ──
+              if oc get secret gitea-devspaces-credentials >/dev/null 2>&1; then
+                echo "DevSpaces credentials already exist"
+              else
+                PAT=$(oc exec "$POD" -- gitea admin user generate-access-token \
+                  --username "$ADMIN_USERNAME" --token-name devspaces \
+                  --scopes "write:repository,read:user" --raw 2>/dev/null | tail -1)
+                if [ -n "$PAT" ]; then
+                  oc create secret generic gitea-devspaces-credentials \
+                    --from-literal=username="$ADMIN_USERNAME" \
+                    --from-literal=token="$PAT" \
+                    --dry-run=client -o yaml | oc apply -f -
+                  echo "DevSpaces bot credentials created"
+                fi
               fi
