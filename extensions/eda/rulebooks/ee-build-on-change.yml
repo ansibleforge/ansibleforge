@@ -1,7 +1,7 @@
 ---
-# GitHub push handler, fed by the "GitHub" EDA event stream. Event-stream
-# events carry the webhook payload at the event top level (no payload/meta
-# wrapper, headers stripped) — condition on payload shape, not headers.
+# GitHub push handler, fed by the "GitHub" EDA event stream. Forwarded
+# events wrap the webhook body under event.payload; event.meta carries
+# eda_event_stream_name (no HTTP headers) — verified via a debug activation.
 - name: GitHub push event handler
   hosts: all
   sources:
@@ -12,30 +12,31 @@
   rules:
     - name: Push to main — run ansible-lint
       condition: >-
-        event.ref == "refs/heads/main" and
-        event.after is defined and
-        event.deleted == false
+        event.meta.eda_event_stream_name == "GitHub" and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.after is defined and
+        event.payload.deleted == false
       action:
         run_job_template:
           name: "CI - Ansible Lint"
           organization: Default
           job_args:
             extra_vars:
-              git_ref: "{{ event.after }}"
+              git_ref: "{{ event.payload.after }}"
 
     - name: EE files changed — trigger build workflow
       condition: >-
-        event.ref == "refs/heads/main" and
-        event.commits is defined and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.commits is defined and
         (
-          event.commits is selectattr("modified", "search", "containers/ee-ansibleforge/")
+          event.payload.commits is selectattr("modified", "search", "containers/ee-ansibleforge/")
             or
-          event.commits is selectattr("added", "search", "containers/ee-ansibleforge/")
+          event.payload.commits is selectattr("added", "search", "containers/ee-ansibleforge/")
         )
       throttle:
         once_within: 5 minutes
         group_by_attributes:
-          - event.ref
+          - event.payload.ref
       action:
         run_workflow_template:
           name: "EE - Build AnsibleForge"
@@ -43,19 +44,19 @@
 
     - name: CaC files changed — trigger dispatch
       condition: >-
-        event.ref == "refs/heads/main" and
-        event.commits is defined and
+        event.payload.ref == "refs/heads/main" and
+        event.payload.commits is defined and
         (
-          event.commits is selectattr("modified", "search", "controller_config/")
+          event.payload.commits is selectattr("modified", "search", "controller_config/")
             or
-          event.commits is selectattr("added", "search", "controller_config/")
+          event.payload.commits is selectattr("added", "search", "controller_config/")
             or
-          event.commits is selectattr("removed", "search", "controller_config/")
+          event.payload.commits is selectattr("removed", "search", "controller_config/")
         )
       throttle:
         once_within: 5 minutes
         group_by_attributes:
-          - event.ref
+          - event.payload.ref
       action:
         run_job_template:
           name: "CaC - Apply Controller Configuration"
