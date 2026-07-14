@@ -63,7 +63,10 @@ keycloak_clients:
     # No PKCE requirement: Gitea's openidConnect auth source (1.24) cannot
     # send code_challenge, and Keycloak rejects the authorize request when
     # the client mandates S256. Confidential client auth via secret instead.
-    attributes: {}
+    # The key must be explicitly blanked — an empty attributes map merges
+    # with (rather than clears) whatever the client already carries.
+    attributes:
+      pkce.code.challenge.method: ""
     protocol_mappers:
       - *groups_mapper
 
