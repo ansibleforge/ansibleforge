@@ -7,4 +7,4 @@ eda_credentials:
     organization: Default
     credential_type: GitHub Event Stream
     inputs:
-      token: "{{ github_webhook_token | default('changeme-run-cac-with-k8s-token') }}"
+      secret: "{{ github_webhook_token | default('changeme-run-cac-with-k8s-token') }}"
