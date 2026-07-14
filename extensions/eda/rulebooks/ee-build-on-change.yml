@@ -1,4 +1,7 @@
 ---
+# GitHub push handler, fed by the "GitHub" EDA event stream. Event-stream
+# events carry the webhook payload at the event top level (no payload/meta
+# wrapper, headers stripped) — condition on payload shape, not headers.
 - name: GitHub push event handler
   hosts: all
   sources:
@@ -9,30 +12,30 @@
   rules:
     - name: Push to main — run ansible-lint
       condition: >-
-        event.meta.headers.X_GitHub_Event == "push" and
-        event.payload.ref == "refs/heads/main"
+        event.ref == "refs/heads/main" and
+        event.after is defined and
+        event.deleted == false
       action:
         run_job_template:
           name: "CI - Ansible Lint"
           organization: Default
           job_args:
             extra_vars:
-              git_ref: "{{ event.payload.after }}"
+              git_ref: "{{ event.after }}"
 
     - name: EE files changed — trigger build workflow
       condition: >-
-        event.meta.headers.X_GitHub_Event == "push" and
-        event.payload.ref == "refs/heads/main" and
-        event.payload.commits is defined and
+        event.ref == "refs/heads/main" and
+        event.commits is defined and
         (
-          event.payload.commits is selectattr("modified", "search", "containers/ee-ansibleforge/")
+          event.commits is selectattr("modified", "search", "containers/ee-ansibleforge/")
             or
-          event.payload.commits is selectattr("added", "search", "containers/ee-ansibleforge/")
+          event.commits is selectattr("added", "search", "containers/ee-ansibleforge/")
         )
       throttle:
         once_within: 5 minutes
         group_by_attributes:
-          - event.payload.ref
+          - event.ref
       action:
         run_workflow_template:
           name: "EE - Build AnsibleForge"
@@ -40,20 +43,19 @@
 
     - name: CaC files changed — trigger dispatch
       condition: >-
-        event.meta.headers.X_GitHub_Event == "push" and
-        event.payload.ref == "refs/heads/main" and
-        event.payload.commits is defined and
+        event.ref == "refs/heads/main" and
+        event.commits is defined and
         (
-          event.payload.commits is selectattr("modified", "search", "controller_config/")
+          event.commits is selectattr("modified", "search", "controller_config/")
             or
-          event.payload.commits is selectattr("added", "search", "controller_config/")
+          event.commits is selectattr("added", "search", "controller_config/")
             or
-          event.payload.commits is selectattr("removed", "search", "controller_config/")
+          event.commits is selectattr("removed", "search", "controller_config/")
         )
       throttle:
         once_within: 5 minutes
         group_by_attributes:
-          - event.payload.ref
+          - event.ref
       action:
         run_job_template:
           name: "CaC - Apply Controller Configuration"
