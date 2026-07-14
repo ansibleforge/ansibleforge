@@ -6,6 +6,8 @@ eda_rulebook_activations:
     project: AnsibleForge
     rulebook: ee-build-on-change.yml
     decision_environment: Default Decision Environment
+    eda_credentials:
+      - AAP Controller Admin
     event_streams:
       - event_stream: GitHub
         source_index: 0
