@@ -515,6 +515,40 @@
         label: "{{ item.role_definition }} -> {{ item.team | default(item.team_ansible_id) }}"
 
   post_tasks:
+    # The filetree-loaded eda_credentials template does not reliably see the
+    # github_webhook_token play fact, so the credential can land on its
+    # changeme default. Re-assert the real value from the k8s secret after
+    # every apply so the GitHub webhook HMAC always validates.
+    - name: Re-assert GitHub webhook credential secret
+      when:
+        - github_webhook_token is defined
+        - github_webhook_token | length > 0
+      block:
+        - name: Look up GitHub Webhook Credential id
+          ansible.builtin.uri:
+            url: "{{ controller_hostname }}/api/eda/v1/eda-credentials/?name=GitHub+Webhook+Credential"
+            method: GET
+            user: "{{ controller_username }}"
+            password: "{{ controller_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ controller_validate_certs }}"
+          register: _gh_cred
+
+        - name: Patch GitHub Webhook Credential secret
+          ansible.builtin.uri:
+            url: "{{ controller_hostname }}/api/eda/v1/eda-credentials/{{ _gh_cred.json.results[0].id }}/"
+            method: PATCH
+            user: "{{ controller_username }}"
+            password: "{{ controller_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ controller_validate_certs }}"
+            body_format: json
+            body:
+              inputs:
+                secret: "{{ github_webhook_token }}"
+            status_code: [200]
+          when: _gh_cred.json.results | length > 0
+          no_log: true
     - name: Check if RHDH AAP token secret exists
       ansible.builtin.uri:
         url: "{{ k8s_host }}/api/v1/namespaces/rhdh/secrets/rhdh-aap-token"
