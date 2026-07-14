@@ -5,3 +5,9 @@ boto3
 python-ldap
 kubernetes
 ansible-builder
+# VMware dynamic inventory (community.vmware.vmware_vm_inventory)
+pyvmomi
+# vSphere Automation SDK - required for the with_tags feature (tag syncing)
+git+https://github.com/vmware/vsphere-automation-sdk-python.git
+# CI - Ansible Lint job template (playbooks/ci/ansible_lint.yml)
+ansible-lint

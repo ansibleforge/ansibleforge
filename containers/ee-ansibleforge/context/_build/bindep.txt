@@ -6,3 +6,4 @@ gcc
 gcc-c++
 python3-devel
 terraform
+git-core

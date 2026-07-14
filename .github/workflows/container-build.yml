@@ -168,7 +168,7 @@ jobs:
 
       - name: Generate build context
         working-directory: containers/ee-ansibleforge
-        run: ansible-builder create --file execution-environment.yaml
+        run: ansible-builder create --file execution-environment.yaml --output-filename Containerfile
 
       - name: Log in to ghcr.io
         uses: docker/login-action@v4

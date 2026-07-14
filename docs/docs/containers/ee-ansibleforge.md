@@ -1,7 +1,7 @@
 # ee-ansibleforge
 
 **Source:** `containers/ee-ansibleforge/`
-**Base:** `registry.redhat.io/ansible-automation-platform-27/ee-minimal-rhel9:latest`
+**Base:** `registry.redhat.io/ansible-automation-platform-27/ee-minimal-rhel9:2.16`
 **Used by:** Ansible Automation Platform job execution
 
 ## Overview
