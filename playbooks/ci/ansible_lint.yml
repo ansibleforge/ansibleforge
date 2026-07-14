@@ -35,6 +35,13 @@
       ansible.builtin.command:
         cmd: ansible-lint
         chdir: "{{ _ws.path }}"
+      # The AAP runner exports ANSIBLE_INVENTORY_UNPARSED_FAILED=true, which
+      # makes ansible-lint's inner --syntax-check probes die with "No
+      # inventory was parsed" (internal-error x41). Neutralize it and point
+      # the probes away from the runner inventory.
+      environment:
+        ANSIBLE_INVENTORY_UNPARSED_FAILED: "false"
+        ANSIBLE_INVENTORY: /dev/null
       register: _lint
       changed_when: false
       failed_when: false
