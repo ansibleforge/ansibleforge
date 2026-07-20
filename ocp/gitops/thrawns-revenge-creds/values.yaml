@@ -2,5 +2,5 @@ namespace: thrawns-revenge
 
 # Non-secret GitHub App identifiers (the private key stays in Vault).
 # Fill these in after creating/installing the ansibleforge-git App.
-githubAppID: ""
-githubAppInstallID: ""
+githubAppID: "4350345"
+githubAppInstallID: "147896098"
