@@ -1,0 +1,22 @@
+---
+# GitHub App token source (ansibleforge-git, App 4350345). A credential
+# lookup plugin: consumers wire an input_source at it and receive a fresh
+# 1h installation token at use time — nothing stored ever expires. Uses the
+# ansibleforge org installation (the canonical home of the repo; the
+# hfenner URL redirects there). Only the private key is secret; it comes
+# from Vault secret/git-app, seeded by the vault config job.
+controller_credentials:
+  - name: GitHub App - AnsibleForge Git
+    credential_type: GitHub App Installation Access Token Lookup
+    organization: Default
+    inputs:
+      github_api_url: https://api.github.com
+      app_or_client_id: "4350345"
+      install_id: "147896123"
+    input_sources:
+      - source_credential: Vault Lookup
+        target: private_rsa_key
+        metadata:
+          secret_path: "secret/git-app"
+          secret_key: "private_key"
+          secret_version: ""
