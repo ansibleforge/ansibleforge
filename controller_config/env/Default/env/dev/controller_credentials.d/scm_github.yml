@@ -9,7 +9,3 @@ controller_credentials:
     organization: Default
     inputs:
       username: x-access-token
-    input_sources:
-      - source_credential: GitHub App - AnsibleForge Git
-        target: password
-        metadata: {}

@@ -1,9 +1,8 @@
 ---
+# Password minted per use by the GitHub App lookup (1h installation
+# tokens) — replaced the expiring Vault-stored PAT.
 controller_credential_input_sources:
-  - source_credential: Vault Lookup
+  - source_credential: GitHub App - AnsibleForge Git
     target_credential: "GitHub - AnsibleForge"
     input_field_name: password
-    metadata:
-      secret_path: "secret/github"
-      secret_key: "token"
-      secret_version: ""
+    metadata: {}
