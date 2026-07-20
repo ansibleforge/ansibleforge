@@ -13,10 +13,3 @@ controller_credentials:
       github_api_url: https://api.github.com
       app_or_client_id: "4350345"
       install_id: "147896123"
-    input_sources:
-      - source_credential: Vault Lookup
-        target: private_rsa_key
-        metadata:
-          secret_path: "secret/git-app"
-          secret_key: "private_key"
-          secret_version: ""

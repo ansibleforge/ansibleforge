@@ -1,0 +1,9 @@
+---
+controller_credential_input_sources:
+  - source_credential: Vault Lookup
+    target_credential: "GitHub App - AnsibleForge Git"
+    input_field_name: private_rsa_key
+    metadata:
+      secret_path: "secret/git-app"
+      secret_key: "private_key"
+      secret_version: ""
