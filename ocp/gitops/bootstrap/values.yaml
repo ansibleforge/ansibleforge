@@ -19,6 +19,14 @@ components:
         name: openshift-gitops
         managedFieldsManagers:
           - manager
+      - group: external-secrets.io
+        kind: ExternalSecret
+        jqPathExpressions:
+          - .spec.data[].remoteRef.conversionStrategy
+          - .spec.data[].remoteRef.decodingStrategy
+          - .spec.data[].remoteRef.metadataPolicy
+          - .spec.target.creationPolicy
+          - .spec.target.deletionPolicy
 
   vault:
     enabled: true
@@ -94,6 +102,15 @@ components:
     syncOptions:
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true
+    ignoreDifferences:
+      # gitea-admin-credentials is generate-once via lookup; the repo-server
+      # renders without cluster access, so the template re-randomizes every
+      # render and .data can never converge.
+      - group: ""
+        kind: Secret
+        jqPathExpressions:
+          - .data
 
   aap:
     enabled: true
