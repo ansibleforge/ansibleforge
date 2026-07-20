@@ -1,14 +1,15 @@
 ---
+# SCM credential for the AnsibleForge project. The password is minted per
+# use by the GitHub App lookup credential (1h installation tokens) — this
+# replaced the expiring Vault-stored PAT. Installation tokens require the
+# literal username x-access-token for git-over-https.
 controller_credentials:
   - name: GitHub - AnsibleForge
     credential_type: Source Control
     organization: Default
     inputs:
-      username: git
+      username: x-access-token
     input_sources:
-      - source_credential: Vault Lookup
+      - source_credential: GitHub App - AnsibleForge Git
         target: password
-        metadata:
-          secret_path: "secret/github"
-          secret_key: "token"
-          secret_version: ""
+        metadata: {}
