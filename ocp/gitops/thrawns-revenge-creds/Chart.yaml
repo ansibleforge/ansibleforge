@@ -1,5 +1,0 @@
-apiVersion: v2
-name: thrawns-revenge-creds
-description: Self-refreshing ghcr pull credentials for thrawns-revenge via the ansibleforge-git GitHub App
-type: application
-version: 0.1.0
