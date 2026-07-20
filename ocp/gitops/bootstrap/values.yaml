@@ -86,14 +86,6 @@ components:
           - .spec.target.creationPolicy
           - .spec.target.deletionPolicy
 
-  thrawns-revenge-creds:
-    enabled: true
-    syncWave: "1"
-    path: ocp/gitops/thrawns-revenge-creds
-    syncOptions:
-      - ServerSideApply=true
-      - SkipDryRunOnMissingResource=true
-
   gitea:
     enabled: true
     syncWave: "1"
