@@ -519,6 +519,59 @@
     # github_webhook_token play fact, so the credential can land on its
     # changeme default. Re-assert the real value from the k8s secret after
     # every apply so the GitHub webhook HMAC always validates.
+    # The GitHub App lookup credential is an external credential — AAP
+    # forbids feeding its inputs from another lookup ("Target must be a
+    # non-external credential"), so deliver the private key directly from
+    # the git-app-credentials k8s secret, same re-assert pattern as the
+    # webhook secret above.
+    - name: Re-assert GitHub App private key on the lookup credential
+      when: k8s_token | length > 0
+      block:
+        - name: Read git-app-credentials secret
+          ansible.builtin.uri:
+            url: "{{ k8s_host }}/api/v1/namespaces/secrets/secrets/git-app-credentials"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ k8s_token }}"
+            validate_certs: false
+            status_code: [200, 404]
+          register: _git_app_secret
+          no_log: true
+
+        - name: Patch GitHub App lookup credential private key
+          when: _git_app_secret.status == 200
+          vars:
+            _ga_key: "{{ _git_app_secret.json.data.private_key | b64decode }}"
+          block:
+            - name: Look up GitHub App credential id
+              ansible.builtin.uri:
+                url: "{{ controller_hostname }}/api/controller/v2/credentials/?name=GitHub+App+-+AnsibleForge+Git"
+                method: GET
+                user: "{{ controller_username }}"
+                password: "{{ controller_password }}"
+                force_basic_auth: true
+                validate_certs: "{{ controller_validate_certs }}"
+              register: _ga_cred
+
+            - name: Patch private_rsa_key input
+              ansible.builtin.uri:
+                url: "{{ controller_hostname }}/api/controller/v2/credentials/{{ _ga_cred.json.results[0].id }}/"
+                method: PATCH
+                user: "{{ controller_username }}"
+                password: "{{ controller_password }}"
+                force_basic_auth: true
+                validate_certs: "{{ controller_validate_certs }}"
+                body_format: json
+                body:
+                  inputs:
+                    github_api_url: https://api.github.com
+                    app_or_client_id: "4350345"
+                    install_id: "147896123"
+                    private_rsa_key: "{{ _ga_key }}"
+                status_code: [200]
+              when: _ga_cred.json.results | length > 0
+              no_log: true
+
     - name: Re-assert GitHub webhook credential secret
       when:
         - github_webhook_token is defined
