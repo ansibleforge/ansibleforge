@@ -22,7 +22,7 @@
         event.meta.eda_event_stream_name == "Alertmanager" and
         event.payload.status == "firing" and
         event.payload.groupLabels.alertname in
-          ["HighOverallControlPlaneMemory", "SystemMemoryExceedsReservation"]
+          ["HighOverallControlPlaneMemory"]
       action:
         debug:
           msg: >-
@@ -34,7 +34,7 @@
         event.meta.eda_event_stream_name == "Alertmanager" and
         event.payload.status == "firing" and
         event.payload.groupLabels.alertname not in
-          ["HighOverallControlPlaneMemory", "SystemMemoryExceedsReservation"]
+          ["HighOverallControlPlaneMemory"]
       action:
         debug:
           msg: >-

@@ -14,7 +14,7 @@ spec:
   configs:
     - sourceLabels:
         - alertname
-      regex: "HighOverallControlPlaneMemory|SystemMemoryExceedsReservation"
+      regex: "HighOverallControlPlaneMemory"
       targetLabel: severity
       replacement: info
       action: Replace
