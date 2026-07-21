@@ -661,11 +661,30 @@
 
         # Published into the secrets namespace so the vault config job seeds
         # secret/alertmanager-eda, from which the alertmanager chart renders
-        # the receiver into openshift-monitoring/alertmanager-main.
+        # the receiver into openshift-monitoring/alertmanager-main. Uses the
+        # k8s API via uri + K8S_TOKEN like every other k8s call in this play
+        # (kubernetes.core.k8s has no auth wired in this context).
+        - name: Check for published receiver config
+          ansible.builtin.uri:
+            url: "{{ k8s_host }}/api/v1/namespaces/secrets/secrets/alertmanager-eda"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ k8s_token }}"
+            validate_certs: false
+            status_code: [200, 404]
+          register: _am_published
+          when: _am_stream.json.results | length > 0
+
         - name: Publish Alertmanager receiver config to secrets namespace
-          kubernetes.core.k8s:
-            state: present
-            definition:
+          ansible.builtin.uri:
+            url: >-
+              {{ k8s_host }}/api/v1/namespaces/secrets/secrets{{ '' if _am_published.status == 404 else '/alertmanager-eda' }}
+            method: "{{ 'POST' if _am_published.status == 404 else 'PUT' }}"
+            headers:
+              Authorization: "Bearer {{ k8s_token }}"
+            validate_certs: false
+            body_format: json
+            body:
               apiVersion: v1
               kind: Secret
               metadata:
@@ -675,6 +694,7 @@
               stringData:
                 url: "{{ _am_stream.json.results[0].url }}"
                 token: "{{ alertmanager_eda_token }}"
+            status_code: [200, 201]
           when: _am_stream.json.results | length > 0
           no_log: true
 
