@@ -1,0 +1,13 @@
+---
+eda_rulebook_activations:
+  - name: Cluster Alerts
+    description: Receives all Alertmanager notifications via the Alertmanager event stream
+    organization: Default
+    project: AnsibleForge
+    rulebook: alertmanager.yml
+    decision_environment: Default Decision Environment
+    event_streams:
+      - event_stream: Alertmanager
+        source_index: 0
+    restart_policy: always
+    enabled: true

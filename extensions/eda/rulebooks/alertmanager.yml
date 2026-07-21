@@ -1,0 +1,34 @@
+---
+# Cluster alert intake, fed by the "Alertmanager" EDA event stream.
+# Event-stream events wrap the webhook body under event.payload:
+#   {status: firing|resolved, alerts: [...], commonLabels: {...}, ...}
+# Today this logs every notification group (visible in the activation log
+# and rule audit); add routing/remediation rules per alertname as needs
+# emerge — the IIS auto-heal and Lightspeed rulebooks are the pattern.
+- name: Cluster alerts
+  hosts: all
+  sources:
+    - ansible.eda.pg_listener:
+        dsn: "{{ EDA_PG_DSN }}"
+        channels:
+          - alertmanager
+  rules:
+    - name: Firing alerts
+      condition: >-
+        event.meta.eda_event_stream_name == "Alertmanager" and
+        event.payload.status == "firing"
+      action:
+        debug:
+          msg: >-
+            FIRING {{ event.payload.groupLabels }} —
+            {{ event.payload.alerts | length }} alert(s):
+            {{ event.payload.alerts | map(attribute='labels.alertname') | list }}
+
+    - name: Resolved alerts
+      condition: >-
+        event.meta.eda_event_stream_name == "Alertmanager" and
+        event.payload.status == "resolved"
+      action:
+        debug:
+          msg: >-
+            RESOLVED {{ event.payload.groupLabels }}

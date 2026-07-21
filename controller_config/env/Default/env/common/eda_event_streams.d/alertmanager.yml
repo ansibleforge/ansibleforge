@@ -1,0 +1,13 @@
+---
+# Ingress for cluster Alertmanager notifications. Alertmanager's webhook
+# receiver authenticates with the bearer token; the receiver config is
+# rendered into openshift-monitoring/alertmanager-main by the alertmanager
+# chart from Vault secret/alertmanager-eda (URL+token published by
+# dispatch post_tasks, seeded by the vault config job).
+eda_event_streams:
+  - name: Alertmanager
+    organization: Default
+    credential_name: Alertmanager Event Stream Credential
+    event_stream_type: "Token Event Stream"
+    forward_events: true
+    state: present
