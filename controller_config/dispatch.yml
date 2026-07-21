@@ -562,6 +562,74 @@
         - (_am_secret.status | default(0) == 200) or (_am_created is not skipped)
       no_log: true
 
+    # Heal any token stranding from a previously failed run BEFORE the
+    # roles reset credentials to placeholders: a mid-play failure between
+    # the role reset and the post_task re-assert breaks GitHub webhook and
+    # Alertmanager delivery until the next successful run (incident:
+    # AlertmanagerFailedToSendAlerts, CaC 270760). Same patches as
+    # post_tasks; harmless when values already match.
+    - name: Pre-heal GitHub webhook credential secret
+      when:
+        - github_webhook_token is defined
+        - github_webhook_token | length > 0
+      block:
+        - name: Look up GitHub Webhook Credential id (pre-heal)
+          ansible.builtin.uri:
+            url: "{{ controller_hostname }}/api/eda/v1/eda-credentials/?name=GitHub+Webhook+Credential"
+            method: GET
+            user: "{{ controller_username }}"
+            password: "{{ controller_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ controller_validate_certs }}"
+          register: _gh_cred_pre
+
+        - name: Patch GitHub Webhook Credential secret (pre-heal)
+          ansible.builtin.uri:
+            url: "{{ controller_hostname }}/api/eda/v1/eda-credentials/{{ _gh_cred_pre.json.results[0].id }}/"
+            method: PATCH
+            user: "{{ controller_username }}"
+            password: "{{ controller_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ controller_validate_certs }}"
+            body_format: json
+            body:
+              inputs:
+                secret: "{{ github_webhook_token }}"
+            status_code: [200]
+          when: _gh_cred_pre.json.results | length > 0
+          no_log: true
+
+    - name: Pre-heal Alertmanager EDA credential token
+      when:
+        - alertmanager_eda_token is defined
+        - alertmanager_eda_token | length > 0
+      block:
+        - name: Look up Alertmanager credential id (pre-heal)
+          ansible.builtin.uri:
+            url: "{{ controller_hostname }}/api/eda/v1/eda-credentials/?name=Alertmanager+Event+Stream+Credential"
+            method: GET
+            user: "{{ controller_username }}"
+            password: "{{ controller_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ controller_validate_certs }}"
+          register: _am_cred_pre
+
+        - name: Patch Alertmanager credential token (pre-heal)
+          ansible.builtin.uri:
+            url: "{{ controller_hostname }}/api/eda/v1/eda-credentials/{{ _am_cred_pre.json.results[0].id }}/"
+            method: PATCH
+            user: "{{ controller_username }}"
+            password: "{{ controller_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ controller_validate_certs }}"
+            body_format: json
+            body:
+              inputs:
+                token: "{{ alertmanager_eda_token }}"
+            status_code: [200]
+          when: _am_cred_pre.json.results | length > 0
+          no_log: true
+
   roles:
     - infra.controller_configuration.filetree_read
     - infra.aap_configuration.dispatch
