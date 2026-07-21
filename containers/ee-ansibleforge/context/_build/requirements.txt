@@ -5,3 +5,10 @@ boto3
 python-ldap
 kubernetes
 ansible-builder
+# VMware dynamic inventory (community.vmware.vmware_vm_inventory).
+# pyvmomi version and the tag-sync (with_tags) support both come via the
+# collection's vcf-sdk dependency; the standalone vsphere-automation-sdk
+# pin conflicts with it and must not be added back.
+pyvmomi
+# CI - Ansible Lint job template (playbooks/ci/ansible_lint.yml)
+ansible-lint

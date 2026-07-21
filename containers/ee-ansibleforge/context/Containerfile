@@ -1,4 +1,4 @@
-ARG EE_BASE_IMAGE="registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest"
+ARG EE_BASE_IMAGE="registry.redhat.io/ansible-automation-platform-27/ee-minimal-rhel9:2.16"
 ARG PYCMD="/usr/bin/python3"
 ARG PKGMGR_PRESERVE_CACHE=""
 ARG ANSIBLE_GALAXY_CLI_COLLECTION_OPTS=""
@@ -29,6 +29,7 @@ ARG ANSIBLE_GALAXY_CLI_COLLECTION_OPTS
 ARG ANSIBLE_GALAXY_CLI_ROLE_OPTS
 ARG PKGMGR
 
+ADD _build/configs/ansible.cfg /etc/ansible/ansible.cfg
 RUN /output/scripts/check_galaxy
 COPY _build /build
 WORKDIR /build
@@ -49,14 +50,15 @@ ARG ANSIBLE_GALAXY_CLI_ROLE_OPTS
 ARG PKGMGR
 
 RUN $PYCMD -m pip install --no-cache-dir bindep pyyaml packaging
-ENV PKGMGR_OPTS="--nodocs --setopt=install_weak_deps=0 --setopt=rhocp-4.19-for-rhel-9-x86_64-rpms.enabled=true --setopt=ansible-automation-platform-2.6-for-rhel-9-x86_64-rpms.enabled=true"
+ENV PKGMGR_OPTS="--nodocs --setopt=install_weak_deps=0 --setopt=ansible-automation-platform-2.7-for-rhel-9-x86_64-rpms.enabled=true"
 ADD _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
 
 COPY --from=galaxy /usr/share/ansible /usr/share/ansible
 
 COPY _build/requirements.txt requirements.txt
 COPY _build/bindep.txt bindep.txt
-RUN $PYCMD /output/scripts/introspect.py introspect --user-pip=requirements.txt --user-bindep=bindep.txt --write-bindep=/tmp/src/bindep.txt --write-pip=/tmp/src/requirements.txt
+COPY _build/exclude-bindep.txt exclude-bindep.txt
+RUN $PYCMD /output/scripts/introspect.py introspect --user-pip=requirements.txt --user-bindep=bindep.txt --exclude-bindep-reqs=exclude-bindep.txt --write-bindep=/tmp/src/bindep.txt --write-pip=/tmp/src/requirements.txt
 RUN /output/scripts/assemble
 
 # Final build stage
@@ -69,8 +71,10 @@ ARG ANSIBLE_GALAXY_CLI_COLLECTION_OPTS
 ARG ANSIBLE_GALAXY_CLI_ROLE_OPTS
 ARG PKGMGR
 
-ENV PKGMGR_OPTS="--nodocs --setopt=install_weak_deps=0 --setopt=rhocp-4.19-for-rhel-9-x86_64-rpms.enabled=true --setopt=ansible-automation-platform-2.6-for-rhel-9-x86_64-rpms.enabled=true"
+ENV PKGMGR_OPTS="--nodocs --setopt=install_weak_deps=0 --setopt=ansible-automation-platform-2.7-for-rhel-9-x86_64-rpms.enabled=true"
 ADD _build/configs/hashicorp.repo /etc/yum.repos.d/hashicorp.repo
+COPY --from=registry.redhat.io/openshift4/ose-cli:latest /usr/bin/oc /usr/local/bin/oc
+COPY --from=registry.redhat.io/openshift4/ose-cli:latest /usr/bin/kubectl /usr/local/bin/kubectl
 RUN /output/scripts/check_ansible $PYCMD
 
 COPY --from=galaxy /usr/share/ansible /usr/share/ansible
