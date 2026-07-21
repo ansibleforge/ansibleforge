@@ -241,6 +241,7 @@ spec:
               # GitHub App (ansibleforge-git) for platform git auth: ArgoCD
               # repo-creds, ghcr pull-secret generator, AAP SCM lookup.
               seed_from_k8s "git-app-credentials" "git-app"
+              seed_from_k8s "alertmanager-eda" "alertmanager-eda"
 
               # GitHub DevSpaces OAuth - force-write (overwrite placeholder if present)
               gh_oauth_json=$(curl -sf --cacert "${CACERT}" \

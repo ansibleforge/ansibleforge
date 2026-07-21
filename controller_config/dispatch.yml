@@ -443,6 +443,52 @@
         - (_gh_webhook_secret.status | default(0) == 200) or (_gh_webhook_created is not skipped)
       no_log: true
 
+    - name: Check for Alertmanager EDA token secret
+      ansible.builtin.uri:
+        url: "{{ k8s_host }}/api/v1/namespaces/aap/secrets/eda-alertmanager-token"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ k8s_token }}"
+        validate_certs: false
+        status_code: [200, 404]
+      register: _am_secret
+      when: k8s_token | length > 0
+
+    - name: Create Alertmanager EDA token secret
+      ansible.builtin.uri:
+        url: "{{ k8s_host }}/api/v1/namespaces/aap/secrets"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ k8s_token }}"
+        validate_certs: false
+        body_format: json
+        body:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: eda-alertmanager-token
+            namespace: aap
+          type: Opaque
+          stringData:
+            token: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=48') }}"
+        status_code: [201]
+      register: _am_created
+      when:
+        - k8s_token | length > 0
+        - _am_secret.status | default(0) == 404
+      no_log: true
+
+    - name: Resolve alertmanager_eda_token fact
+      ansible.builtin.set_fact:
+        alertmanager_eda_token: >-
+          {{ (_am_created.json.data.token
+              if (_am_created is not skipped and _am_created.json is defined)
+              else _am_secret.json.data.token | default('')) | b64decode }}
+      when:
+        - k8s_token | length > 0
+        - (_am_secret.status | default(0) == 200) or (_am_created is not skipped)
+      no_log: true
+
   roles:
     - infra.controller_configuration.filetree_read
     - infra.aap_configuration.dispatch
@@ -571,6 +617,66 @@
                 status_code: [200]
               when: _ga_cred.json.results | length > 0
               no_log: true
+
+    - name: Re-assert Alertmanager EDA credential token and publish receiver config
+      when:
+        - alertmanager_eda_token is defined
+        - alertmanager_eda_token | length > 0
+      block:
+        - name: Look up Alertmanager Event Stream Credential id
+          ansible.builtin.uri:
+            url: "{{ controller_hostname }}/api/eda/v1/eda-credentials/?name=Alertmanager+Event+Stream+Credential"
+            method: GET
+            user: "{{ controller_username }}"
+            password: "{{ controller_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ controller_validate_certs }}"
+          register: _am_cred
+
+        - name: Patch Alertmanager Event Stream Credential token
+          ansible.builtin.uri:
+            url: "{{ controller_hostname }}/api/eda/v1/eda-credentials/{{ _am_cred.json.results[0].id }}/"
+            method: PATCH
+            user: "{{ controller_username }}"
+            password: "{{ controller_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ controller_validate_certs }}"
+            body_format: json
+            body:
+              inputs:
+                token: "{{ alertmanager_eda_token }}"
+            status_code: [200]
+          when: _am_cred.json.results | length > 0
+          no_log: true
+
+        - name: Read Alertmanager event stream URL
+          ansible.builtin.uri:
+            url: "{{ controller_hostname }}/api/eda/v1/event-streams/?name=Alertmanager"
+            method: GET
+            user: "{{ controller_username }}"
+            password: "{{ controller_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ controller_validate_certs }}"
+          register: _am_stream
+
+        # Published into the secrets namespace so the vault config job seeds
+        # secret/alertmanager-eda, from which the alertmanager chart renders
+        # the receiver into openshift-monitoring/alertmanager-main.
+        - name: Publish Alertmanager receiver config to secrets namespace
+          kubernetes.core.k8s:
+            state: present
+            definition:
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: alertmanager-eda
+                namespace: secrets
+              type: Opaque
+              stringData:
+                url: "{{ _am_stream.json.results[0].url }}"
+                token: "{{ alertmanager_eda_token }}"
+          when: _am_stream.json.results | length > 0
+          no_log: true
 
     - name: Re-assert GitHub webhook credential secret
       when:

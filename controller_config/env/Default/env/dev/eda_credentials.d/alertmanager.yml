@@ -1,0 +1,10 @@
+---
+# Bearer token Alertmanager presents on webhook deliveries. Real value is
+# get-or-created in the eda-alertmanager-token k8s secret and re-asserted
+# by dispatch post_tasks (same pattern as the GitHub webhook secret).
+eda_credentials:
+  - name: Alertmanager Event Stream Credential
+    organization: Default
+    credential_type: Token Event Stream
+    inputs:
+      token: "changeme-reasserted-by-dispatch"

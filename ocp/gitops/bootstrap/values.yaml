@@ -94,6 +94,23 @@ components:
           - .spec.target.creationPolicy
           - .spec.target.deletionPolicy
 
+  alertmanager:
+    enabled: true
+    syncWave: "2"
+    path: ocp/gitops/alertmanager
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true
+    ignoreDifferences:
+      - group: external-secrets.io
+        kind: ExternalSecret
+        jqPathExpressions:
+          - .spec.data[].remoteRef.conversionStrategy
+          - .spec.data[].remoteRef.decodingStrategy
+          - .spec.data[].remoteRef.metadataPolicy
+          - .spec.target.deletionPolicy
+
   gitea:
     enabled: true
     syncWave: "1"

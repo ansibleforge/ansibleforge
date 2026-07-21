@@ -1,0 +1,5 @@
+apiVersion: v2
+name: alertmanager
+description: Routes all cluster Alertmanager notifications into the EDA Alertmanager event stream
+type: application
+version: 0.1.0
