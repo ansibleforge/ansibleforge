@@ -437,8 +437,13 @@
         _ev_live: "{{ ((item.extra_var | default('', true)) or '{}') | from_yaml }}"
         _ev_want: "{{ _d.extra_vars | default({}) }}"
         _de_live: "{{ _de_names[item.decision_environment_id | string] | default('') }}"
+        # Only event-stream activations expose a rulebook hash in
+        # source_mappings; hash-compare those alone. Non-stream activations
+        # have no API-visible content hash — rulebook edits for them are not
+        # detected here (extra_vars/enabled/DE changes still are).
+        _hash_matters: "{{ _d.event_streams is defined }}"
         _is_drifted: >-
-          {{ _hash_live != _hash_want
+          {{ (_hash_matters | bool and _hash_live != _hash_want)
              or _ev_live != _ev_want
              or (item.is_enabled | bool) != (_d.enabled | default(true) | bool)
              or _de_live != (_d.decision_environment | default('')) }}
