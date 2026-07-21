@@ -13,28 +13,10 @@
         channels:
           - alertmanager
   rules:
-    # SNO-structural alerts: written for multi-node topologies (failover
-    # headroom, per-node reservations) with no actionable remediation on a
-    # single-node cluster. Logged as informational and excluded from the
-    # main firing rule so they never read as actionable.
-    - name: SNO-structural (informational)
-      condition: >-
-        event.meta.eda_event_stream_name == "Alertmanager" and
-        event.payload.status == "firing" and
-        event.payload.groupLabels.alertname in
-          ["HighOverallControlPlaneMemory"]
-      action:
-        debug:
-          msg: >-
-            INFO (SNO-structural) {{ event.payload.groupLabels }} —
-            multi-node guidance, not actionable on single-node
-
     - name: Firing alerts
       condition: >-
         event.meta.eda_event_stream_name == "Alertmanager" and
-        event.payload.status == "firing" and
-        event.payload.groupLabels.alertname not in
-          ["HighOverallControlPlaneMemory"]
+        event.payload.status == "firing"
       action:
         debug:
           msg: >-
