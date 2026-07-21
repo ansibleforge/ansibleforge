@@ -361,12 +361,15 @@
       loop_control:
         label: "{{ item.name }}"
 
-    # Delete-and-recreate any managed activations that already exist. The
-    # ansible.eda.rulebook_activation module refuses to update a running
-    # activation ("Activation is not in disabled mode and in stopped
-    # status"), so on subsequent CaC runs — especially when dispatch-time
-    # extra_vars change (SN creds, IIS URL) — the role would fail. Cheap
-    # to recreate: ~60s gap in polling during the swap.
+    # The ansible.eda.rulebook_activation module refuses to update a running
+    # activation, so drifted activations must be deleted for the role to
+    # recreate them. But recreating unconditionally churns activation IDs
+    # and drops event delivery on every apply — so compare desired vs live
+    # (rulebook content hash, rendered extra_vars, enabled, decision
+    # environment) and delete only what actually changed. Unchanged
+    # activations keep their IDs and the role no-ops them. Not compared
+    # (rare, will surface as a role failure if ever changed in place):
+    # eda credential and event-stream attachments, restart_policy.
     - name: List existing EDA activations
       ansible.builtin.uri:
         url: "{{ controller_hostname }}/api/eda/v1/activations/?page_size=100"
@@ -378,7 +381,69 @@
       register: _existing_activations
       no_log: true
 
-    - name: Force-delete managed activations so the role can recreate them
+    - name: List current EDA rulebooks
+      ansible.builtin.uri:
+        url: "{{ controller_hostname }}/api/eda/v1/rulebooks/?page_size=200"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ controller_validate_certs }}"
+      register: _eda_rulebooks
+      no_log: true
+
+    - name: List EDA decision environments
+      ansible.builtin.uri:
+        url: "{{ controller_hostname }}/api/eda/v1/decision-environments/?page_size=100"
+        method: GET
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ controller_validate_certs }}"
+      register: _eda_des
+      no_log: true
+
+    - name: Build activation drift lookup maps
+      ansible.builtin.set_fact:
+        _rulebook_hashes: >-
+          {{ dict(_eda_rulebooks.json.results | map(attribute='name')
+             | zip(_eda_rulebooks.json.results | map(attribute='rulesets')
+                   | map('hash', 'sha256'))) }}
+        _de_names: >-
+          {{ dict(_eda_des.json.results | map(attribute='id') | map('string')
+             | zip(_eda_des.json.results | map(attribute='name'))) }}
+        _desired_activations_by_name: >-
+          {{ dict(eda_rulebook_activations | map(attribute='name')
+             | zip(eda_rulebook_activations)) }}
+
+    - name: Determine drifted activations
+      ansible.builtin.set_fact:
+        _drifted_activations: >-
+          {{ (_drifted_activations | default([]))
+             + ([item] if _is_drifted | bool else []) }}
+      vars:
+        _d: "{{ _desired_activations_by_name[item.name] }}"
+        _hash_live: >-
+          {{ (item.source_mappings | default('')
+              | regex_search('rulebook_hash: ([a-f0-9]+)', '\\1')
+              | default([''], true)) | first }}
+        _hash_want: "{{ _rulebook_hashes[_d.rulebook] | default('') }}"
+        _ev_live: "{{ ((item.extra_var | default('', true)) or '{}') | from_yaml }}"
+        _ev_want: "{{ _d.extra_vars | default({}) }}"
+        _de_live: "{{ _de_names[item.decision_environment_id | string] | default('') }}"
+        _is_drifted: >-
+          {{ _hash_live != _hash_want
+             or _ev_live != _ev_want
+             or (item.is_enabled | bool) != (_d.enabled | default(true) | bool)
+             or _de_live != (_d.decision_environment | default('')) }}
+      loop: >-
+        {{ _existing_activations.json.results
+           | selectattr('name', 'in', eda_rulebook_activations | map(attribute='name') | list)
+           | list }}
+      loop_control:
+        label: "{{ item.name }} (id={{ item.id }})"
+
+    - name: Force-delete drifted activations so the role can recreate them
       ansible.builtin.uri:
         url: "{{ controller_hostname }}/api/eda/v1/activations/{{ item.id }}/?force=True"
         method: DELETE
@@ -387,10 +452,7 @@
         force_basic_auth: true
         validate_certs: "{{ controller_validate_certs }}"
         status_code: [204, 404]
-      loop: >-
-        {{ _existing_activations.json.results
-           | selectattr('name', 'in', eda_rulebook_activations | map(attribute='name') | list)
-           | list }}
+      loop: "{{ _drifted_activations | default([]) }}"
       loop_control:
         label: "{{ item.name }} (id={{ item.id }})"
     # GitHub webhook HMAC token — get-or-create in a k8s secret so every
