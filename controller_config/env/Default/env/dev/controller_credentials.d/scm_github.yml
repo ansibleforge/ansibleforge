@@ -1,4 +1,11 @@
 ---
+# NOTE: the "GitHub App - AnsibleForge Git" lookup credential this depends on
+# is intentionally NOT defined in this filetree — the controller_credentials
+# role would re-apply it from file and wipe private_rsa_key every run (the
+# key cannot live in git), and because CaC's own project sync authenticates
+# through it, a stranded key bricks all future CaC runs. It is created and
+# key-maintained by dispatch.yml pre_tasks from the git-app-credentials k8s
+# secret instead.
 # SCM credential for the AnsibleForge project. The password is minted per
 # use by the GitHub App lookup credential (1h installation tokens) — this
 # replaced the expiring Vault-stored PAT. Installation tokens require the
