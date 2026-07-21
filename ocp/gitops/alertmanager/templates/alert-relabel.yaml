@@ -1,0 +1,20 @@
+{{/* SNO-structural platform alerts carry multi-node guidance that is not
+     actionable on a single-node cluster. Relabel their severity to info so
+     they leave the console homepage status card, while still reaching
+     Alertmanager and therefore the EDA event stream (where the Cluster
+     Alerts rulebook classifies them as informational by alertname). */}}
+apiVersion: monitoring.openshift.io/v1
+kind: AlertRelabelConfig
+metadata:
+  name: sno-structural-severity
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  configs:
+    - sourceLabels:
+        - alertname
+      regex: "HighOverallControlPlaneMemory|SystemMemoryExceedsReservation"
+      targetLabel: severity
+      replacement: info
+      action: Replace
