@@ -568,6 +568,56 @@
     # Alertmanager delivery until the next successful run (incident:
     # AlertmanagerFailedToSendAlerts, CaC 270760). Same patches as
     # post_tasks; harmless when values already match.
+    # The controller_credentials role re-applies the GitHub App lookup
+    # credential from its file (which cannot carry the key), wiping
+    # private_rsa_key until post_tasks restore it — a failed run strands it
+    # and every project sync 403s (incident: probe CaC 270894/270895).
+    - name: Pre-heal GitHub App lookup credential private key
+      when: k8s_token | length > 0
+      block:
+        - name: Read git-app-credentials secret (pre-heal)
+          ansible.builtin.uri:
+            url: "{{ k8s_host }}/api/v1/namespaces/secrets/secrets/git-app-credentials"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ k8s_token }}"
+            validate_certs: false
+            status_code: [200, 404]
+          register: _ga_secret_pre
+          no_log: true
+
+        - name: Patch GitHub App credential key (pre-heal)
+          when: _ga_secret_pre.status == 200
+          block:
+            - name: Look up GitHub App credential id (pre-heal)
+              ansible.builtin.uri:
+                url: "{{ controller_hostname }}/api/controller/v2/credentials/?name=GitHub+App+-+AnsibleForge+Git"
+                method: GET
+                user: "{{ controller_username }}"
+                password: "{{ controller_password }}"
+                force_basic_auth: true
+                validate_certs: "{{ controller_validate_certs }}"
+              register: _ga_cred_pre
+
+            - name: Patch private_rsa_key input (pre-heal)
+              ansible.builtin.uri:
+                url: "{{ controller_hostname }}/api/controller/v2/credentials/{{ _ga_cred_pre.json.results[0].id }}/"
+                method: PATCH
+                user: "{{ controller_username }}"
+                password: "{{ controller_password }}"
+                force_basic_auth: true
+                validate_certs: "{{ controller_validate_certs }}"
+                body_format: json
+                body:
+                  inputs:
+                    github_api_url: https://api.github.com
+                    app_or_client_id: "4350345"
+                    install_id: "147896123"
+                    private_rsa_key: "{{ _ga_secret_pre.json.data.private_key | b64decode }}"
+                status_code: [200]
+              when: _ga_cred_pre.json.results | length > 0
+              no_log: true
+
     - name: Pre-heal GitHub webhook credential secret
       when:
         - github_webhook_token is defined
