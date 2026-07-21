@@ -1,0 +1,17 @@
+{{/* Auto-size kubelet system/kube reservations from node capacity.
+     Resolves SystemMemoryExceedsReservation properly (the static default
+     is undersized for ~250 pods on one node). WARNING: applying this
+     rolls a new MachineConfig — on single-node that is a full node
+     reboot (~10-15 min cluster outage). Merge only in a maintenance
+     window. */}}
+apiVersion: machineconfiguration.openshift.io/v1
+kind: KubeletConfig
+metadata:
+  name: autosize-reserved
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  autoSizingReserved: true
+  machineConfigPoolSelector:
+    matchLabels:
+      pools.operator.machineconfiguration.openshift.io/master: ""
