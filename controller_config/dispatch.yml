@@ -545,6 +545,39 @@
                 validate_certs: "{{ controller_validate_certs }}"
               register: _ga_cred_pre
 
+            - name: Look up GitHub App credential type id
+              ansible.builtin.uri:
+                url: "{{ controller_hostname }}/api/controller/v2/credential_types/?name=GitHub+App+Installation+Access+Token+Lookup"
+                method: GET
+                user: "{{ controller_username }}"
+                password: "{{ controller_password }}"
+                force_basic_auth: true
+                validate_certs: "{{ controller_validate_certs }}"
+              register: _ga_ctype
+              when: _ga_cred_pre.json.results | length == 0
+
+            - name: Create GitHub App credential with key (pre-heal)
+              ansible.builtin.uri:
+                url: "{{ controller_hostname }}/api/controller/v2/credentials/"
+                method: POST
+                user: "{{ controller_username }}"
+                password: "{{ controller_password }}"
+                force_basic_auth: true
+                validate_certs: "{{ controller_validate_certs }}"
+                body_format: json
+                body:
+                  name: "GitHub App - AnsibleForge Git"
+                  organization: 1
+                  credential_type: "{{ _ga_ctype.json.results[0].id }}"
+                  inputs:
+                    github_api_url: https://api.github.com
+                    app_or_client_id: "4350345"
+                    install_id: "147896123"
+                    private_rsa_key: "{{ _ga_secret_pre.json.data.private_key | b64decode }}"
+                status_code: [201]
+              when: _ga_cred_pre.json.results | length == 0
+              no_log: true
+
             - name: Patch private_rsa_key input (pre-heal)
               ansible.builtin.uri:
                 url: "{{ controller_hostname }}/api/controller/v2/credentials/{{ _ga_cred_pre.json.results[0].id }}/"
