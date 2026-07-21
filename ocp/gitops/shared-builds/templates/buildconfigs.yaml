@@ -50,6 +50,13 @@ spec:
       uri: {{ .Values.sourceRepo }}
       ref: {{ .Values.sourceRevision }}
     contextDir: containers/ee-ansibleforge/context
+    # The generated Containerfile ADDs _build/configs/ansible.cfg (written by
+    # CI at build time with the Automation Hub token — never checked in).
+    # Materialize it from the ansible-config secret for in-cluster builds.
+    secrets:
+      - secret:
+          name: ansible-config
+        destinationDir: _build/configs
   strategy:
     type: Docker
     dockerStrategy:
