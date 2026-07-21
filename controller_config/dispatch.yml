@@ -423,13 +423,16 @@
              + ([item] if _is_drifted | bool else []) }}
       vars:
         _d: "{{ _desired_activations_by_name[item.name] }}"
-        _sm_live: "{{ item.source_mappings | default('', true) }}"
-        # regex_search returns None (not '') on no match and raises when a
-        # capture group is requested — test for a match before extracting.
+        # source_mappings arrives as a YAML string for some activations and
+        # as an already-parsed list for others — normalize to a list and
+        # extract the hash structurally (regex broke on the parsed form).
+        _sm_raw: "{{ item.source_mappings | default('', true) }}"
+        _sm_list: >-
+          {{ _sm_raw if _sm_raw is not string
+             else ((_sm_raw or '[]') | from_yaml) }}
         _hash_live: >-
-          {{ (_sm_live | regex_search('rulebook_hash: ([a-f0-9]+)', '\\1') | first)
-             if _sm_live is search('rulebook_hash')
-             else '' }}
+          {{ ((_sm_list or []) | selectattr('rulebook_hash', 'defined')
+              | map(attribute='rulebook_hash') | list | first) | default('') }}
         _hash_want: "{{ _rulebook_hashes[_d.rulebook] | default('') }}"
         _ev_live: "{{ ((item.extra_var | default('', true)) or '{}') | from_yaml }}"
         _ev_want: "{{ _d.extra_vars | default({}) }}"
