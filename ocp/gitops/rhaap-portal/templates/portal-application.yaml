@@ -1,0 +1,53 @@
+{{- $clusterDomain := .Values.clusterDomain }}
+{{- if not $clusterDomain }}
+{{- $ingress := lookup "config.openshift.io/v1" "Ingress" "" "cluster" }}
+{{- if and $ingress $ingress.spec }}{{- $clusterDomain = $ingress.spec.domain }}{{- end }}
+{{- end }}
+{{/* ArgoCD Application that deploys the redhat-rhaap-portal Helm chart from the
+     OpenShift Helm catalog with values wired to this cluster's AAP + Keycloak.
+     Separate app so the upstream chart is deployed AFTER this chart's secrets
+     exist (sync-wave). TODO: pin .Values.chartVersion; confirm chartRepo. */}}
+{{- if .Values.chartVersion }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rhaap-portal-chart
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespace }}
+  source:
+    repoURL: {{ .Values.chartRepo }}
+    chart: {{ .Values.chartName }}
+    targetRevision: {{ .Values.chartVersion | quote }}
+    helm:
+      releaseName: redhat-rhaap-portal
+      valuesObject:
+        aap:
+          host_url: {{ .Values.aapHost | quote }}
+          check_ssl: false
+          # id/secret/token are read from the secrets-rhaap-portal secret by
+          # the chart; leave here empty so the secret takes precedence.
+        redhat-developer-hub:
+          global:
+            pluginMode: oci
+            imageTagInfo: {{ .Values.pluginVersion | quote }}
+          upstream:
+            backstage:
+              appConfig:
+                app:
+                  baseUrl: https://rhaap-portal.{{ $clusterDomain }}
+                auth:
+                  environment: production
+                  providers:
+                    oidc:
+                      production:
+                        metadataUrl: https://keycloak.{{ $clusterDomain }}/realms/sso/.well-known/openid-configuration
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [ServerSideApply=true, CreateNamespace=false]
+{{- end }}

@@ -1,0 +1,10 @@
+namespace: rhaap-portal
+clusterDomain: ""
+# Portal Helm chart (OpenShift Helm catalog). Pin chartVersion to the release
+# whose bundled plugins match pluginVersion below (2.2). TODO: confirm exact
+# repoURL (charts.openshift.io) and chartVersion before enabling.
+chartRepo: https://charts.openshift.io
+chartName: redhat-rhaap-portal
+chartVersion: ""            # TODO pin
+pluginVersion: "2.2"        # oci://registry.redhat.io/ansible-automation-platform/automation-portal:2.2
+aapHost: https://aap-aap.apps.ocp.spark.ansibleforge.dev
