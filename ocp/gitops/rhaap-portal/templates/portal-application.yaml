@@ -7,7 +7,7 @@
      OpenShift Helm catalog with values wired to this cluster's AAP + Keycloak.
      Separate app so the upstream chart is deployed AFTER this chart's secrets
      exist (sync-wave). TODO: pin .Values.chartVersion; confirm chartRepo. */}}
-{{- if .Values.chartVersion }}
+{{- if .Values.deployChart }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -26,27 +26,17 @@ spec:
     targetRevision: {{ .Values.chartVersion | quote }}
     helm:
       releaseName: redhat-rhaap-portal
+      # The chart's only top-level value is redhat-developer-hub (the RHDH
+      # subchart). AAP connection + OAuth come entirely from the
+      # secrets-rhaap-portal secret (env vars), NOT chart values — do not set
+      # an aap: block here. Auth provider config ships in the chart defaults.
       valuesObject:
-        aap:
-          host_url: {{ .Values.aapHost | quote }}
-          check_ssl: false
-          # id/secret/token are read from the secrets-rhaap-portal secret by
-          # the chart; leave here empty so the secret takes precedence.
         redhat-developer-hub:
           global:
+            clusterRouterBase: apps.{{ $clusterDomain }}
             pluginMode: oci
             imageTagInfo: {{ .Values.pluginVersion | quote }}
-          upstream:
-            backstage:
-              appConfig:
-                app:
-                  baseUrl: https://rhaap-portal.{{ $clusterDomain }}
-                auth:
-                  environment: production
-                  providers:
-                    oidc:
-                      production:
-                        metadataUrl: https://keycloak.{{ $clusterDomain }}/realms/sso/.well-known/openid-configuration
+            ociPluginImage: {{ .Values.ociPluginImage | quote }}
   syncPolicy:
     automated: {prune: true, selfHeal: true}
     syncOptions: [ServerSideApply=true, CreateNamespace=false]

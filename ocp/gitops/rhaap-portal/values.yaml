@@ -1,10 +1,16 @@
 namespace: rhaap-portal
 clusterDomain: ""
-# Portal Helm chart (OpenShift Helm catalog). Pin chartVersion to the release
-# whose bundled plugins match pluginVersion below (2.2). TODO: confirm exact
-# repoURL (charts.openshift.io) and chartVersion before enabling.
+# Portal Helm chart (OpenShift Helm catalog / charts.openshift.io). Chart
+# version 2.2.4 bundles the v2.2 self-service plugins (confirmed via
+# `helm search repo openshift-helm-charts/redhat-rhaap-portal -l`).
 chartRepo: https://charts.openshift.io
 chartName: redhat-rhaap-portal
-chartVersion: ""            # TODO pin
-pluginVersion: "2.2"        # oci://registry.redhat.io/ansible-automation-platform/automation-portal:2.2
-aapHost: https://aap-aap.apps.ocp.spark.ansibleforge.dev
+chartVersion: "2.2.4"
+# Deliberate activation gate: leave false until the prerequisites in
+# README.md are done (OAuth app + Vault seeded). Flipping true renders the
+# ArgoCD app that deploys the chart.
+deployChart: false
+pluginVersion: "2.2"
+# OCI plugin delivery (registry.redhat.io); registry auth via the
+# redhat-rhaap-portal-dynamic-plugins-registry-auth secret.
+ociPluginImage: registry.redhat.io/ansible-automation-platform/automation-portal
