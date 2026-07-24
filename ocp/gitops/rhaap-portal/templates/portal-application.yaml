@@ -1,0 +1,43 @@
+{{- $clusterDomain := .Values.clusterDomain }}
+{{- if not $clusterDomain }}
+{{- $ingress := lookup "config.openshift.io/v1" "Ingress" "" "cluster" }}
+{{- if and $ingress $ingress.spec }}{{- $clusterDomain = $ingress.spec.domain }}{{- end }}
+{{- end }}
+{{/* ArgoCD Application that deploys the redhat-rhaap-portal Helm chart from the
+     OpenShift Helm catalog with values wired to this cluster's AAP + Keycloak.
+     Separate app so the upstream chart is deployed AFTER this chart's secrets
+     exist (sync-wave). TODO: pin .Values.chartVersion; confirm chartRepo. */}}
+{{- if .Values.deployChart }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rhaap-portal-chart
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespace }}
+  source:
+    repoURL: {{ .Values.chartRepo }}
+    chart: {{ .Values.chartName }}
+    targetRevision: {{ .Values.chartVersion | quote }}
+    helm:
+      releaseName: redhat-rhaap-portal
+      # The chart's only top-level value is redhat-developer-hub (the RHDH
+      # subchart). AAP connection + OAuth come entirely from the
+      # secrets-rhaap-portal secret (env vars), NOT chart values — do not set
+      # an aap: block here. Auth provider config ships in the chart defaults.
+      valuesObject:
+        redhat-developer-hub:
+          global:
+            clusterRouterBase: apps.{{ $clusterDomain }}
+            pluginMode: oci
+            imageTagInfo: {{ .Values.pluginVersion | quote }}
+            ociPluginImage: {{ .Values.ociPluginImage | quote }}
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [ServerSideApply=true, CreateNamespace=false]
+{{- end }}

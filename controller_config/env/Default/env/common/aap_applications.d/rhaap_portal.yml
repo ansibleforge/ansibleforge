@@ -1,0 +1,16 @@
+---
+# Gateway OAuth application for the Ansible automation portal (AAP 2.7
+# self-service portal, redhat-rhaap-portal Helm chart). Unlike the VM Portal
+# SPA (public/PKCE), the portal is a CONFIDENTIAL client — the chart consumes
+# both oauth-client-id and oauth-client-secret. AAP generates the client_id +
+# secret on creation; read them back after applying and seed them into Vault
+# secret/rhaap-portal for the ExternalSecret. Redirect URI must match the
+# portal's /api/auth/rhaap/handler/frame path exactly.
+aap_applications:
+  - name: "Ansible Automation Portal"
+    organization: Default
+    authorization_grant_type: authorization-code
+    client_type: confidential
+    description: "OAuth2 application for the AAP 2.7 self-service automation portal"
+    redirect_uris:
+      - "https://rhaap-portal.apps.ocp.spark.ansibleforge.dev/api/auth/rhaap/handler/frame"
