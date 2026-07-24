@@ -2,8 +2,13 @@
 # Periodic ping against the ServiceNow developer instance to keep it
 # awake and to detect hibernation early. Run on a schedule (every ~30
 # min). A successful 200 + JSON body means SNOW is reachable; the
-# "Instance Hibernating" HTML page or any non-200 response is reported
-# but does not fail the job, so the schedule can keep firing wake-ups.
+# "Instance Hibernating" HTML page is reported and a wake-up is fired
+# (reachable, non-failing). But a genuinely UNREACHABLE instance (no HTTP
+# response — connection timeout/refused, status -1) fails the job, so a
+# dead/reclaimed instance surfaces instead of hiding behind green runs.
+# NOTE: automated wake cannot revive a hibernated dev instance (that needs
+# an interactive developer.servicenow.com login); when the instance is
+# knowingly down long-term, disable the "SN Keepalive" schedule.
 - name: ServiceNow keepalive ping
   hosts: localhost
   connection: local
@@ -62,3 +67,19 @@
           {% else %}
           SNOW unreachable — status={{ _ping.status | default('?') }}, will retry next schedule.
           {% endif %}
+
+    # Reachable-but-hibernating still counts as "up enough" (wake fired);
+    # only a total non-response (no reachable API, no hibernation page) is a
+    # real failure worth surfacing.
+    - name: Fail when ServiceNow is unreachable
+      ansible.builtin.fail:
+        msg: >-
+          ServiceNow keepalive could not reach {{ sn_host }}
+          (status={{ _ping.status | default('-1') }}). The developer instance
+          is down/reclaimed and the automated wake cannot revive it — log in
+          to developer.servicenow.com to wake or re-request it, then update
+          Vault secret/servicenow if the URL changed. Disable the "SN
+          Keepalive" schedule while the instance is knowingly down.
+      when:
+        - not (_ping.status | default(-1) == 200 and _ping.json is defined)
+        - not (_ping.content is defined and 'Instance Hibernating' in (_ping.content | default('')))
