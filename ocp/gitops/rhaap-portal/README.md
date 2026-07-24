@@ -1,22 +1,51 @@
 # AAP 2.7 self-service automation portal (redhat-rhaap-portal)
 
 The productized Ansible automation portal — RHDH + AAP self-service plugins
-(v2.2), installed from the OpenShift Helm catalog chart `redhat-rhaap-portal`.
-Distinct from the bespoke `ocp/gitops/rhdh` Developer Hub (which carries the
-older 2.1.1 plugins).
+**v2.2**, from the OpenShift Helm catalog chart `redhat-rhaap-portal` **2.2.4**
+(`https://charts.openshift.io`). Distinct from the bespoke `ocp/gitops/rhdh`
+Developer Hub (older 2.1.1 plugins).
 
-## Prerequisites before enabling (chartVersion is empty = inert until then)
-1. **AAP OAuth app**: `aap_applications.d/rhaap_portal.yml` creates the "Ansible
-   Automation Portal" confidential application on next CaC apply. Read back its
-   client_id + client_secret.
-2. **Portal service-account token**: an AAP token with write access (for job
-   template sync).
-3. **Seed Vault** `secret/rhaap-portal` (via a `rhaap-portal-credentials` k8s
-   secret in the `secrets` namespace + a `seed_from_k8s "rhaap-portal-credentials" "rhaap-portal"`
-   line in the vault config job) with keys: `aap-host-url`, `oauth-client-id`,
-   `oauth-client-secret`, `aap-token`, and `registry-auth-json` (base64 auth.json
-   for registry.redhat.io).
-4. **Pin `chartVersion`** in values.yaml to the release matching plugin v2.2
-   (confirm `chartRepo`/version from `helm search repo openshift-helm-charts/redhat-rhaap-portal`).
+Kept inert by `deployChart: false` in values.yaml until the steps below are
+done; then flip `deployChart: true`.
 
-Once those are done, set `chartVersion` and the ArgoCD app deploys the chart.
+## Secret flow
+`rhaap-portal-credentials` (secrets ns) --[vault config job seed_from_k8s]-->
+Vault `secret/rhaap-portal` --[ExternalSecrets]--> `secrets-rhaap-portal` +
+`redhat-rhaap-portal-dynamic-plugins-registry-auth` (rhaap-portal ns, the exact
+names/keys the chart consumes).
+
+## Activation steps
+
+1. **Create the AAP OAuth app** (already in CaC): run a CaC apply. It creates
+   the confidential "Ansible Automation Portal" application
+   (`aap_applications.d/rhaap_portal.yml`). Read back its client_id + secret:
+   ```
+   # gateway application — read id/secret after the apply
+   curl -sk -u admin:$PW https://aap-aap.<domain>/api/gateway/v1/applications/?name=Ansible+Automation+Portal
+   ```
+
+2. **Mint a portal AAP token** with write access (a service account token the
+   portal uses to sync job templates).
+
+3. **Seed the credentials secret** in the `secrets` namespace (the vault job
+   copies every key to Vault `secret/rhaap-portal`):
+   ```bash
+   # registry.redhat.io auth.json, derived from the cluster pull secret:
+   AUTHJSON=$(oc get secret pull-secret -n openshift-config \
+     -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d \
+     | python3 -c 'import json,sys; a=json.load(sys.stdin)["auths"]["registry.redhat.io"]; print(json.dumps({"auths":{"registry.redhat.io":a}}))')
+
+   oc create secret generic rhaap-portal-credentials -n secrets \
+     --from-literal=aap-host-url="https://aap-aap.apps.ocp.spark.ansibleforge.dev" \
+     --from-literal=oauth-client-id="<from step 1>" \
+     --from-literal=oauth-client-secret="<from step 1>" \
+     --from-literal=aap-token="<from step 2>" \
+     --from-literal=registry-auth-json="$AUTHJSON"
+   ```
+
+4. **Run the vault config job** (or re-sync the vault Argo app) to seed
+   `secret/rhaap-portal`, then confirm the ExternalSecrets sync in the
+   `rhaap-portal` namespace.
+
+5. **Activate**: set `deployChart: true` in values.yaml and merge — the ArgoCD
+   app deploys `redhat-rhaap-portal` 2.2.4 wired to your AAP + Keycloak.
