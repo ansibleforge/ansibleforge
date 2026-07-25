@@ -17,6 +17,9 @@ eda_rulebook_activations:
     eda_credentials:
       - AAP Controller Admin
 
+  # Disabled: the ServiceNow dev instance is down long-term, so every tick
+  # skips at the pre-flight reachability check. Re-enable with SN Keepalive
+  # once the instance is restored. IIS Chaos above stays enabled.
   - name: SN Chaos
     description: Submit provision/decommission RITMs every ~5 min via SN Chaos Tick
     organization: Default
@@ -24,6 +27,6 @@ eda_rulebook_activations:
     rulebook: snow-chaos.yml
     decision_environment: Default Decision Environment
     restart_policy: always
-    enabled: true
+    enabled: false
     eda_credentials:
       - AAP Controller Admin

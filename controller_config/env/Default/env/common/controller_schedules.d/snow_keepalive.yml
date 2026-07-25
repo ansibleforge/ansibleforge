@@ -3,5 +3,10 @@ controller_schedules:
   - name: "SN Keepalive - Every 30 Minutes"
     unified_job_template: "SN Keepalive"
     rrule: "DTSTART;TZID=America/New_York:20260427T080000 RRULE:FREQ=MINUTELY;INTERVAL=30"
-    enabled: true
+    # Disabled: the dev270956 ServiceNow instance is down/reclaimed and cannot
+    # be woken by automation (needs an interactive developer.servicenow.com
+    # login). Keepalive fails on unreachable now (see snow-keepalive.yml), so
+    # leaving this enabled would fail every 30 min. Re-enable once the instance
+    # is restored and Vault secret/servicenow is updated.
+    enabled: false
     description: "Ping SNOW every 30 minutes to keep the developer instance from hibernating"
