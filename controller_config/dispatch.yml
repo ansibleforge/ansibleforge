@@ -394,7 +394,9 @@
            | list }}
       loop_control:
         label: "{{ item.name }} (id={{ item.id }})"
-      notify: Re-enable managed activations
+      notify:
+        - Re-enable managed activations
+        - Reconcile disabled managed activations
 
     - name: Wait for managed activations to stop
       ansible.builtin.uri:
@@ -1045,6 +1047,36 @@
                            | selectattr('enabled', 'defined')
                            | selectattr('enabled')
                            | map(attribute='name') | list))
+           | list }}
+      loop_control:
+        label: "{{ item.name }} (id={{ item.id }})"
+
+    # The infra.aap_configuration role recreates/enables activations on update
+    # regardless of a CaC `enabled: false`, and the re-enable handler above only
+    # adds enables — so a desired-disabled activation (e.g. SN Chaos while the
+    # ServiceNow instance is down) would come back enabled every apply. Disable
+    # the desired-disabled ones here so CaC `enabled: false` is authoritative.
+    - name: Reconcile disabled managed activations
+      ansible.builtin.uri:
+        url: "{{ controller_hostname }}/api/eda/v1/activations/{{ item.id }}/disable/"
+        method: POST
+        user: "{{ controller_username }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: "{{ controller_validate_certs }}"
+        status_code: [204, 400, 409]
+      loop: >-
+        {{ (lookup('ansible.builtin.url',
+                   controller_hostname ~ '/api/eda/v1/activations/?page_size=100',
+                   url_username=controller_username,
+                   url_password=controller_password,
+                   force_basic_auth=true,
+                   validate_certs=false,
+                   split_lines=false) | from_json).results
+           | selectattr('name', 'in', eda_rulebook_activations
+                        | selectattr('enabled', 'defined')
+                        | rejectattr('enabled')
+                        | map(attribute='name') | list)
            | list }}
       loop_control:
         label: "{{ item.name }} (id={{ item.id }})"
