@@ -167,7 +167,26 @@
     - name: Set instance facts
       ansible.builtin.set_fact:
         _instance_id: "{{ _ec2.instances[0].instance_id }}"
-        _public_ip: "{{ _ec2.instances[0].public_ip_address }}"
+
+    # An auto-assigned public IP changes on every stop/start, which silently
+    # breaks the IIS_HOST credential and the EDA health URL until someone
+    # re-provisions. An Elastic IP pins the address for the life of the
+    # instance. Idempotent: reuses the existing allocation on re-runs.
+    - name: Ensure an Elastic IP is associated with the instance
+      amazon.aws.ec2_eip:
+        device_id: "{{ _instance_id }}"
+        region: "{{ aws_region }}"
+        in_vpc: true
+        release_on_disassociation: false
+        tags:
+          Name: "{{ vm_name }}"
+          Role: iis-demo
+          ManagedBy: ansible
+      register: _eip
+
+    - name: Set the public address from the Elastic IP
+      ansible.builtin.set_fact:
+        _public_ip: "{{ _eip.public_ip }}"
 
     # ec2_instance only sets instance_role at launch — for instances that
     # already exist (the idempotent path), we have to associate the profile

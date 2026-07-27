@@ -24,6 +24,27 @@
         state: absent
       when: _matches.instances | length > 0
 
+    # AWS bills for an Elastic IP that is allocated but not associated, so
+    # terminating the instance without releasing the EIP leaves a silent
+    # charge behind.
+    - name: Find the iis-demo Elastic IP
+      amazon.aws.ec2_eip_info:
+        region: "{{ aws_region }}"
+        filters:
+          "tag:Role": iis-demo
+      register: _eips
+
+    - name: Release the Elastic IP
+      amazon.aws.ec2_eip:
+        region: "{{ aws_region }}"
+        public_ip: "{{ item.public_ip }}"
+        state: absent
+      loop: "{{ _eips.addresses | default([]) }}"
+      loop_control:
+        label: "{{ item.public_ip }}"
+
     - name: Report
       ansible.builtin.debug:
-        msg: "Terminated {{ _matches.instances | length }} iis-demo instance(s)."
+        msg: >-
+          Terminated {{ _matches.instances | length }} iis-demo instance(s);
+          released {{ _eips.addresses | default([]) | length }} Elastic IP(s).

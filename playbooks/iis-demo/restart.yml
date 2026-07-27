@@ -1,39 +1,44 @@
 ---
 # Clears fail.flag, increments the restart counter, and does iisreset.
 # Invoked by the EDA rulebook on health failure, but also launchable manually.
-- name: Restart IIS on the demo host
+#
+# The target address comes from the "VM Portal - AWS" dynamic inventory
+# (aws_ec2 source, ansible_host composed from public_ip_address), not from a
+# static IIS_HOST value. A stop/start that reassigns the EC2 public address is
+# therefore picked up on the next inventory sync instead of every run timing
+# out against a dead address. Only IIS_ADMIN_PASSWORD still comes from the
+# "IIS Demo Secrets" credential.
+- name: Validate the run
   hosts: localhost
   connection: local
   gather_facts: false
 
-  vars:
-    iis_host: "{{ lookup('env', 'IIS_HOST') }}"
-    iis_admin_password: "{{ lookup('env', 'IIS_ADMIN_PASSWORD') }}"
-
   tasks:
-    - name: Assert IIS credentials are present
+    - name: Assert the IIS admin password is present
       ansible.builtin.assert:
         that:
-          - iis_host | length > 0
-          - iis_admin_password | length > 0
+          - lookup('env', 'IIS_ADMIN_PASSWORD') | length > 0
         fail_msg: >-
-          Attach the "IIS Demo Secrets" credential to this job template.
+          Attach the "IIS Demo Secrets" credential to this job template so
+          IIS_ADMIN_PASSWORD is injected as an env var.
 
-    - name: Add IIS host to runtime inventory
-      ansible.builtin.add_host:
-        name: "{{ iis_host }}"
-        groups: iis_demo
-        ansible_connection: winrm
-        ansible_user: Administrator
-        ansible_password: "{{ iis_admin_password }}"
-        ansible_port: 5985
-        ansible_winrm_scheme: http
-        ansible_winrm_transport: basic
-        ansible_winrm_message_encryption: auto
+    # Without this, running against the wrong inventory matches no hosts and
+    # the job reports success having done nothing at all.
+    - name: Require the iis-demo host in this job's inventory
+      ansible.builtin.assert:
+        that:
+          - "'iis-demo' in groups['all']"
+        fail_msg: >-
+          No 'iis-demo' host in this job's inventory. Run this template against
+          the "VM Portal - AWS" inventory, which resolves the host's current
+          public address from AWS.
 
 - name: Heal IIS
-  hosts: iis_demo
+  hosts: iis-demo
   gather_facts: false
+
+  vars_files:
+    - vars/winrm_connection.yml
 
   tasks:
     - name: Remove fail.flag
@@ -57,4 +62,6 @@
 
     - name: Report
       ansible.builtin.debug:
-        msg: "IIS restarted. New restart count: {{ _new_count.stdout | trim }}"
+        msg: >-
+          IIS restarted on {{ inventory_hostname }} ({{ ansible_host }}).
+          New restart count: {{ _new_count.stdout | trim }}
