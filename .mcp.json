@@ -7,14 +7,15 @@
         "Authorization": "Bearer ${CONTROLLER_OAUTH_TOKEN}"
       }
     },
-    "aws-api": {
+    "aws-mcp": {
       "command": "uvx",
-      "args": ["awslabs.aws-api-mcp-server@latest"],
-      "env": {
-        "AWS_REGION": "${AWS_REGION:-us-east-1}",
-        "AWS_PROFILE": "${AWS_PROFILE:-ansibleforge}",
-        "READ_OPERATIONS_ONLY": "${AWS_MCP_READ_ONLY:-true}"
-      }
+      "args": [
+        "mcp-proxy-for-aws@1.6.3",
+        "https://aws-mcp.us-east-1.api.aws/mcp",
+        "--read-only",
+        "--profile", "${AWS_PROFILE:-default}",
+        "--metadata", "AWS_REGION=${AWS_REGION:-us-east-1}"
+      ]
     }
   }
 }
