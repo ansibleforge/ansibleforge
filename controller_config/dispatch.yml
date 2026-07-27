@@ -395,11 +395,21 @@
            | list }}
       loop_control:
         label: "{{ item.name }} (id={{ item.id }})"
-      # ansible.builtin.uri reports ok, never changed, and notify only fires on
-      # changed -- so without this the handlers below were never notified and
-      # force_handlers had nothing to force. On 2026-07-27 a dispatch failure
-      # left all seven activations stranded disabled for exactly this reason.
-      changed_when: true
+      # DO NOT add `changed_when: true` here to "arm" the notify below. It was
+      # tried on 2026-07-27 and made things worse: Ansible flushes notified
+      # handlers at the end of EVERY section, not just end of play, so the
+      # handler fired at the end of pre_tasks -- before the dispatcher ran --
+      # and its failure aborted the whole apply before any config was applied
+      # (job 298028).
+      #
+      # So this notify is inert, and the safety net it implies does not exist.
+      # On a successful apply the eda_rulebook_activations role re-enables the
+      # activations itself, which is why the happy path works. On a failed
+      # apply they stay disabled and must be re-enabled by hand.
+      #
+      # The real fix is structural: move the dispatcher into a block whose
+      # `always:` re-enables, since only block/always guarantees end-of-play
+      # execution on failure. A handler cannot express this.
       notify:
         - Re-enable managed activations
         - Reconcile disabled managed activations
