@@ -26,3 +26,7 @@ terraform.rc
 
 # Claude Code per-user local settings (may contain personal permissions/tokens)
 .claude/settings.local.json
+
+# Local env for .mcp.json servers — holds real tokens, never commit
+.env
+.env.local
