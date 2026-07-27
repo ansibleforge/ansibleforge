@@ -1,0 +1,17 @@
+namespace: rhaap-portal
+clusterDomain: ""
+# Portal Helm chart (OpenShift Helm catalog / charts.openshift.io). Chart
+# version 2.2.4 bundles the v2.2 self-service plugins (confirmed via
+# `helm search repo openshift-helm-charts/redhat-rhaap-portal -l`).
+chartRepo: https://charts.openshift.io
+chartName: redhat-rhaap-portal
+chartVersion: "2.2.4"
+# Activation gate: true renders the ArgoCD app that deploys the chart.
+# Prerequisite (see README.md): the rhaap-portal-credentials secret must
+# exist in the secrets namespace before merging with this enabled.
+deployChart: true
+pluginVersion: "2.2"
+# Plugins are delivered as OCI artifacts from the chart-default
+# registry.redhat.io/ansible-automation-platform/automation-portal image
+# (ociPluginImage is a mirror-only override); registry auth via the
+# redhat-rhaap-portal-dynamic-plugins-registry-auth secret.

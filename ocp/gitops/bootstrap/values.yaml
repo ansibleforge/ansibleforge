@@ -111,6 +111,14 @@ components:
           - .spec.data[].remoteRef.metadataPolicy
           - .spec.target.deletionPolicy
 
+  rhaap-portal:
+    enabled: true
+    syncWave: "3"
+    path: ocp/gitops/rhaap-portal
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+
   gitea:
     enabled: true
     syncWave: "1"

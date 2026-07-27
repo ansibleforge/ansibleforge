@@ -1,0 +1,5 @@
+apiVersion: v2
+name: rhaap-portal
+description: AAP 2.7 self-service automation portal (redhat-rhaap-portal) — namespace, secrets, and ArgoCD app
+type: application
+version: 0.1.0

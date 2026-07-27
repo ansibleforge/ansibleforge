@@ -1,0 +1,17 @@
+{{- $clusterDomain := .Values.clusterDomain }}
+{{- if not $clusterDomain }}
+{{- $ingress := lookup "config.openshift.io/v1" "Ingress" "" "cluster" }}
+{{- if and $ingress $ingress.spec }}{{- $clusterDomain = $ingress.spec.domain }}{{- end }}
+{{- end }}
+apiVersion: console.openshift.io/v1
+kind: ConsoleLink
+metadata:
+  name: rhaap-portal
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  location: ApplicationMenu
+  text: Ansible Automation Portal
+  href: https://rhaap-portal.{{ $clusterDomain }}
+  applicationMenu:
+    section: AnsibleForge
