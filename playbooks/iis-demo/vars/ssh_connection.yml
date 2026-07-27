@@ -1,0 +1,24 @@
+---
+# SSH connection profile for the iis-demo host (Win32-OpenSSH), replacing the
+# WinRM/basic profile in winrm_connection.yml.
+#
+# Why SSH: key authentication means no password crosses the wire and none is
+# stored for the connection, the ciphers are modern (ed25519 / ChaCha20 or
+# AES-GCM) rather than NTLM's RC4-based message encryption, and host key
+# verification gives real server authentication -- which neither basic-over-HTTP
+# nor a self-signed WinRM HTTPS listener provides.
+#
+# Address: private_ip_address, not the composed ansible_host. The AAP execution
+# environment runs on OCP nodes in the SAME VPC as this instance
+# (vpc-00883d6689b106645), so automation traffic never leaves AWS's network and
+# port 22 is open only to 10.0.0.0/16 rather than the internet.
+ansible_connection: ssh
+ansible_shell_type: powershell
+ansible_host: "{{ private_ip_address }}"
+ansible_user: Administrator
+# Pinned host key -- the point of moving to SSH is server authentication, so
+# accept-new/StrictHostKeyChecking=no would give most of that value straight
+# back. Update this if the host is rebuilt (provision.yml records the new key).
+ansible_ssh_common_args: >-
+  -o StrictHostKeyChecking=yes
+  -o UserKnownHostsFile={{ playbook_dir }}/files/iis_demo_known_hosts

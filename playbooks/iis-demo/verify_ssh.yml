@@ -1,0 +1,50 @@
+---
+# =============================================================================
+# playbooks/iis-demo/verify_ssh.yml
+#
+# Read-only proof that the iis-demo host is reachable over SSH before anything
+# is switched away from WinRM. Changes nothing: pings, reports who we are and
+# where we connected, and confirms IIS is serving.
+#
+# Run this with the "IIS Demo - SSH" machine credential against the
+# "VM Portal - AWS" inventory. WinRM stays live and untouched either way.
+# =============================================================================
+- name: Validate the run
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Require the iis-demo host in this job's inventory
+      ansible.builtin.assert:
+        that:
+          - "'iis-demo' in groups['all']"
+        fail_msg: >-
+          No 'iis-demo' host in this job's inventory. Run this against the
+          "VM Portal - AWS" inventory.
+
+- name: Verify SSH connectivity to iis-demo
+  hosts: iis-demo
+  gather_facts: false
+
+  vars_files:
+    - vars/ssh_connection.yml
+
+  tasks:
+    - name: Ping over SSH
+      ansible.windows.win_ping:
+
+    - name: Confirm identity, address and IIS state
+      ansible.windows.win_shell: |
+        $svc = (Get-Service W3SVC -ErrorAction SilentlyContinue).Status
+        "user=$([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+        "host=$env:COMPUTERNAME"
+        "w3svc=$svc"
+      register: _who
+      changed_when: false
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: >-
+          SSH OK to {{ inventory_hostname }} at {{ ansible_host }} --
+          {{ _who.stdout_lines | join(' | ') }}
