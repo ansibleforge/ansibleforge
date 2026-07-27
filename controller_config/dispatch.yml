@@ -55,7 +55,8 @@
           + controller_configuration_dispatcher_roles
           + eda_configuration_dispatcher_roles)
          | rejectattr('role', 'equalto', 'gateway_role_user_assignments')
-         | rejectattr('role', 'equalto', 'controller_applications') | list }}
+         | rejectattr('role', 'equalto', 'controller_applications')
+         | rejectattr('role', 'equalto', 'gateway_applications') | list }}
   pre_tasks:
     - name: Validate controller connection
       ansible.builtin.assert:
@@ -394,6 +395,11 @@
            | list }}
       loop_control:
         label: "{{ item.name }} (id={{ item.id }})"
+      # ansible.builtin.uri reports ok, never changed, and notify only fires on
+      # changed -- so without this the handlers below were never notified and
+      # force_handlers had nothing to force. On 2026-07-27 a dispatch failure
+      # left all seven activations stranded disabled for exactly this reason.
+      changed_when: true
       notify:
         - Re-enable managed activations
         - Reconcile disabled managed activations
@@ -685,6 +691,32 @@
           {{ query('ansible.platform.gateway_api', 'teams',
                    host=aap_hostname, username=aap_username,
                    password=aap_password, verify_ssl=aap_validate_certs) }}
+
+    # gateway_applications is skipped in the dispatcher (see the reject list
+    # above) because that role wraps ansible.platform.application in
+    # `async: 1000, poll: 0`, and that module does not support async — every
+    # item fails with "async is not supported for this task." The async value
+    # is hardcoded in the role, so there is no variable to turn it off. Same
+    # module, run synchronously here, works fine.
+    - name: Ensure gateway OAuth applications
+      ansible.platform.application:
+        name: "{{ item.name }}"
+        organization: "{{ item.organization }}"
+        description: "{{ item.description | default(omit, true) }}"
+        authorization_grant_type: "{{ item.authorization_grant_type | default('password') }}"
+        client_type: "{{ item.client_type | default('public') }}"
+        redirect_uris: "{{ item.redirect_uris | default(omit) }}"
+        skip_authorization: "{{ item.skip_authorization | default(omit) }}"
+        algorithm: "{{ item.algorithm | default(omit, true) }}"
+        post_logout_redirect_uris: "{{ item.post_logout_redirect_uris | default(omit, true) }}"
+        state: "{{ item.state | default('present') }}"
+        gateway_hostname: "{{ aap_hostname }}"
+        gateway_username: "{{ aap_username }}"
+        gateway_password: "{{ aap_password }}"
+        gateway_validate_certs: "{{ aap_validate_certs }}"
+      loop: "{{ aap_applications | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
 
     - name: Ensure custom AAP role definitions
       ansible.platform.role_definition:
