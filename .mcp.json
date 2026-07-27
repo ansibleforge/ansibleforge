@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "aap": {
+      "type": "http",
+      "url": "https://aap-mcp-aap.apps.ocp.spark.ansibleforge.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CONTROLLER_OAUTH_TOKEN}"
+      }
+    },
+    "aws-api": {
+      "command": "uvx",
+      "args": ["awslabs.aws-api-mcp-server@latest"],
+      "env": {
+        "AWS_REGION": "${AWS_REGION:-us-east-1}",
+        "AWS_PROFILE": "${AWS_PROFILE:-ansibleforge}",
+        "READ_OPERATIONS_ONLY": "${AWS_MCP_READ_ONLY:-true}"
+      }
+    }
+  }
+}
