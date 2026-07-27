@@ -68,6 +68,8 @@ not every host in it is a sensible target:
 | `ssh-term-test` | Linux/UNIX | – | no key pair recorded |
 
 The credential holds one key, so it will authenticate to whichever hosts carry
-that key pair. Re-keying the Linux hosts onto a single automation key pair is
-the clean fix; until then expect partial coverage and scope the Limit
-accordingly.
+that key pair. Until the fleet is converged expect partial coverage and scope
+the Limit accordingly.
+
+Converging it is what `playbooks/fleet-rekey/` is for — see its README for the
+per-host plan and the add/verify/prune ordering.

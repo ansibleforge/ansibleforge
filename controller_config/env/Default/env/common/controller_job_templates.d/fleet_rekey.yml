@@ -1,0 +1,84 @@
+---
+# Converges the Linux fleet onto one automation key pair, so the
+# "Linux Fleet - EC2" machine credential reaches every host instead of the
+# current mix of ocpkey / htfenner-laptop / no key at all.
+#
+# Credentials are asked at launch and that is the whole point: re-keying is
+# per-key-pair. Launch once per existing key, each time selecting the
+# credential that can currently log into the hosts in the Limit.
+#
+# Defaults only ADD the automation key. Removing the old keys is a separate,
+# doubly-confirmed opt-in -- see the survey text and the playbook header.
+controller_templates:
+  - name: "Fleet - Re-key Authorized Keys"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/fleet-rekey/rekey_authorized_keys.yml
+    execution_environment: "EE AnsibleForge"
+    description: >-
+      Install the automation public key into each Linux host's authorized_keys
+      so one machine credential reaches the whole fleet. Adds by default and
+      leaves existing keys in place, so a failed re-key is never a lockout.
+      Refuses RHCOS/CoreOS nodes, whose keys are owned by MachineConfig.
+    ask_inventory_on_launch: true
+    ask_credential_on_launch: true
+    ask_limit_on_launch: true
+    survey_enabled: true
+    survey_spec:
+      name: Re-key Authorized Keys
+      description: >-
+        Select the machine credential that can log into the targeted hosts
+        TODAY, and set a Limit to just those hosts.
+      spec:
+        - question_name: Automation public key
+          variable: new_public_key
+          type: text
+          required: true
+          question_description: >-
+            The automation PUBLIC key in authorized_keys format, e.g.
+            "ssh-ed25519 AAAAC3Nz... ansibleforge-automation". This is the
+            public half and is not secret. Never paste a private key here.
+        - question_name: Target account
+          variable: rekey_user
+          type: text
+          required: true
+          default: "ec2-user"
+          question_description: >-
+            The account whose authorized_keys gets the key. ec2-user on RHEL
+            AMIs.
+        - question_name: Allow fleet-wide
+          variable: rekey_allow_all
+          type: multiplechoice
+          required: true
+          default: "false"
+          choices:
+            - "false"
+            - "true"
+          question_description: >-
+            Guard rail. With false (default) the run aborts unless you set a
+            Limit. Re-keying is per-key-pair, so a Limit is almost always what
+            you want.
+        - question_name: Remove all other keys
+          variable: prune_other_keys
+          type: multiplechoice
+          required: true
+          default: "false"
+          choices:
+            - "false"
+            - "true"
+          question_description: >-
+            LOCKOUT RISK. true strips every key except the automation key. Only
+            set this after you have proven the automation key authenticates --
+            run "Fleet - Run Command" against these hosts with the
+            "Linux Fleet - EC2" credential first. If that succeeds, pruning is
+            safe; if it fails and you prune anyway, the host is unreachable.
+        - question_name: Prune confirmation
+          variable: prune_confirm
+          type: text
+          required: false
+          default: ""
+          question_description: >-
+            Type REMOVE-OTHER-KEYS to confirm the removal above. Any other
+            value makes the run fail rather than silently skip the prune.
+    state: present

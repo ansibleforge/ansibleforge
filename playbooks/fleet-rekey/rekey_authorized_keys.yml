@@ -1,0 +1,163 @@
+---
+# =============================================================================
+# playbooks/fleet-rekey/rekey_authorized_keys.yml
+#
+# Converge the Linux fleet onto ONE automation key pair by installing the
+# automation public key into each host's authorized_keys, so a single AAP
+# machine credential ("Linux Fleet - EC2") reaches every host.
+#
+# THE BOOTSTRAP CONSTRAINT: re-keying a host over SSH requires already being
+# able to log into it. This playbook cannot reach a host whose current key you
+# do not hold. The fleet is keyed inconsistently, so run this once per existing
+# key pair, selecting the matching machine credential at launch, until every
+# host carries the automation key. A host whose key is lost entirely needs an
+# out-of-band path (AWS SSM Session Manager or EC2 Instance Connect) and is out
+# of scope here.
+#
+# ADD, THEN VERIFY, THEN PRUNE. By default this only ADDS the automation key
+# and leaves existing keys untouched, so a failed re-key is never a lockout.
+# Removing the old keys is a separate, doubly-confirmed opt-in that you should
+# run only after you have proven the new key authenticates -- pruning before
+# verifying locks you out of the host permanently.
+#
+# Required:
+#   new_public_key      The automation PUBLIC key, e.g. "ssh-ed25519 AAAA... ".
+#                       Public keys are not secret; this is safe in a survey.
+#
+# Optional:
+#   rekey_user          Account whose authorized_keys is updated.
+#                       Default: ec2-user.
+#   rekey_allow_all     Permit running with no --limit. Default: false.
+#   prune_other_keys    Remove every key except the automation key.
+#                       Default: false. Requires prune_confirm.
+#   prune_confirm       Must be the literal string REMOVE-OTHER-KEYS for
+#                       prune_other_keys to take effect.
+#   rekey_keyfile_path  Override the authorized_keys path. Test hook; leave
+#                       unset in production so the path is derived from the
+#                       account's real home directory.
+#   rekey_ostree_marker Override the RHCOS/CoreOS detection marker. Test hook;
+#                       leave unset in production.
+#
+# Run:
+#   ansible-playbook playbooks/fleet-rekey/rekey_authorized_keys.yml \
+#     -l matt -e '{"new_public_key": "ssh-ed25519 AAAAC3Nz... automation"}'
+#
+#   Pass extra vars as JSON. The -e key=value form is shlex-split and would
+#   truncate a public key at its first space.
+# =============================================================================
+
+- name: Validate re-key inputs
+  hosts: localhost
+  gather_facts: false
+  tasks:
+
+    - name: Require a well-formed SSH public key
+      ansible.builtin.assert:
+        that:
+          - new_public_key is defined
+          - new_public_key | string | trim | length > 0
+          - new_public_key | string is match('^(ssh-(rsa|ed25519|dss)|ecdsa-sha2-nistp(256|384|521))\s+[A-Za-z0-9+/]+=*(\s|$)')
+        fail_msg: >-
+          new_public_key must be an SSH PUBLIC key in authorized_keys format,
+          e.g. "ssh-ed25519 AAAAC3Nz... automation". Never pass a private key.
+
+    - name: Require an explicit limit unless fleet-wide is deliberate
+      ansible.builtin.assert:
+        that:
+          - (ansible_limit is defined and ansible_limit | string | length > 0)
+            or (rekey_allow_all | default(false) | bool)
+        fail_msg: >-
+          Set a Limit at launch. Re-keying is per-key-pair: target only the
+          hosts the selected credential can currently log into.
+
+    # Fail loudly rather than silently skipping the prune, so a typo in the
+    # confirmation phrase cannot look like a successful prune.
+    - name: Require the confirmation phrase when pruning
+      ansible.builtin.assert:
+        that:
+          - prune_confirm | default('') == 'REMOVE-OTHER-KEYS'
+        fail_msg: >-
+          prune_other_keys removes every other key from authorized_keys and
+          will lock you out if the automation key does not work. Verify the new
+          key authenticates first, then set prune_confirm to REMOVE-OTHER-KEYS.
+      when: prune_other_keys | default(false) | bool
+
+- name: Install the automation public key
+  hosts: all
+  gather_facts: false
+  tasks:
+
+    - name: Detect ostree-managed (RHCOS / CoreOS) hosts
+      ansible.builtin.stat:
+        path: "{{ rekey_ostree_marker | default('/run/ostree-booted') }}"
+      register: rekey_ostree
+
+    # ocp-*-master-* nodes live in this inventory. On RHCOS the authorized keys
+    # are owned by the Machine Config Operator: a direct edit is reverted and
+    # can degrade the node, so refuse rather than "succeed" misleadingly.
+    - name: Refuse to re-key ostree-managed nodes
+      ansible.builtin.fail:
+        msg: >-
+          {{ inventory_hostname }} is an ostree-managed (RHCOS/CoreOS) node.
+          Its authorized_keys are owned by MachineConfig -- editing them here
+          would be reverted by the Machine Config Operator. Re-key it by
+          updating the relevant MachineConfig instead.
+      when: rekey_ostree.stat.exists
+
+    - name: Look up the target account's home directory
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ rekey_user | default('ec2-user') }}"
+      when: rekey_keyfile_path is not defined
+
+    - name: Resolve the authorized_keys path
+      ansible.builtin.set_fact:
+        rekey_path: >-
+          {{ rekey_keyfile_path if rekey_keyfile_path is defined
+             else (ansible_facts.getent_passwd[rekey_user | default('ec2-user')][4]
+                   ~ '/.ssh/authorized_keys') }}
+
+    - name: Add the automation key, leaving existing keys in place
+      ansible.posix.authorized_key:
+        user: "{{ rekey_user | default('ec2-user') }}"
+        key: "{{ new_public_key }}"
+        state: present
+        exclusive: false
+        path: "{{ rekey_path }}"
+        manage_dir: false
+
+    - name: Read back authorized_keys
+      ansible.builtin.slurp:
+        src: "{{ rekey_path }}"
+      register: rekey_readback
+
+    # Prove the key is really on disk before anything considers pruning.
+    - name: Confirm the automation key is present on the host
+      ansible.builtin.assert:
+        that:
+          - (new_public_key | string | split(' '))[1] in (rekey_readback.content | b64decode)
+        fail_msg: >-
+          The automation key is not in {{ rekey_path }} after the update.
+          Do not prune this host.
+        success_msg: "Automation key present in {{ rekey_path }}"
+
+    - name: Remove every other key, leaving only the automation key
+      ansible.posix.authorized_key:
+        user: "{{ rekey_user | default('ec2-user') }}"
+        key: "{{ new_public_key }}"
+        state: present
+        exclusive: true
+        path: "{{ rekey_path }}"
+        manage_dir: false
+      when:
+        - prune_other_keys | default(false) | bool
+        - prune_confirm | default('') == 'REMOVE-OTHER-KEYS'
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: automation key installed for
+          {{ rekey_user | default('ec2-user') }} in {{ rekey_path }}.
+          {{ 'Other keys REMOVED.' if (prune_other_keys | default(false) | bool)
+             else 'Existing keys left in place -- verify the new key works, then
+             re-run with prune to remove them.' }}
