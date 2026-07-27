@@ -20,7 +20,7 @@ controller_templates:
     inventory: "VM Portal - AWS"
     execution_environment: "Default execution environment"
     credentials:
-      - "IIS Demo Secrets"
+      - "IIS Demo - SSH"
     description: "Write fail.flag so /health.aspx returns 500. EDA polls /health.aspx and restarts IIS on failure."
 
   - name: "IIS Demo - Restart IIS"
@@ -31,7 +31,7 @@ controller_templates:
     inventory: "VM Portal - AWS"
     execution_environment: "Default execution environment"
     credentials:
-      - "IIS Demo Secrets"
+      - "IIS Demo - SSH"
     description: "Clear fail.flag, bump the restart counter, and run iisreset. Invoked by the EDA rulebook on health failure."
 
   - name: "IIS Demo - Rotate Password"
@@ -54,7 +54,7 @@ controller_templates:
     inventory: "VM Portal - AWS"
     execution_environment: "Default execution environment"
     credentials:
-      - "IIS Demo Secrets"
+      - "IIS Demo - SSH"
     description: "Inject a fail.flag with random jitter (wraps trigger_error.yml). Launched every 90s by the IIS Chaos EDA activation to drive the auto-heal demo."
 
   - name: "IIS Demo - Destroy"
