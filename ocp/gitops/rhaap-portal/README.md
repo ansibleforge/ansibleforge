@@ -47,9 +47,28 @@ names/keys the chart consumes).
      --from-literal=registry-auth-json="$AUTHJSON"
    ```
 
-4. **Run the vault config job** (or re-sync the vault Argo app) to seed
-   `secret/rhaap-portal`, then confirm the ExternalSecrets sync in the
-   `rhaap-portal` namespace.
+4. **Seed Vault.** The `seed_from_k8s "rhaap-portal-credentials" "rhaap-portal"`
+   line in the vault config job copies every key to `secret/rhaap-portal`. That
+   job is a `PostSync` hook with `hook-delete-policy: BeforeHookCreation`, so it
+   is recreated and re-runs on each sync of the vault app rather than being
+   blocked by Job immutability.
 
 5. **Activate**: set `deployChart: true` in values.yaml and merge — the ArgoCD
    app deploys `redhat-rhaap-portal` 2.2.4 wired to your AAP + Keycloak.
+
+## First-sync ordering
+
+The vault config job and this chart are **separate ArgoCD Applications**, so
+nothing orders the Vault seeding before the ExternalSecrets here — sync waves
+only order resources within one app. On the first sync after enabling the
+chart, `secrets-rhaap-portal` may resolve before Vault has the data and go
+`SecretSyncError`. `refreshInterval` is 1h, so rather than waiting it out,
+force a refresh once the vault job has completed:
+
+```bash
+oc annotate externalsecret secrets-rhaap-portal -n rhaap-portal \
+  force-sync="$(date +%s)" --overwrite
+```
+
+The portal pods sit in `CreateContainerConfigError` until that secret exists,
+which is self-healing, not a failed deploy.
