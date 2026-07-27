@@ -1,0 +1,9 @@
+---
+controller_credential_input_sources:
+  - source_credential: Vault Lookup
+    target_credential: "Linux Fleet - EC2"
+    input_field_name: ssh_key_data
+    metadata:
+      secret_path: "secret/linux-fleet"
+      secret_key: "ssh_private_key"
+      secret_version: ""

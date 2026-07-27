@@ -1,0 +1,106 @@
+---
+# Governed command runner. Fronts playbooks/fleet-shell/run_command.yml so
+# operators can run a command across hosts without holding the inventory-wide
+# "Ad Hoc" role -- grant Execute on this template instead, and the grant is
+# scoped to this template rather than to every host in the inventory.
+#
+# Inventory and credentials are asked at launch so one template serves any
+# fleet, matching the "Security - Apply CVE Patch" pattern.
+#
+# This runs operator-supplied commands as a login (optionally root) user. Who
+# holds Execute on it IS the security boundary -- scope it deliberately.
+controller_templates:
+  - name: "Fleet - Run Command"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: playbooks/fleet-shell/run_command.yml
+    execution_environment: "EE AnsibleForge"
+    description: >-
+      Run one command across selected hosts and report per-host rc, stdout and
+      stderr. Defaults to ansible.builtin.command (no shell, nothing to inject
+      into) with no privilege escalation; enable "Use shell" only when you need
+      pipes, redirects or globs. A Limit is required unless "Allow fleet-wide"
+      is explicitly set.
+    ask_inventory_on_launch: true
+    ask_credential_on_launch: true
+    ask_limit_on_launch: true
+    survey_enabled: true
+    survey_spec:
+      name: Run Command
+      description: >-
+        Supply the command and choose how it runs. Set a Limit above to scope
+        which hosts it lands on.
+      spec:
+        - question_name: Command
+          variable: fleet_command
+          type: text
+          required: true
+          question_description: >-
+            The command to run, e.g. "systemctl status sshd". By default this
+            is passed to ansible.builtin.command, which does not invoke a
+            shell -- pipes, redirects and globs will NOT work unless you turn
+            on "Use shell" below.
+        - question_name: Use shell
+          variable: use_shell
+          type: multiplechoice
+          required: true
+          default: "false"
+          choices:
+            - "false"
+            - "true"
+          question_description: >-
+            true runs the command through a shell so pipes, redirects, globs
+            and variable expansion work. Leave false when you do not need
+            them -- ansible.builtin.command cannot be injected into.
+        - question_name: Escalate to root
+          variable: fleet_become
+          type: multiplechoice
+          required: true
+          default: "false"
+          choices:
+            - "false"
+            - "true"
+          question_description: >-
+            true runs the command via sudo as root.
+        - question_name: Working directory
+          variable: fleet_chdir
+          type: text
+          required: false
+          default: ""
+          question_description: >-
+            Directory to run the command from. Leave blank for the login
+            user's default.
+        - question_name: Batch size
+          variable: fleet_batch
+          type: text
+          required: false
+          default: "100%"
+          question_description: >-
+            How many hosts to run against at once, as a count or percentage
+            ("1", "5", "25%"). Default 100% runs everything in one batch; lower
+            it to stage a risky command across the fleet.
+        - question_name: Allow fleet-wide
+          variable: fleet_allow_all
+          type: multiplechoice
+          required: true
+          default: "false"
+          choices:
+            - "false"
+            - "true"
+          question_description: >-
+            Guard rail. With false (default) the run aborts unless you set a
+            Limit, so an unscoped launch cannot hit every host by accident. Set
+            true only when targeting the whole inventory is deliberate.
+        - question_name: Ignore non-zero exits
+          variable: fleet_ignore_errors
+          type: multiplechoice
+          required: true
+          default: "false"
+          choices:
+            - "false"
+            - "true"
+          question_description: >-
+            true reports a non-zero exit code without failing the host. Useful
+            for commands where non-zero is expected (grep with no match).
+    state: present
