@@ -17,7 +17,7 @@ controller_templates:
     organization: Default
     project: AnsibleForge
     playbook: playbooks/iis-demo/trigger_error.yml
-    inventory: Localhost
+    inventory: "VM Portal - AWS"
     execution_environment: "Default execution environment"
     credentials:
       - "IIS Demo Secrets"
@@ -28,7 +28,7 @@ controller_templates:
     organization: Default
     project: AnsibleForge
     playbook: playbooks/iis-demo/restart.yml
-    inventory: Localhost
+    inventory: "VM Portal - AWS"
     execution_environment: "Default execution environment"
     credentials:
       - "IIS Demo Secrets"
@@ -51,7 +51,7 @@ controller_templates:
     organization: Default
     project: AnsibleForge
     playbook: playbooks/iis-demo/chaos-tick.yml
-    inventory: Localhost
+    inventory: "VM Portal - AWS"
     execution_environment: "Default execution environment"
     credentials:
       - "IIS Demo Secrets"

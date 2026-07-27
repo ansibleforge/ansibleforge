@@ -1,0 +1,13 @@
+---
+# WinRM connection profile for the iis-demo host, shared by restart.yml and
+# trigger_error.yml. The address is NOT set here -- it comes from the
+# "VM Portal - AWS" dynamic inventory, whose aws_ec2 source composes
+# ansible_host from public_ip_address. Only the password comes from the
+# "IIS Demo Secrets" credential.
+ansible_connection: winrm
+ansible_user: Administrator
+ansible_password: "{{ lookup('env', 'IIS_ADMIN_PASSWORD') }}"
+ansible_port: 5985
+ansible_winrm_scheme: http
+ansible_winrm_transport: basic
+ansible_winrm_message_encryption: auto
