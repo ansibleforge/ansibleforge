@@ -1,0 +1,30 @@
+---
+# SSH machine credential for the Linux EC2 fleet (the "VM Portal - AWS"
+# inventory). Until this existed, AAP had no way to connect INTO an EC2
+# instance -- every VM Portal template runs on Localhost against the AWS API --
+# so ad hoc commands and the fleet command runner both failed at auth.
+#
+# The private key comes from Vault secret/linux-fleet, seeded from the
+# linux-fleet-credentials k8s secret by the vault config job. See
+# playbooks/fleet-shell/README.md for the seeding procedure.
+#
+# Note the fleet is keyed inconsistently in AWS (ocpkey, htfenner-laptop, and
+# hosts with no key at all). This credential holds ONE key; hosts provisioned
+# with a different key pair need their own credential, or the fleet needs
+# re-keying onto a single automation key.
+controller_credentials:
+  - name: "Linux Fleet - EC2"
+    organization: Default
+    credential_type: Machine
+    inputs:
+      username: ec2-user
+      become_method: sudo
+      become_username: root
+    input_sources:
+      - source_credential: Vault Lookup
+        target: ssh_key_data
+        metadata:
+          secret_path: "secret/linux-fleet"
+          secret_key: "ssh_private_key"
+          secret_version: ""
+    description: "SSH key for RHEL EC2 hosts in the VM Portal - AWS inventory"

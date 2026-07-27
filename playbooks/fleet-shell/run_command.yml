@@ -1,0 +1,109 @@
+---
+# =============================================================================
+# playbooks/fleet-shell/run_command.yml
+#
+# Run one operator-supplied command across a fleet and report per-host rc,
+# stdout and stderr. This is the governed alternative to handing people the
+# inventory-wide "Ad Hoc" role: the job template that fronts it carries its own
+# execute permissions, so you can grant "may run commands" without also
+# granting it on every other inventory.
+#
+# By default it uses ansible.builtin.command, which does NOT invoke a shell --
+# no pipes, redirects, globs or variable expansion, and nothing to inject into.
+# Turn use_shell on only when you actually need those.
+#
+# Required:
+#   fleet_command       The command to run, e.g. "systemctl status sshd".
+#
+# Optional:
+#   use_shell           Run via ansible.builtin.shell instead of .command, so
+#                       pipes/redirects/globs work. Default: false.
+#   fleet_become        Escalate to root. Default: false.
+#   fleet_chdir         Working directory for the command. Default: unset.
+#   fleet_batch         serial/batch size, e.g. "1", "25%". Default: "100%"
+#                       (every host at once).
+#   fleet_allow_all     Permit running with no --limit, i.e. every host in the
+#                       inventory. Default: false -- a limit is required.
+#   fleet_ignore_errors Report non-zero exits without failing the host.
+#                       Default: false.
+#
+# Run:
+#   ansible-playbook playbooks/fleet-shell/run_command.yml \
+#     -l tag_Environment_dev -e '{"fleet_command": "systemctl status sshd"}'
+#
+#   Pass extra vars as JSON, not -e fleet_command='...'. The key=value form is
+#   shlex-split, so a command with arguments silently arrives truncated to its
+#   first word -- "id -un" becomes "id" and still exits 0. AAP surveys send
+#   JSON, so this only bites on the command line.
+# =============================================================================
+
+- name: Run a command across the fleet
+  hosts: all
+  gather_facts: false
+  become: "{{ fleet_become | default(false) | bool }}"
+  serial: "{{ fleet_batch | default('100%') }}"
+  tasks:
+
+    - name: Validate inputs before touching any host
+      run_once: true
+      delegate_to: localhost
+      become: false
+      block:
+
+        - name: Require a non-empty command
+          ansible.builtin.assert:
+            that:
+              - fleet_command is defined
+              - fleet_command | string | trim | length > 0
+            fail_msg: >-
+              Pass the command to run, e.g. -e fleet_command='uptime'
+
+        - name: Require an explicit limit unless fleet-wide is deliberate
+          ansible.builtin.assert:
+            that:
+              - (ansible_limit is defined and ansible_limit | string | length > 0)
+                or (fleet_allow_all | default(false) | bool)
+            fail_msg: >-
+              Set a Limit at launch to scope this run, or set "Allow fleet-wide"
+              to true to deliberately target every host in the inventory.
+
+    # Ansible cannot know whether an arbitrary command changed anything, so
+    # neither branch reports changed. rc is captured rather than failing the
+    # task so every host reports before any host fails.
+    - name: Run the command (no shell)
+      ansible.builtin.command:
+        cmd: "{{ fleet_command }}"
+        chdir: "{{ fleet_chdir | default(omit, true) }}"
+      register: fleet_result_command
+      changed_when: false
+      failed_when: false
+      when: not (use_shell | default(false) | bool)
+
+    - name: Run the command (via shell)
+      ansible.builtin.shell:
+        cmd: "{{ fleet_command }}"
+        chdir: "{{ fleet_chdir | default(omit, true) }}"
+      register: fleet_result_shell
+      changed_when: false
+      failed_when: false
+      when: use_shell | default(false) | bool
+
+    - name: Select whichever branch ran
+      ansible.builtin.set_fact:
+        fleet_result: "{{ fleet_result_shell if (use_shell | default(false) | bool) else fleet_result_command }}"
+
+    - name: Report the result
+      ansible.builtin.debug:
+        msg:
+          - "rc={{ fleet_result.rc }}"
+          - "stdout: {{ fleet_result.stdout | default('') }}"
+          - "stderr: {{ fleet_result.stderr | default('') }}"
+
+    - name: Fail the host when the command returned non-zero
+      ansible.builtin.fail:
+        msg: >-
+          Command exited {{ fleet_result.rc }}:
+          {{ fleet_result.stderr | default(fleet_result.stdout) | default('') }}
+      when:
+        - fleet_result.rc | int != 0
+        - not (fleet_ignore_errors | default(false) | bool)
