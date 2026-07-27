@@ -5,8 +5,9 @@ The productized Ansible automation portal — RHDH + AAP self-service plugins
 (`https://charts.openshift.io`). Distinct from the bespoke `ocp/gitops/rhdh`
 Developer Hub (older 2.1.1 plugins).
 
-Kept inert by `deployChart: false` in values.yaml until the steps below are
-done; then flip `deployChart: true`.
+`deployChart: true` in values.yaml renders the ArgoCD Application that
+deploys the upstream chart — the steps below must be done before merging
+with it enabled. Set it `false` to keep the chart inert.
 
 ## Secret flow
 `rhaap-portal-credentials` (secrets ns) --[vault config job seed_from_k8s]-->
@@ -25,7 +26,10 @@ names/keys the chart consumes).
    ```
 
 2. **Mint a portal AAP token** with write access (a service account token the
-   portal uses to sync job templates).
+   portal uses to sync job templates): `POST /api/gateway/v1/tokens/` with
+   `{"scope": "write"}`. Gateway tokens expire after one year — rotate the
+   `aap-token` key in the credentials secret (and re-run the vault job) before
+   expiry.
 
 3. **Seed the credentials secret** in the `secrets` namespace (the vault job
    copies every key to Vault `secret/rhaap-portal`):

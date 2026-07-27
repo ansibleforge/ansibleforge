@@ -6,7 +6,7 @@
 {{/* ArgoCD Application that deploys the redhat-rhaap-portal Helm chart from the
      OpenShift Helm catalog with values wired to this cluster's AAP + Keycloak.
      Separate app so the upstream chart is deployed AFTER this chart's secrets
-     exist (sync-wave). TODO: pin .Values.chartVersion; confirm chartRepo. */}}
+     exist (sync-wave). */}}
 {{- if .Values.deployChart }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -33,10 +33,14 @@ spec:
       valuesObject:
         redhat-developer-hub:
           global:
-            clusterRouterBase: apps.{{ $clusterDomain }}
+            {{- /* Ingress spec.domain already includes the apps. prefix */}}
+            clusterRouterBase: {{ $clusterDomain }}
+            # Without host, the RHDH hostname helper yields
+            # redhat-rhaap-portal-rhaap-portal.<router base>; pin the short
+            # hostname the consolelink and OAuth redirect URI expect.
+            host: rhaap-portal.{{ $clusterDomain }}
             pluginMode: oci
             imageTagInfo: {{ .Values.pluginVersion | quote }}
-            ociPluginImage: {{ .Values.ociPluginImage | quote }}
   syncPolicy:
     automated: {prune: true, selfHeal: true}
     syncOptions: [ServerSideApply=true, CreateNamespace=false]
