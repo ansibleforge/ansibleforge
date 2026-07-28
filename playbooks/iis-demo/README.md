@@ -21,6 +21,26 @@ still carries `IIS_HOST`, but **only** because `controller_config/dispatch.yml`
 derives the EDA activation's `IIS_HEALTH_URL` from it. No playbook reads
 `IIS_HOST` any more.
 
+## SSH credential and key material
+
+`IIS Demo - SSH` (`controller_credentials.d/iis_demo_ssh.yml`) is a Machine
+credential whose private key resolves from Vault `secret/iis-demo` via a Vault
+Lookup input source. The vault config job seeds that path from a k8s secret:
+
+```bash
+oc create secret generic iis-demo-ssh-credentials -n secrets \
+  --from-file=ssh_private_key=/path/to/key
+```
+
+Then re-run the vault config job. Note the job is a `PostSync` hook and does
+**not** re-run just because its content changed — delete it first, then sync
+the vault app. See `ocp/gitops/rhaap-portal/README.md` for why.
+
+The matching public key is pinned in `provision.yml` as
+`iis_demo_ssh_public_key` and written to the host's
+`administrators_authorized_keys`. Public keys are not secret; only the private
+half lives in Vault.
+
 ## Why there is an Elastic IP
 
 An auto-assigned EC2 public IP changes on every stop/start. That is not

@@ -242,6 +242,9 @@ spec:
               # repo-creds, ghcr pull-secret generator, AAP SCM lookup.
               seed_from_k8s "git-app-credentials" "git-app"
               seed_from_k8s "alertmanager-eda" "alertmanager-eda"
+              # SSH key for the iis-demo Windows host (Win32-OpenSSH), backing
+              # the "IIS Demo - SSH" machine credential.
+              seed_from_k8s "iis-demo-ssh-credentials" "iis-demo"
               # AAP self-service portal (redhat-rhaap-portal chart) — see
               # ocp/gitops/rhaap-portal/README.md for the seeding procedure.
               seed_from_k8s "rhaap-portal-credentials" "rhaap-portal"
