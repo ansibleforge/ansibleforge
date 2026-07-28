@@ -195,8 +195,13 @@ components:
     enabled: true
     syncWave: "3"
     path: ocp/gitops/shared-builds
+    # ServerSideApply is deliberately NOT set here. With it on, ArgoCD computes
+    # a structured merge diff and cannot resolve a parseableType for
+    # build.openshift.io/v1 BuildConfig, so the whole app sits in
+    # ComparisonError and never syncs — it had been stuck since 2026-07-21,
+    # silently ignoring every chart change. Nothing in this chart needs SSA
+    # (BuildConfigs, ImageStreams, RBAC, a CronJob and ExternalSecrets).
     syncOptions:
-      - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
       - RespectIgnoreDifferences=true
     ignoreDifferences:
