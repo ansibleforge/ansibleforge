@@ -2,22 +2,14 @@
 # Drops a fail.flag in the IIS webroot so /health.aspx starts returning 500.
 # EDA polls /health.aspx and fires the restart JT on detecting the 500.
 #
-# Address comes from the "VM Portal - AWS" dynamic inventory rather than a
-# static IIS_HOST -- see restart.yml for the rationale.
+# Host from the "VM Portal - AWS" dynamic inventory; connection is SSH over the
+# instance's private address -- see restart.yml for the rationale.
 - name: Validate the run
   hosts: localhost
   connection: local
   gather_facts: false
 
   tasks:
-    - name: Assert the IIS admin password is present
-      ansible.builtin.assert:
-        that:
-          - lookup('env', 'IIS_ADMIN_PASSWORD') | length > 0
-        fail_msg: >-
-          Attach the "IIS Demo Secrets" credential to this job template so
-          IIS_ADMIN_PASSWORD is injected as an env var.
-
     - name: Require the iis-demo host in this job's inventory
       ansible.builtin.assert:
         that:
@@ -32,7 +24,7 @@
   gather_facts: false
 
   vars_files:
-    - vars/winrm_connection.yml
+    - vars/ssh_connection.yml
 
   tasks:
     - name: Create fail.flag (makes /health.aspx return 500)

@@ -14,6 +14,19 @@
     os_ami_filter: "Windows_Server-2022-English-Full-Base-*"
     instance_type: "t3a.medium"
     disk_size_gb: 50
+    # Public half of the "IIS Demo - SSH" machine credential's key pair. Public
+    # keys are not secret; the private half lives only in that credential.
+    iis_demo_ssh_public_key: >-
+      ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII/3zVz0jMSxkPIWzwBkUa+KXFB+3vFUcyhKrwhEsbxU aap-iis-demo
+    # Vault SSH CA (secret/ssh, role managed-nodes). Trusted here so signed
+    # short-lived certificates can replace the static key later without
+    # touching the host again. Read from GET /v1/ssh/public_key.
+    vault_ssh_ca_public_key: >-
+      {{ lookup('ansible.builtin.url',
+                'https://vault.' ~ (lookup('env', 'CLUSTER_APPS_DOMAIN')
+                                    | default('apps.ocp.spark.ansibleforge.dev', true))
+                ~ '/v1/ssh/public_key',
+                validate_certs=false, split_lines=false) }}
     # admin_password is set in pre_tasks as a fact so the lookup runs exactly
     # once (play vars re-evaluate the expression on every access, which would
     # produce a different password in user-data vs the credential).
@@ -60,6 +73,7 @@
     - name: Pick a VPC (first in the region)
       ansible.builtin.set_fact:
         _vpc_id: "{{ _vpc.vpcs[0].vpc_id }}"
+        _vpc_cidr: "{{ _vpc.vpcs[0].cidr_block }}"
       failed_when: _vpc.vpcs | length == 0
 
     - name: Find a public subnet in that VPC
@@ -77,7 +91,7 @@
               | list
               | first).subnet_id }}
 
-    - name: Ensure iis-demo SG exists with HTTP 80 and WinRM 5985 ingress
+    - name: Ensure iis-demo SG exists with HTTP 80, SSH 22 (VPC) and WinRM 5985
       amazon.aws.ec2_security_group:
         region: "{{ aws_region }}"
         state: present
@@ -94,7 +108,15 @@
             from_port: 5985
             to_port: 5985
             cidr_ip: 0.0.0.0/0
-            rule_desc: "WinRM HTTP (demo)"
+            rule_desc: "WinRM HTTP (demo) - legacy, remove once SSH is the only path"
+          # SSH is the intended automation transport. Restricted to the VPC
+          # because the AAP execution environment runs on OCP nodes in this
+          # same VPC, so it never needs to be publicly reachable.
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "{{ _vpc_cidr }}"
+            rule_desc: "SSH from within the VPC (AAP EE) - not public"
         purge_rules: false
       register: _demo_sg
 
@@ -146,15 +168,48 @@
           wmic useraccount where "Name='Administrator'" set PasswordExpires=false
 
           # WinRM over HTTP (5985) with basic auth + unencrypted — demo-only.
+          # LEGACY: kept only as a break-glass path while SSH beds in. This
+          # sends the Administrator password base64-encoded (not encrypted);
+          # do not rely on it, and drop this block once SSH is proven on a
+          # rebuilt host.
           Enable-PSRemoting -Force -SkipNetworkProfileCheck
           winrm set winrm/config/service/auth '@{Basic="true"}'
           winrm set winrm/config/service '@{AllowUnencrypted="true"}'
           winrm set winrm/config/client/auth '@{Basic="true"}'
           winrm set winrm/config/client '@{AllowUnencrypted="true"}'
 
+          # Win32-OpenSSH — the intended automation transport. Key auth only,
+          # PowerShell as the login shell so ansible_shell_type=powershell
+          # works, and the Vault SSH CA trusted so signed short-lived certs
+          # can replace the static key without another host change.
+          $cap = Get-WindowsCapability -Online -Name 'OpenSSH.Server*'
+          if ($cap.State -ne 'Installed') { Add-WindowsCapability -Online -Name $cap.Name | Out-Null }
+          Set-Service -Name sshd -StartupType Automatic
+          Start-Service sshd
+          New-ItemProperty -Path 'HKLM:\SOFTWARE\OpenSSH' -Name DefaultShell `
+            -Value 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' `
+            -PropertyType String -Force | Out-Null
+
+          # Administrators authenticate via administrators_authorized_keys, not
+          # ~/.ssh/authorized_keys, and sshd rejects the file unless only
+          # Administrators and SYSTEM have ACEs on it.
+          $ak = 'C:\ProgramData\ssh\administrators_authorized_keys'
+          Set-Content -Path $ak -Value '{{ iis_demo_ssh_public_key }}' -Encoding ascii -Force
+          icacls $ak /inheritance:r /grant 'Administrators:F' /grant 'SYSTEM:F' | Out-Null
+
+          $ca = 'C:\ProgramData\ssh\vault_ca.pub'
+          Set-Content -Path $ca -Value '{{ vault_ssh_ca_public_key }}' -Encoding ascii -Force
+          icacls $ca /inheritance:r /grant 'Administrators:F' /grant 'SYSTEM:F' | Out-Null
+          $cfg = 'C:\ProgramData\ssh\sshd_config'
+          $lines = Get-Content $cfg | Where-Object { $_ -notmatch '^\s*TrustedUserCAKeys' }
+          $lines += 'TrustedUserCAKeys C:\ProgramData\ssh\vault_ca.pub'
+          Set-Content -Path $cfg -Value $lines -Encoding ascii -Force
+          Restart-Service sshd
+
           # Firewall rules
           New-NetFirewallRule -DisplayName "WinRM HTTP" -Direction Inbound -LocalPort 5985 -Protocol TCP -Action Allow
           New-NetFirewallRule -DisplayName "HTTP 80"    -Direction Inbound -LocalPort 80   -Protocol TCP -Action Allow
+          New-NetFirewallRule -DisplayName "OpenSSH-Server-In-TCP" -Direction Inbound -LocalPort 22 -Protocol TCP -Action Allow
 
           Restart-Service WinRM
           Stop-Transcript

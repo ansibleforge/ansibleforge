@@ -2,26 +2,19 @@
 # Clears fail.flag, increments the restart counter, and does iisreset.
 # Invoked by the EDA rulebook on health failure, but also launchable manually.
 #
-# The target address comes from the "VM Portal - AWS" dynamic inventory
-# (aws_ec2 source, ansible_host composed from public_ip_address), not from a
-# static IIS_HOST value. A stop/start that reassigns the EC2 public address is
-# therefore picked up on the next inventory sync instead of every run timing
-# out against a dead address. Only IIS_ADMIN_PASSWORD still comes from the
-# "IIS Demo Secrets" credential.
+# The host comes from the "VM Portal - AWS" dynamic inventory, so a rebuilt or
+# restarted instance is picked up on the next sync rather than every run
+# failing against a stale address.
+#
+# Connection is SSH over the instance's PRIVATE address (see
+# vars/ssh_connection.yml) using the "IIS Demo - SSH" machine credential. No
+# password is involved, so IIS_ADMIN_PASSWORD is no longer needed here.
 - name: Validate the run
   hosts: localhost
   connection: local
   gather_facts: false
 
   tasks:
-    - name: Assert the IIS admin password is present
-      ansible.builtin.assert:
-        that:
-          - lookup('env', 'IIS_ADMIN_PASSWORD') | length > 0
-        fail_msg: >-
-          Attach the "IIS Demo Secrets" credential to this job template so
-          IIS_ADMIN_PASSWORD is injected as an env var.
-
     # Without this, running against the wrong inventory matches no hosts and
     # the job reports success having done nothing at all.
     - name: Require the iis-demo host in this job's inventory
@@ -38,7 +31,7 @@
   gather_facts: false
 
   vars_files:
-    - vars/winrm_connection.yml
+    - vars/ssh_connection.yml
 
   tasks:
     - name: Remove fail.flag
