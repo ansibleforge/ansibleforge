@@ -3,7 +3,6 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  force_handlers: true
   # The ansible.controller modules read request_timeout straight from these env
   # vars, which the runner injects as empty strings (""). Newer
   # infra.aap_configuration (pulled in by the AAP 2.6->2.7 bump) no longer
@@ -366,9 +365,8 @@
     # The ansible.eda.rulebook_activation module refuses to update running
     # activations, so put every managed activation into the state the module
     # demands — disabled and stopped — then let the role update in place.
-    # Activation IDs never change; the re-enable is a handler and the play
-    # sets force_handlers, so activations come back even if dispatch fails
-    # mid-play (no stranded-disabled equivalent of the token incident).
+    # They are restored by the `always:` on the dispatcher block in tasks:,
+    # which runs whether the apply succeeds or fails.
     - name: List existing EDA activations
       ansible.builtin.uri:
         url: "{{ controller_hostname }}/api/eda/v1/activations/?page_size=100"
@@ -410,9 +408,6 @@
       # The real fix is structural: move the dispatcher into a block whose
       # `always:` re-enables, since only block/always guarantees end-of-play
       # execution on failure. A handler cannot express this.
-      notify:
-        - Re-enable managed activations
-        - Reconcile disabled managed activations
 
     - name: Wait for managed activations to stop
       ansible.builtin.uri:
@@ -677,11 +672,90 @@
           when: _am_cred_pre.json.results | length > 0
           no_log: true
 
-  roles:
-    - infra.controller_configuration.filetree_read
-    - infra.aap_configuration.dispatch
-
   tasks:
+    # The dispatcher runs inside a block so its `always:` restores the EDA
+    # activations no matter how the apply ends. This used to be a handler with
+    # force_handlers, which never worked: notify only fires on `changed` and
+    # ansible.builtin.uri reports `ok`, so the handler was never notified. And
+    # arming it with changed_when was worse still -- Ansible flushes handlers at
+    # the end of every section, so it fired at the end of pre_tasks, before the
+    # dispatcher, and aborted the apply (job 298028). Only block/always
+    # guarantees end-of-play execution on failure.
+    #
+    # These were `roles:` entries. filetree_read publishes via set_fact and
+    # dispatch already uses include_role internally, so both behave identically
+    # here while now being wrappable in a block.
+    - name: Apply configuration-as-code, always restoring activations
+      block:
+        - name: Read the config-as-code filetree
+          ansible.builtin.include_role:
+            name: infra.controller_configuration.filetree_read
+
+        - name: Run the AAP configuration dispatcher
+          ansible.builtin.include_role:
+            name: infra.aap_configuration.dispatch
+      always:
+        # Re-fetch with uri, not lookup('ansible.builtin.url'). The gateway
+        # answers unauthenticated requests with 403 rather than 401, so the
+        # lookup never retries with credentials and dies (job 298028); the uri
+        # module sends basic auth up front and works.
+        - name: List activations for restore
+          ansible.builtin.uri:
+            url: "{{ controller_hostname }}/api/eda/v1/activations/?page_size=100"
+            method: GET
+            user: "{{ controller_username }}"
+            password: "{{ controller_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ controller_validate_certs }}"
+          register: _restore_activations
+          no_log: true
+
+        - name: Re-enable managed activations
+          ansible.builtin.uri:
+            url: "{{ controller_hostname }}/api/eda/v1/activations/{{ item.id }}/enable/"
+            method: POST
+            user: "{{ controller_username }}"
+            password: "{{ controller_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ controller_validate_certs }}"
+            status_code: [204, 400, 409]
+          loop: >-
+            {{ _restore_activations.json.results
+               | selectattr('name', 'in', eda_rulebook_activations
+                            | selectattr('enabled', 'undefined')
+                            | map(attribute='name') | list
+                            + (eda_rulebook_activations
+                               | selectattr('enabled', 'defined')
+                               | selectattr('enabled')
+                               | map(attribute='name') | list))
+               | list }}
+          loop_control:
+            label: "{{ item.name }} (id={{ item.id }})"
+
+        # The infra.aap_configuration role recreates/enables activations on
+        # update regardless of a CaC `enabled: false`, and the re-enable above
+        # only adds enables — so a desired-disabled activation (e.g. SN Chaos
+        # while the ServiceNow instance is down) would come back enabled every
+        # apply. Disable the desired-disabled ones so CaC is authoritative.
+        - name: Reconcile disabled managed activations
+          ansible.builtin.uri:
+            url: "{{ controller_hostname }}/api/eda/v1/activations/{{ item.id }}/disable/"
+            method: POST
+            user: "{{ controller_username }}"
+            password: "{{ controller_password }}"
+            force_basic_auth: true
+            validate_certs: "{{ controller_validate_certs }}"
+            status_code: [204, 400, 409]
+          loop: >-
+            {{ _restore_activations.json.results
+               | selectattr('name', 'in', eda_rulebook_activations
+                            | selectattr('enabled', 'defined')
+                            | rejectattr('enabled')
+                            | map(attribute='name') | list)
+               | list }}
+          loop_control:
+            label: "{{ item.name }} (id={{ item.id }})"
+
     - name: Build org_id_by_name lookup map
       ansible.builtin.set_fact:
         org_id_by_name: >-
@@ -1061,64 +1135,3 @@
                 token: "{{ _mcp_token.json.token | b64encode }}"
             status_code: [201]
           no_log: true
-
-  handlers:
-    # Runs at end of play — including after failures, via force_handlers —
-    # so a broken dispatch never strands activations disabled.
-    - name: Re-enable managed activations
-      ansible.builtin.uri:
-        url: "{{ controller_hostname }}/api/eda/v1/activations/{{ item.id }}/enable/"
-        method: POST
-        user: "{{ controller_username }}"
-        password: "{{ controller_password }}"
-        force_basic_auth: true
-        validate_certs: "{{ controller_validate_certs }}"
-        status_code: [204, 400, 409]
-      loop: >-
-        {{ (lookup('ansible.builtin.url',
-                   controller_hostname ~ '/api/eda/v1/activations/?page_size=100',
-                   url_username=controller_username,
-                   url_password=controller_password,
-                   force_basic_auth=true,
-                   validate_certs=false,
-                   split_lines=false) | from_json).results
-           | selectattr('name', 'in', eda_rulebook_activations
-                        | selectattr('enabled', 'undefined')
-                        | map(attribute='name') | list
-                        + (eda_rulebook_activations
-                           | selectattr('enabled', 'defined')
-                           | selectattr('enabled')
-                           | map(attribute='name') | list))
-           | list }}
-      loop_control:
-        label: "{{ item.name }} (id={{ item.id }})"
-
-    # The infra.aap_configuration role recreates/enables activations on update
-    # regardless of a CaC `enabled: false`, and the re-enable handler above only
-    # adds enables — so a desired-disabled activation (e.g. SN Chaos while the
-    # ServiceNow instance is down) would come back enabled every apply. Disable
-    # the desired-disabled ones here so CaC `enabled: false` is authoritative.
-    - name: Reconcile disabled managed activations
-      ansible.builtin.uri:
-        url: "{{ controller_hostname }}/api/eda/v1/activations/{{ item.id }}/disable/"
-        method: POST
-        user: "{{ controller_username }}"
-        password: "{{ controller_password }}"
-        force_basic_auth: true
-        validate_certs: "{{ controller_validate_certs }}"
-        status_code: [204, 400, 409]
-      loop: >-
-        {{ (lookup('ansible.builtin.url',
-                   controller_hostname ~ '/api/eda/v1/activations/?page_size=100',
-                   url_username=controller_username,
-                   url_password=controller_password,
-                   force_basic_auth=true,
-                   validate_certs=false,
-                   split_lines=false) | from_json).results
-           | selectattr('name', 'in', eda_rulebook_activations
-                        | selectattr('enabled', 'defined')
-                        | rejectattr('enabled')
-                        | map(attribute='name') | list)
-           | list }}
-      loop_control:
-        label: "{{ item.name }} (id={{ item.id }})"
