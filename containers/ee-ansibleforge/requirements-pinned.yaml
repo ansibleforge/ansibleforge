@@ -1,0 +1,77 @@
+---
+# PINNED collection set for the production execution environment.
+#
+# Versions captured from the running EE on 2026-07-28 -- i.e. the set that is
+# known to work -- not whatever is newest. Do not bulk-bump this file: raise
+# one collection at a time so a regression stays bisectable.
+#
+# requirements.yaml is the deliberately UNPINNED twin, built as
+# ee-ansibleforge:latest. It floats so upstream breakage surfaces there first,
+# on a canary nothing depends on, instead of in a production apply.
+#
+# Why this exists: an unpinned bump of infra.aap_configuration to 4.7.0 wrapped
+# ansible.platform.application in async, which that module does not support,
+# and every CaC apply failed -- taking the EDA activations down with it.
+collections:
+  - name: community.general
+    version: "13.2.0"
+  - name: containers.podman
+    version: "1.20.2"
+  - name: ansible.windows
+    version: "3.7.0"
+  - name: community.windows
+    version: "3.3.0"
+  - name: infra.aap_utilities
+    version: "3.5.0"
+  - name: infra.aap_configuration
+    version: "4.7.0"
+  - name: infra.aap_configuration_extended
+    version: "4.9.1"
+  - name: infra.ah_configuration
+    version: "2.1.0"
+  - name: microsoft.ad
+    version: "1.12.0"
+  - name: amazon.aws
+    version: "11.4.0"
+  - name: community.vmware
+    version: "6.2.1"
+  - name: onepassword.connect
+    version: "2.4.0"
+  - name: ansible.controller
+    version: "4.8.3"
+  - name: ansible.eda
+    version: "2.13.0"
+  - name: infra.controller_configuration
+    version: "3.4.1"
+  - name: kubernetes.core
+    version: "6.5.0"
+  - name: infra.eda_configuration
+    version: "1.1.0"
+  - name: infra.ee_utilities
+    version: "4.4.0"
+  - name: ansible.hub
+    version: "1.1.0"
+  - name: servicenow.itsm
+    version: "2.15.1"
+  - name: redhat.openshift
+    version: "5.0.0"
+  - name: redhat.openshift_virtualization
+    version: "2.3.0"
+  - name: ansible.platform
+    version: "2.7.20260630"
+  - name: ansible.posix
+    version: "2.2.2"
+  - name: redhat.rhel_system_roles
+    version: "1.120.5"
+  - name: redhat.satellite
+    version: "5.11.0"
+  - name: cloud.terraform
+    version: "4.0.0"
+  - name: cloud.terraform_ops
+    version: "1.0.0"
+  - name: ansible.utils
+    version: "6.0.3"
+  - name: community.hashi_vault
+    version: "7.1.0"
+  - name: redhat.insights
+    version: "1.3.1"

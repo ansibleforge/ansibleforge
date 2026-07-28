@@ -1,0 +1,18 @@
+# PINNED python deps for the production execution environment. Versions
+# captured from the running EE on 2026-07-28. requirements.txt is the
+# unpinned twin used by ee-ansibleforge:latest.
+# pywinrm[credssp] pulls requests-credssp (2.0.0 in the live EE).
+pywinrm==0.5.0
+pywinrm[credssp]==0.5.0
+botocore==1.42.91
+boto3==1.42.91
+python-ldap==3.4.7
+kubernetes==35.0.0
+ansible-builder==3.1.1
+# VMware dynamic inventory (community.vmware.vmware_vm_inventory).
+# pyvmomi version and the tag-sync (with_tags) support both come via the
+# collection's vcf-sdk dependency; the standalone vsphere-automation-sdk
+# pin conflicts with it and must not be added back.
+pyvmomi==9.1.0.0
+# CI - Ansible Lint job template (playbooks/ci/ansible_lint.yml)
+ansible-lint==6.22.2

@@ -83,6 +83,53 @@ spec:
   triggers:
   - type: ConfigChange
 ---
+# Pinned twin of bc-ee-ansibleforge. Same base image and build steps; the only
+# difference is context-pinned/, generated from requirements-pinned.* so the
+# collection set is reproducible rather than whatever upstream published today.
+# Output goes to the :pinned tag, which production job templates reference.
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: bc-ee-ansibleforge-pinned
+  namespace: {{ .Values.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  source:
+    git:
+      uri: {{ .Values.sourceRepo }}
+      ref: {{ .Values.sourceRevision }}
+    contextDir: containers/ee-ansibleforge/context-pinned
+    secrets:
+      - secret:
+          name: ansible-config
+        destinationDir: _build/configs
+  strategy:
+    type: Docker
+    dockerStrategy:
+      volumes:
+      - name: etc-pki-entitlement
+        mounts:
+        - destinationPath: /etc/pki/entitlement
+        source:
+          type: Secret
+          secret:
+            secretName: etc-pki-entitlement
+      - name: ansible-config
+        mounts:
+        - destinationPath: /etc/ansible
+        source:
+          type: Secret
+          secret:
+            secretName: ansible-config
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: ee-ansibleforge:pinned
+  triggers:
+  - type: ConfigChange
+---
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:

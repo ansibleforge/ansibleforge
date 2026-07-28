@@ -166,9 +166,18 @@ jobs:
       - name: Install ansible-builder
         run: pip install ansible-builder
 
-      - name: Generate build context
+      # Two variants from one source tree. The unpinned build floats so upstream
+      # breakage lands on a canary first; the pinned build is what production
+      # job templates run and reproduces a known-good dependency set.
+      - name: Generate build context (unpinned)
         working-directory: containers/ee-ansibleforge
         run: ansible-builder create --file execution-environment.yaml --output-filename Containerfile
+
+      - name: Generate build context (pinned)
+        working-directory: containers/ee-ansibleforge
+        run: >-
+          ansible-builder create --file execution-environment-pinned.yaml
+          --context context-pinned --output-filename Containerfile
 
       - name: Log in to ghcr.io
         uses: docker/login-action@v4
@@ -177,7 +186,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push ee-ansibleforge
+      # Canary. Unpinned, so it is expected to break occasionally -- that is the
+      # point. Nothing in production should reference these tags.
+      - name: Build and push ee-ansibleforge (unpinned canary)
         uses: docker/build-push-action@v7
         with:
           context: containers/ee-ansibleforge/context
@@ -186,6 +197,19 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ee-ansibleforge:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ee-ansibleforge:${{ github.sha }}
+
+      # Production. :pinned only moves when requirements-pinned.* is edited,
+      # which is a deliberate reviewable commit; :pinned-<sha> is immutable and
+      # is what to roll back to.
+      - name: Build and push ee-ansibleforge (pinned)
+        uses: docker/build-push-action@v7
+        with:
+          context: containers/ee-ansibleforge/context-pinned
+          file: containers/ee-ansibleforge/context-pinned/Containerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ee-ansibleforge:pinned
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ee-ansibleforge:pinned-${{ github.sha }}
 
   build-keycloak-github-org-mapper:
     runs-on: ubuntu-latest
