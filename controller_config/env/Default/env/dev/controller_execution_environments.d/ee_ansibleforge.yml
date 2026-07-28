@@ -1,5 +1,22 @@
 ---
+# Two execution environments from one source tree.
+#
+# "EE AnsibleForge" is the canary: built from the UNPINNED requirements.yaml, so
+# it picks up whatever upstream published today. When a collection regresses it
+# should break here first, on work that does not matter.
+#
+# "EE AnsibleForge (pinned)" is built from requirements-pinned.* and is what
+# production job templates should run. The :pinned tag only moves when someone
+# edits the pinned requirements, which is a reviewable commit; to roll back,
+# point this at a previous ee-ansibleforge:pinned-<sha>.
+#
+# Moving a job template between the two is the upgrade gate: run it on the
+# canary, confirm it passes, then bump the pin.
 controller_execution_environments:
   - name: EE AnsibleForge
     image: "image-registry.openshift-image-registry.svc:5000/shared-builds/ee-ansibleforge:latest"
+    pull: missing
+
+  - name: EE AnsibleForge (pinned)
+    image: "image-registry.openshift-image-registry.svc:5000/shared-builds/ee-ansibleforge:pinned"
     pull: missing
