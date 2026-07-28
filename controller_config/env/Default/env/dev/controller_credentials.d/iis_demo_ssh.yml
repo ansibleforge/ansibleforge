@@ -1,0 +1,23 @@
+---
+# SSH machine credential for the iis-demo Windows host (Win32-OpenSSH),
+# replacing WinRM basic auth. The private key comes from Vault
+# secret/iis-demo, seeded from the iis-demo-ssh-credentials k8s secret by the
+# vault config job -- see playbooks/iis-demo/README.md.
+#
+# Unlike "IIS Demo Secrets", nothing here is populated at runtime, so CaC is
+# authoritative and this does not need the write-back-what-you-were-given
+# treatment that credential uses.
+controller_credentials:
+  - name: "IIS Demo - SSH"
+    organization: Default
+    credential_type: Machine
+    inputs:
+      username: Administrator
+    input_sources:
+      - source_credential: Vault Lookup
+        target: ssh_key_data
+        metadata:
+          secret_path: "secret/iis-demo"
+          secret_key: "ssh_private_key"
+          secret_version: ""
+    description: "SSH key for the iis-demo Windows host (Win32-OpenSSH), VPC-internal"
