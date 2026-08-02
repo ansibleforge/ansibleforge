@@ -324,8 +324,13 @@ components:
     enabled: true
     syncWave: "3"
     path: ocp/gitops/ansible-tools
+    # ServerSideApply deliberately omitted — see the site entry above. This app
+    # manages a Route, and SSA plus an OpenShift API-group kind is the
+    # combination that leaves ArgoCD unable to resolve a parseableType, which
+    # silently stopped this app syncing for six hours on 2026-07-28. Nothing
+    # here needs it: Namespace, Secret, Service, ServiceAccount, Deployment,
+    # ClusterRoleBinding and Route.
     syncOptions:
-      - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
       - RespectIgnoreDifferences=true
     ignoreDifferences:
