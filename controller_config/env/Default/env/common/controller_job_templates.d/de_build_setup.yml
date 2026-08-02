@@ -6,7 +6,7 @@ controller_templates:
     project: AnsibleForge
     playbook: containers/de-ansibleforge/de-build-setup.yaml
     inventory: Localhost
-    execution_environment: "EE AnsibleForge"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - GitHub PAT
       - "Automation Hub Token"

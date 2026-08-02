@@ -6,7 +6,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/lightspeed-demo/apply_remediation.yml
     inventory: Localhost
-    execution_environment: "EE AnsibleForge"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - "Lightspeed Demo Secrets"
     description: >-

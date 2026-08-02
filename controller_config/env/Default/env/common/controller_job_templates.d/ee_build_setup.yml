@@ -6,7 +6,7 @@ controller_templates:
     project: AnsibleForge
     playbook: containers/ee-ansibleforge/ee-build-setup.yaml
     inventory: Localhost
-    execution_environment: "EE AnsibleForge"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - "OpenShift - Shared Builds"
       - GitHub PAT

@@ -5,6 +5,12 @@
 # it picks up whatever upstream published today. When a collection regresses it
 # should break here first, on work that does not matter.
 #
+# WARNING: nothing currently runs on the canary — every job template moved to
+# the pinned EE. An unexercised canary warns about nothing, so upstream
+# regressions will now surface only when someone bumps the pinned versions.
+# Give it a consumer (a scheduled smoke test, or the CI lint template) to get
+# the early-warning value back.
+#
 # "EE AnsibleForge (pinned)" is built from requirements-pinned.* and is what
 # production job templates should run. The :pinned tag only moves when someone
 # edits the pinned requirements, which is a reviewable commit; to roll back,

@@ -6,7 +6,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/sccm-lab/provision_infra.yml
     inventory: Localhost
-    execution_environment: "Community EE"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - "AWS - AnsibleForge"
     ask_variables_on_launch: true
@@ -20,7 +20,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/sccm-lab/provision_infra.yml
     inventory: Localhost
-    execution_environment: "Community EE"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - "AWS - AnsibleForge"
     extra_vars:
@@ -32,7 +32,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/sccm-lab/01_domain_controller.yml
     inventory: "SCCM Lab"
-    execution_environment: "Community EE"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - "SCCM Lab - Windows Admin"
     limit: domain_controllers
@@ -44,7 +44,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/sccm-lab/02_sql_server.yml
     inventory: "SCCM Lab"
-    execution_environment: "Community EE"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - "SCCM Lab - Domain Admin"
     limit: sql_servers
@@ -56,7 +56,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/sccm-lab/03_sccm_prereqs.yml
     inventory: "SCCM Lab"
-    execution_environment: "Community EE"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - "SCCM Lab - Domain Admin"
     limit: sccm_servers
@@ -68,7 +68,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/sccm-lab/04_sccm_install.yml
     inventory: "SCCM Lab"
-    execution_environment: "Community EE"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - "SCCM Lab - Domain Admin"
     limit: sccm_servers
@@ -81,7 +81,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/sccm-lab/05_sccm_clients.yml
     inventory: "SCCM Lab"
-    execution_environment: "Community EE"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - "SCCM Lab - Domain Admin"
     limit: sccm_clients
@@ -93,7 +93,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/sccm-lab/06_patching_workflow.yml
     inventory: "SCCM Lab"
-    execution_environment: "Community EE"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - "SCCM Lab - Domain Admin"
     limit: sccm_servers

@@ -11,7 +11,7 @@ controller_templates:
     organization: Default
     project: AnsibleForge
     playbook: playbooks/security-patch/apply_cve.yml
-    execution_environment: "EE AnsibleForge"
+    execution_environment: "EE AnsibleForge (pinned)"
     description: >-
       Patch a single named CVE across RHEL and Windows hosts and report reboot
       requirements. RHEL uses 'dnf upgrade-minimal --cve'; Windows applies the
