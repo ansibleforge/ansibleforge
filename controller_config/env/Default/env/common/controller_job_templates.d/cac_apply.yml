@@ -1,0 +1,42 @@
+---
+# The job template that applies config-as-code, now itself under config-as-code.
+#
+# SELF-REFERENTIAL: an apply run using this template rewrites this template.
+# Get a field wrong and you break the tool you would use to fix it, so the
+# definition below mirrors the live object exactly rather than tidying it.
+# Recovery if that happens is to patch job_templates/9 through the API directly.
+#
+# The credentials list is the dangerous part. Every entry is load-bearing:
+#   AAP Controller Admin     - authenticates the controller/gateway modules
+#   OpenShift Cluster Admin  - the k8s secret lookups in pre_tasks
+#   ServiceNow               - ServiceNow object configuration
+#   IIS Demo Secrets         - NOT optional. dispatch.yml reads IIS_HOST and
+#                              IIS_ADMIN_PASSWORD from the env this credential
+#                              injects and writes them straight back, which is
+#                              how the IIS credential survives an apply.
+#                              Removing it makes the next run overwrite that
+#                              credential with 'unprovisioned.invalid' and
+#                              'placeholder', breaking the IIS demo.
+#
+# extra_vars pins cluster_domain rather than letting dispatch.yml derive it by
+# regex from CONTROLLER_HOST. That is environment-specific, and is kept here
+# only because it matches the live object; a different cluster needs it changed.
+controller_templates:
+  - name: "CaC - Apply Controller Configuration"
+    job_type: run
+    organization: Default
+    project: AnsibleForge
+    playbook: controller_config/dispatch.yml
+    inventory: Localhost
+    execution_environment: "EE AnsibleForge (pinned)"
+    ask_variables_on_launch: true
+    extra_vars:
+      cluster_domain: apps.ocp.spark.ansibleforge.dev
+    credentials:
+      - "AAP Controller Admin"
+      - "OpenShift Cluster Admin"
+      - "ServiceNow"
+      - "IIS Demo Secrets"
+    description: >-
+      Apply config-as-code to the AAP controller, gateway and EDA. Managed by
+      itself; see the comments in this file before changing anything.
