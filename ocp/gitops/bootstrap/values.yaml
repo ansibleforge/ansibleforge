@@ -355,8 +355,13 @@ components:
     path: ocp/gitops/vm-portal
     destination:
       namespace: vm-portal
+    # ServerSideApply deliberately omitted — see the site entry. This app
+    # manages a Route, and SSA plus an OpenShift API-group kind is what leaves
+    # ArgoCD unable to resolve a parseableType; it silently stopped syncing for
+    # six hours on 2026-07-28. Nothing here needs SSA: ConfigMap, Namespace,
+    # Service, Deployment, ExternalSecret and Route, none with contended field
+    # ownership.
     syncOptions:
-      - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
       - RespectIgnoreDifferences=true
     ignoreDifferences:
