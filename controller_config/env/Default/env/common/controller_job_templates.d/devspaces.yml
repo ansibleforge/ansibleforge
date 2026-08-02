@@ -6,7 +6,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/devspaces/provision_user_secrets.yml
     inventory: Localhost
-    execution_environment: "Community EE"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - "AAP Controller Admin"
       - "OpenShift Cluster Admin"

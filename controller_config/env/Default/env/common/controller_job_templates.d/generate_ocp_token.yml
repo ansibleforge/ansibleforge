@@ -6,7 +6,7 @@ controller_templates:
     project: AnsibleForge
     playbook: ocp/ansible/generate-ocp-token.yml
     inventory: Localhost
-    execution_environment: "EE AnsibleForge"
+    execution_environment: "EE AnsibleForge (pinned)"
     credentials:
       - "OpenShift - Shared Builds"
     ask_variables_on_launch: true

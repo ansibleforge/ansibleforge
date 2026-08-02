@@ -6,7 +6,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/ci/ansible_lint.yml
     inventory: Localhost
-    execution_environment: "EE AnsibleForge"
+    execution_environment: "EE AnsibleForge (pinned)"
     ask_variables_on_launch: true
     extra_vars:
       git_ref: main
