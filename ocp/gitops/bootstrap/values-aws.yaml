@@ -122,9 +122,20 @@ components:
           valueFiles:
             - $values/ocp/gitops/rhdh/values/values.yaml
       - ref: values
+    # ServerSideApply deliberately omitted — see the site entry in values.yaml.
+    # This app manages a Route and a ConsoleLink, and SSA plus an OpenShift
+    # API-group kind is what leaves ArgoCD unable to resolve a parseableType;
+    # it silently stopped syncing for six hours on 2026-07-28.
+    #
+    # Checked the two reasons this app might genuinely have needed SSA, since
+    # it is the only one pulling a large upstream chart. Neither holds: the
+    # biggest object is the developer-hub Deployment at ~17KB, far below the
+    # ~256KB last-applied-configuration annotation limit, and the postgresql
+    # StatefulSet's immutable volumeClaimTemplates are already covered by
+    # ignoreDifferences below, which RespectIgnoreDifferences (retained) keeps
+    # out of the apply entirely.
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true
       - RespectIgnoreDifferences=true
     ignoreDifferences:
       - group: ""
