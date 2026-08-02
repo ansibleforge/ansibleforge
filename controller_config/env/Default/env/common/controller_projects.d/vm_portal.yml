@@ -1,0 +1,16 @@
+---
+# Project for the extracted VM Portal repo. The portal's playbooks moved out of
+# the monorepo into ansibleforge/vm-portal, and a job template can only run
+# playbooks from a single project, so the portal templates need their own.
+#
+# Added ahead of repointing anything: while the templates still reference the
+# AnsibleForge project, this is inert and the portal keeps working unchanged.
+controller_projects:
+  - name: VM Portal
+    organization: Default
+    scm_type: git
+    scm_url: https://github.com/ansibleforge/vm-portal.git
+    scm_branch: main
+    scm_clean: true
+    scm_update_on_launch: true
+    credential: GitHub - AnsibleForge
