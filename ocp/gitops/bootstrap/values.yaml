@@ -124,8 +124,14 @@ components:
     syncWave: "1"
     path: ocp/gitops/gitea
     retry: true
+    # ServerSideApply deliberately omitted — see the site entry. This app is the
+    # most exposed of the five: it manages TWO OpenShift API-group kinds, a
+    # Route and a ConsoleLink, and SSA plus such a kind is what leaves ArgoCD
+    # unable to resolve a parseableType. It silently stopped syncing for six
+    # hours on 2026-07-28. Nothing here needs SSA — the PVC is unchanged by
+    # this and the Job is a PostSync hook, so neither immutability nor field
+    # ownership is a factor.
     syncOptions:
-      - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
       - RespectIgnoreDifferences=true
     ignoreDifferences:
