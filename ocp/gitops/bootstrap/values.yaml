@@ -303,8 +303,14 @@ components:
     path: ocp/gitops/site
     destination:
       namespace: site
+    # ServerSideApply deliberately omitted. ArgoCD's structured merge diff
+    # cannot reliably resolve a parseableType for OpenShift API-group kinds,
+    # and this app manages a Route — the same failure that put shared-builds
+    # in ComparisonError for a week and, on 2026-07-28, silently stopped this
+    # app and four others syncing for six hours. Nothing here needs SSA:
+    # Namespace, Secret, Service, ServiceAccount, Deployment, a Sync-hook Job,
+    # ClusterRoleBinding and Route, none with contended field ownership.
     syncOptions:
-      - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
       - RespectIgnoreDifferences=true
     ignoreDifferences:
