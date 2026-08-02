@@ -5,11 +5,11 @@
 # it picks up whatever upstream published today. When a collection regresses it
 # should break here first, on work that does not matter.
 #
-# WARNING: nothing currently runs on the canary — every job template moved to
-# the pinned EE. An unexercised canary warns about nothing, so upstream
-# regressions will now surface only when someone bumps the pinned versions.
-# Give it a consumer (a scheduled smoke test, or the CI lint template) to get
-# the early-warning value back.
+# Its one consumer is "CI - Ansible Lint", which the GitHub Push Handler runs
+# on every push to main. That keeps the canary genuinely exercised: lint has to
+# resolve the whole collection set, so a regression shows up within minutes of
+# upstream publishing it. Keep at least one consumer here — an unexercised
+# canary warns about nothing.
 #
 # "EE AnsibleForge (pinned)" is built from requirements-pinned.* and is what
 # production job templates should run. The :pinned tag only moves when someone

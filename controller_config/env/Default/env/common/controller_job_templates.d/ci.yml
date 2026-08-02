@@ -1,4 +1,17 @@
 ---
+# This template is deliberately the ONE consumer of the unpinned canary EE.
+# Everything else runs on "EE AnsibleForge (pinned)".
+#
+# It is the right canary because the GitHub Push Handler launches it on every
+# push to main, so it runs constantly, and ansible-lint has to resolve the
+# whole collection set to do its job — an upstream regression shows up here
+# within minutes of being published.
+#
+# So a red "CI - Ansible Lint" may mean upstream broke, not that the repo did.
+# Check whether the same commit passes on the pinned EE before hunting for a
+# bug in the change. Do NOT "fix" a canary failure by moving this to the
+# pinned EE: that removes the early warning and the regression then surfaces
+# later, during a pinned-version bump, when it is far more disruptive.
 controller_templates:
   - name: "CI - Ansible Lint"
     job_type: run
@@ -6,7 +19,7 @@ controller_templates:
     project: AnsibleForge
     playbook: playbooks/ci/ansible_lint.yml
     inventory: Localhost
-    execution_environment: "EE AnsibleForge (pinned)"
+    execution_environment: "EE AnsibleForge"
     ask_variables_on_launch: true
     extra_vars:
       git_ref: main
