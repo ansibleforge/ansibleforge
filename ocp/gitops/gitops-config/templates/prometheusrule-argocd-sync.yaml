@@ -1,0 +1,52 @@
+# Alerts on ArgoCD applications that cannot be compared against git.
+#
+# The GitOps operator already ships ArgoCDSyncAlert, but it only matches
+# sync_status="OutOfSync". An application whose comparison FAILS never reaches
+# OutOfSync -- it sits at Unknown -- so that alert stays silent while the app
+# quietly applies nothing. On 2026-07-21 shared-builds entered ComparisonError
+# ("unable to resolve parseableType ... Kind=BuildConfig") and went a week
+# ignoring every chart change, with automated sync and selfHeal both enabled.
+# It surfaced only because a new resource needed creating. Unknown looks like
+# health from a distance, which is what makes it dangerous.
+#
+# This rule lives in openshift-gitops on purpose: argocd_app_info is scraped by
+# platform monitoring, and user-workload monitoring cannot query it, so a rule
+# in a user namespace would silently never fire. It is a separate rule rather
+# than an edit to the operator's, which is owned by the ArgoCD CR and would be
+# reverted.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: argocd-sync-comparison
+  namespace: openshift-gitops
+  labels:
+    app: gitops-config
+spec:
+  groups:
+    - name: argocd-comparison-health
+      rules:
+        - alert: ArgoCDAppSyncUnknown
+          # 15m is chosen from the observed base rate, not guessed. Over five
+          # days of retention: devspaces blipped Unknown for ~1 minute (would
+          # not fire, correctly), while shared-builds held it for 3.3h and a
+          # separate event on 2026-07-28 19:07-01:07 UTC put five apps
+          # (gitea, ansible-tools, vm-portal, site, rhdh) Unknown together for
+          # six hours. 15m filters the blips and catches the real stalls.
+          #
+          # Expect this to fire per-app during a cluster-wide comparison event,
+          # which is intended: several apps not syncing at once is worse, not
+          # less noteworthy.
+          expr: argocd_app_info{namespace="openshift-gitops", sync_status="Unknown"} > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ArgoCD cannot compare {{`{{ $labels.name }}`}} against git"
+            description: >-
+              Application {{`{{ $labels.name }}`}} has been in Unknown sync state
+              for over 15 minutes, which means the desired-vs-live comparison is
+              failing. Automated sync does not run while this is true, so the app
+              is applying nothing even though it may look healthy. Check
+              status.conditions for a ComparisonError:
+              oc get application {{`{{ $labels.name }}`}} -n openshift-gitops
+              -o jsonpath='{.status.conditions}'
