@@ -204,9 +204,8 @@ metadata:
 spec:
   source:
     git:
-      uri: {{ .Values.sourceRepo }}
-      ref: {{ .Values.sourceRevision }}
-    contextDir: vm-portal
+      uri: {{ .Values.vmPortalRepo }}
+      ref: {{ .Values.vmPortalRevision }}
   strategy:
     type: Docker
     dockerStrategy:
@@ -258,9 +257,9 @@ metadata:
 spec:
   source:
     git:
-      uri: {{ .Values.sourceRepo }}
-      ref: {{ .Values.sourceRevision }}
-    contextDir: vm-portal/gateway
+      uri: {{ .Values.vmPortalRepo }}
+      ref: {{ .Values.vmPortalRevision }}
+    contextDir: gateway
   strategy:
     type: Docker
     dockerStrategy:

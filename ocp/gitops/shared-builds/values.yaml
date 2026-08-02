@@ -1,3 +1,7 @@
 namespace: shared-builds
 sourceRepo: https://github.com/hfenner/ansibleforge.git
 sourceRevision: main
+# The VM Portal was split out of the monorepo into its own repo, so its two
+# BuildConfigs clone from here instead. Same branch convention.
+vmPortalRepo: https://github.com/ansibleforge/vm-portal.git
+vmPortalRevision: main
