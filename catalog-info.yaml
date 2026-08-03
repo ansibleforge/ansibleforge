@@ -8,9 +8,9 @@ metadata:
     integration, and AWS infrastructure provisioning. Includes SCCM lab
     automation, VM lifecycle management, and OpenShift platform configuration.
   annotations:
-    backstage.io/source-location: url:https://github.com/hfenner/ansibleforge
+    backstage.io/source-location: url:https://github.com/ansibleforge/ansibleforge
     backstage.io/techdocs-ref: dir:.
-    github.com/project-slug: hfenner/ansibleforge
+    github.com/project-slug: ansibleforge/ansibleforge
   tags:
     - ansible
     - openshift
@@ -20,19 +20,19 @@ metadata:
     - aws
     - terraform
   links:
-    - url: https://github.com/hfenner/ansibleforge
+    - url: https://github.com/ansibleforge/ansibleforge
       title: GitHub Repository
       icon: github
-    - url: https://github.com/hfenner/ansibleforge/fork
+    - url: https://github.com/ansibleforge/ansibleforge/fork
       title: Fork This Repo
       icon: scaffolder
-    - url: https://github.com/hfenner/ansibleforge/issues/new
+    - url: https://github.com/ansibleforge/ansibleforge/issues/new
       title: Report an Issue
       icon: alert
-    - url: https://github.com/hfenner/ansibleforge/pulls
+    - url: https://github.com/ansibleforge/ansibleforge/pulls
       title: Pull Requests
       icon: dashboard
-    - url: https://github.com/hfenner/ansibleforge/blob/main/CONTRIBUTING.md
+    - url: https://github.com/ansibleforge/ansibleforge/blob/main/CONTRIBUTING.md
       title: Contributing Guide
       icon: docs
     - url: https://ansible-tools.apps.ocp.fire.ansibleforge.dev/slideshow.html

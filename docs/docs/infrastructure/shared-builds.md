@@ -14,7 +14,7 @@ The `shared-builds` namespace centralizes container image builds so all user wor
 | `bc-tools-ansibleforge` | `containers/tools-ansibleforge/` | `tools-ansibleforge:latest` |
 | `bc-ee-ansibleforge` | `containers/ee-ansibleforge/context/` | `ee-ansibleforge:latest` |
 
-BuildConfigs pull source from this repository (`hfenner/ansibleforge`) and output to ImageStreams in the `shared-builds` namespace.
+BuildConfigs pull source from this repository (`ansibleforge/ansibleforge`) and output to ImageStreams in the `shared-builds` namespace.
 
 ## Cross-namespace image access
 

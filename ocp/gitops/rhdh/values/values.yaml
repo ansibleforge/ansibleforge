@@ -85,7 +85,7 @@ upstream:
       catalog:
         locations:
           - type: url
-            target: https://github.com/hfenner/ansibleforge/blob/main/catalog-info.yaml
+            target: https://github.com/ansibleforge/ansibleforge/blob/main/catalog-info.yaml
             rules:
               - allow: [Component, System, Resource]
           - type: url

@@ -19,4 +19,4 @@ samples:
         description: AnsibleForge development workspace
         git:
           remotes:
-            origin: https://github.com/hfenner/ansibleforge.git
+            origin: https://github.com/ansibleforge/ansibleforge.git

@@ -77,7 +77,7 @@ spec:
             - -c
             - |
               curl -sL -o /content/slideshow.html \
-                "https://raw.githubusercontent.com/hfenner/ansibleforge/main/site/slideshow.html"
+                "https://raw.githubusercontent.com/ansibleforge/ansibleforge/main/site/slideshow.html"
               echo '<html><head><meta http-equiv="refresh" content="0;url=/slideshow.html"></head></html>' \
                 > /content/index.html
           volumeMounts:

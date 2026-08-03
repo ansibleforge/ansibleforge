@@ -5,7 +5,7 @@
   gather_facts: false
 
   vars:
-    gitops_repo_url: https://github.com/hfenner/ansibleforge.git
+    gitops_repo_url: https://github.com/ansibleforge/ansibleforge.git
     gitops_repo_branch: main
 
   tasks:

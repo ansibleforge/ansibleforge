@@ -33,7 +33,7 @@ ArgoCD deploys all apps from ocp/gitops/bootstrap/
 
 | Parameter | Value |
 |-----------|-------|
-| **GitOps Repository URL** | `https://github.com/hfenner/ansibleforge.git` |
+| **GitOps Repository URL** | `https://github.com/ansibleforge/ansibleforge.git` |
 | **GitOps Repository Path** | `helm` |
 | **GitOps Repository Revision** | `main` |
 
@@ -42,7 +42,7 @@ ArgoCD deploys all apps from ocp/gitops/bootstrap/
 If configuring via AgnosticD vars directly:
 
 ```yaml
-ocp4_workload_field_content_gitops_repo_url: "https://github.com/hfenner/ansibleforge.git"
+ocp4_workload_field_content_gitops_repo_url: "https://github.com/ansibleforge/ansibleforge.git"
 ocp4_workload_field_content_gitops_repo_path: "helm"
 ocp4_workload_field_content_gitops_repo_revision: "main"
 ```
@@ -65,11 +65,11 @@ All tunables are in `values.yaml`:
 
 | Value | Default | Description |
 |-------|---------|-------------|
-| `ansible.repository.url` | `https://github.com/hfenner/ansibleforge.git` | Repo containing the playbook |
+| `ansible.repository.url` | `https://github.com/ansibleforge/ansibleforge.git` | Repo containing the playbook |
 | `ansible.repository.branch` | `main` | Branch to clone |
 | `ansible.repository.path` | `ocp/ansible` | Path within repo to `cd` into |
 | `ansible.playbook` | `gitops_deploy.yml` | Playbook filename |
-| `ansible.extraVars.gitops_repo_url` | `https://github.com/hfenner/ansibleforge.git` | Repo ArgoCD bootstraps from |
+| `ansible.extraVars.gitops_repo_url` | `https://github.com/ansibleforge/ansibleforge.git` | Repo ArgoCD bootstraps from |
 | `ansible.extraVars.gitops_repo_branch` | `main` | Branch ArgoCD tracks |
 | `job.ttlSecondsAfterFinished` | `600` | How long to keep the completed Job |
 | `namespace.name` | `ansible-runner` | Namespace the Job runs in |
