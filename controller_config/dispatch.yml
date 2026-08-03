@@ -272,7 +272,7 @@
       block:
         - name: Generate controller personal access token for EDA
           ansible.builtin.uri:
-            url: "{{ controller_hostname }}/api/controller/v2/tokens/"
+            url: "{{ controller_hostname }}/api/gateway/v1/tokens/"
             method: POST
             user: "{{ controller_username }}"
             password: "{{ controller_password }}"
@@ -1034,7 +1034,7 @@
       block:
         - name: Generate AAP personal token
           ansible.builtin.uri:
-            url: "{{ controller_hostname }}/api/controller/v2/tokens/"
+            url: "{{ controller_hostname }}/api/gateway/v1/tokens/"
             method: POST
             user: "{{ controller_username }}"
             password: "{{ controller_password }}"
@@ -1071,6 +1071,13 @@
     # platform-wide Default sync). Authenticates as the org's MCP user (whose
     # password came from <ORG>_MCP_PASSWORD env var earlier in this run) and
     # issues a personal access token, then stores it in aap-mcp namespace.
+    #
+    # Uses the gateway token endpoint. AAP 2.7 removed the controller's
+    # /api/controller/v2/tokens/, so every per-org apply failed here with a 404
+    # while reporting nothing useful, since no_log hides the response body. The
+    # password was never the cause: network-mcp authenticates fine with the
+    # CHANGE_ME fallback (verified by hand) and the 404 happens regardless of
+    # credential.
     - name: Check if MCP token secret exists for this org
       ansible.builtin.uri:
         url: "{{ k8s_host }}/api/v1/namespaces/aap-mcp/secrets/{{ orgs | lower }}-mcp-token"
@@ -1098,7 +1105,7 @@
       block:
         - name: Generate MCP personal token
           ansible.builtin.uri:
-            url: "{{ controller_hostname }}/api/controller/v2/tokens/"
+            url: "{{ controller_hostname }}/api/gateway/v1/tokens/"
             method: POST
             user: "{{ _mcp_username }}"
             password: "{{ _mcp_password }}"
