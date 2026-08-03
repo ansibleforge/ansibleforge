@@ -1078,6 +1078,29 @@
     # password was never the cause: network-mcp authenticates fine with the
     # CHANGE_ME fallback (verified by hand) and the 404 happens regardless of
     # credential.
+    # The aap-mcp namespace does not exist on this cluster and nothing creates
+    # it -- it is referenced only here. The running MCP server is aap/aap-mcp,
+    # in the aap namespace, and consumes only a telemetry HMAC key, not these
+    # per-org tokens. So this block wrote secrets nobody reads into a namespace
+    # that was never provisioned, failing every per-org apply doing it.
+    #
+    # Rather than create a namespace for tokens with no consumer, or delete a
+    # feature someone may intend to finish, skip when the namespace is absent.
+    # Create aap-mcp and this starts working on the next apply.
+    - name: Check whether the aap-mcp namespace exists
+      ansible.builtin.uri:
+        url: "{{ k8s_host }}/api/v1/namespaces/aap-mcp"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ k8s_token }}"
+        validate_certs: false
+        status_code: [200, 403, 404]
+      register: _mcp_ns
+      when:
+        - k8s_token | length > 0
+        - orgs | lower != 'default'
+        - orgs | lower != 'shared'
+
     - name: Check if MCP token secret exists for this org
       ansible.builtin.uri:
         url: "{{ k8s_host }}/api/v1/namespaces/aap-mcp/secrets/{{ orgs | lower }}-mcp-token"
@@ -1097,6 +1120,8 @@
         - k8s_token | length > 0
         - orgs | lower != 'default'
         - orgs | lower != 'shared'
+        - _mcp_ns is defined
+        - _mcp_ns.status | default(0) == 200
         - _mcp_secret is defined
         - (_mcp_secret.status == 404 or force_mcp_token | bool)
       vars:
