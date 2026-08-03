@@ -9,7 +9,7 @@
     git_user: ansible_automation_platform
     git_user_email: ansible_automation_platform@ansibleforge.dev
     commit_message: "Create context dir for execution environment"
-    git_repo: https://github.com/hfenner/ansibleforge.git
+    git_repo: https://github.com/ansibleforge/ansibleforge.git
     git_dir: /tmp/ansibleforge
     ee_subdir: containers/ee-ansibleforge
     buildconfig: bc-ee-ansibleforge

@@ -7,7 +7,7 @@
     ansible_python_interpreter: /usr/bin/python3.9
     build_namespace: shared-builds
     buildconfig_name: bc-de-ansibleforge
-    source_repo: https://github.com/hfenner/ansibleforge.git
+    source_repo: https://github.com/ansibleforge/ansibleforge.git
     source_revision: main
     context_dir: containers/de-ansibleforge/context
     de_image_name: de-ansibleforge

@@ -17,7 +17,7 @@ on:
         description: "GitOps repo URL"
         required: false
         type: string
-        default: https://github.com/hfenner/ansibleforge.git
+        default: https://github.com/ansibleforge/ansibleforge.git
       gitops_repo_branch:
         description: "GitOps repo branch"
         required: false
@@ -33,7 +33,7 @@ on:
         default: ansibleforge.dev
       gitops_repo_url:
         type: string
-        default: https://github.com/hfenner/ansibleforge.git
+        default: https://github.com/ansibleforge/ansibleforge.git
       gitops_repo_branch:
         type: string
         default: main

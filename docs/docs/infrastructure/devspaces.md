@@ -14,7 +14,7 @@ The `CheCluster` custom resource configures the DevSpaces instance. Workspaces r
 
 ## Devfile
 
-The workspace definition lives in `hfenner/ansibleforge` at `devspaces-template/devfile.yaml`.
+The workspace definition lives in `ansibleforge/ansibleforge` at `devspaces-template/devfile.yaml`.
 It specifies both containers, the git project to clone, and Vault agent injection annotations.
 
 ### Containers

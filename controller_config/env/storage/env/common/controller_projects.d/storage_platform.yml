@@ -5,7 +5,7 @@ controller_projects:
   - name: Storage Platform
     organization: Storage
     scm_type: git
-    scm_url: "{{ lookup('env', 'ANSIBLEFORGE_REPO_URL') | default('https://github.com/hfenner/ansibleforge.git', true) }}"
+    scm_url: "{{ lookup('env', 'ANSIBLEFORGE_REPO_URL') | default('https://github.com/ansibleforge/ansibleforge.git', true) }}"
     scm_branch: main
     scm_update_on_launch: true
     state: present

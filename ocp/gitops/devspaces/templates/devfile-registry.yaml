@@ -16,6 +16,6 @@ data:
         "description": "GitOps-driven Ansible development environment with community tooling",
         "icon": "https://avatars.githubusercontent.com/u/1507452?s=200",
         "tags": ["Ansible", "OpenShift", "GitOps", "Terraform"],
-        "url": "https://github.com/hfenner/ansibleforge.git"
+        "url": "https://github.com/ansibleforge/ansibleforge.git"
       }
     ]

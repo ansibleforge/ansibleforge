@@ -18,7 +18,7 @@ There are two ways to bootstrap AnsibleForge onto a cluster:
 
 ### 1. Fork and configure
 
-Fork `hfenner/ansibleforge` and update `ocp/gitops/user-projects/values.yaml` with your OpenShift usernames and your fork URL:
+Fork `ansibleforge/ansibleforge` and update `ocp/gitops/user-projects/values.yaml` with your OpenShift usernames and your fork URL:
 
 ```yaml
 users:
