@@ -1,5 +1,5 @@
 site_name: AnsibleForge
-site_url: https://hfenner.github.io/ansibleforge/docs/
+site_url: https://ansibleforge.github.io/ansibleforge/docs/
 site_description: A GitOps-driven Ansible development environment on OpenShift — batteries included.
 repo_url: https://github.com/ansibleforge/ansibleforge
 repo_name: ansibleforge/ansibleforge
