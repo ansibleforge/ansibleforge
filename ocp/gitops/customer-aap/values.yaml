@@ -11,7 +11,8 @@ tenants:
     # and the namespace. The Group object is chart-managed; list member
     # usernames in adminUsers.
     adminGroup: customer1-aap-admins
-    adminUsers: []
+    adminUsers:
+      - hfenner
     quota:
       requestsCpu: "6"
       requestsMemory: 20Gi
