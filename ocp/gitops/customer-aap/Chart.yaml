@@ -1,0 +1,4 @@
+apiVersion: v2
+name: customer-aap
+version: 0.1.0
+description: Self-managed customer AAP tenancy - namespace-scoped Argo CD plus pinned AAP operator

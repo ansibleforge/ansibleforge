@@ -196,6 +196,20 @@ components:
     syncOptions:
       - ServerSideApply=true
 
+  # Self-managed customer AAP tenancies (namespace-scoped Argo CD + pinned AAP
+  # operator per tenant). Disabled by default: enabling installs a second AAP
+  # operator and an Argo CD instance per tenant — mind single-node capacity.
+  # Configure tenants in ocp/gitops/customer-aap/values.yaml first.
+  customer-aap:
+    enabled: false
+    syncWave: "2"
+    path: ocp/gitops/customer-aap
+    retry: true
+    # No SSA: Namespace, quota, OLM, ArgoCD CR and RBAC only — no OpenShift
+    # API-group kinds (see the site entry for why that combination is avoided).
+    syncOptions:
+      - SkipDryRunOnMissingResource=true
+
   user-projects:
     enabled: false
     syncWave: "2"
