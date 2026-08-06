@@ -8,9 +8,10 @@ operatorChannel: stable-2.7
 tenants:
   - name: customer1-aap
     # OpenShift group whose members administer the tenant Argo CD instance
-    # and the namespace. Create the group and its membership via cluster auth
-    # (ocp/gitops/auth), not here.
+    # and the namespace. The Group object is chart-managed; list member
+    # usernames in adminUsers.
     adminGroup: customer1-aap-admins
+    adminUsers: []
     quota:
       requestsCpu: "6"
       requestsMemory: 20Gi

@@ -201,7 +201,7 @@ components:
   # operator and an Argo CD instance per tenant — mind single-node capacity.
   # Configure tenants in ocp/gitops/customer-aap/values.yaml first.
   customer-aap:
-    enabled: false
+    enabled: true
     syncWave: "2"
     path: ocp/gitops/customer-aap
     retry: true

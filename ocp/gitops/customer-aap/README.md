@@ -12,15 +12,16 @@ Self-managed customer AAP tenancy. Each entry in `tenants:` provisions:
 - the **AAP operator** (`OperatorGroup` targeting only the tenant namespace,
   plus a `Subscription`) — operator lifecycle stays platform-managed; the
   bootstrap app's `selfHeal` reverts any tenant edits to these
-- a **RoleBinding** giving the tenant admin group the `admin` ClusterRole in
-  the namespace, and Argo CD RBAC mapping the same group to `role:admin` on
-  their instance (login via OpenShift OAuth)
+- the **admin `Group`** (members from `adminUsers`) and a **RoleBinding**
+  giving it the `admin` ClusterRole in
+  the namespace, plus Argo CD RBAC mapping the same group to `role:admin`
+  on their instance (login via OpenShift OAuth)
 
 ## Onboarding a customer
 
 1. Add a tenant entry in `values.yaml` (name, adminGroup, quota).
-2. Create the admin group and its membership via cluster auth
-   (`ocp/gitops/auth`).
+2. List the customer usernames in the tenant's `adminUsers` — the chart
+   manages the `Group` object itself.
 3. Enable the `customer-aap` component in `ocp/gitops/bootstrap/values.yaml`.
 4. Hand the customer their Argo CD route
    (`argocd-server-<tenant>.<clusterDomain>`). They connect their own Git

@@ -1,0 +1,14 @@
+{{- range .Values.tenants }}
+---
+apiVersion: user.openshift.io/v1
+kind: Group
+metadata:
+  name: {{ .adminGroup }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+users:
+  {{- if .adminUsers }}
+  {{- toYaml .adminUsers | nindent 2 }}
+  {{- else }} []
+  {{- end }}
+{{- end }}
