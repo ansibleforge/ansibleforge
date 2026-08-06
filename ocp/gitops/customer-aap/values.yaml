@@ -16,6 +16,9 @@ tenants:
     quota:
       requestsCpu: "6"
       requestsMemory: 20Gi
-      limitsCpu: "12"
-      limitsMemory: 28Gi
+      # Limits caps sized for the AAP operator suite's generous per-pod
+      # limits (11.5 CPU of limits against 740m of actual requests); the
+      # requests caps above are what actually protect node capacity.
+      limitsCpu: "24"
+      limitsMemory: 48Gi
       pods: "60"
