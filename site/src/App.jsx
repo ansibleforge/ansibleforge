@@ -28,7 +28,7 @@ export default function App() {
           transition: 'all 0.7s cubic-bezier(0.16, 1, 0.3, 1)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
-            <img src={`${import.meta.env.BASE_URL}red_transparent_perfect.png`} alt="Ansible Forge Hero Logo" style={{ width: '220px', height: 'auto' }} />
+            <img src={`${import.meta.env.BASE_URL}redonblack.png`} alt="Ansible Forge Hero Logo" style={{ width: '220px', height: 'auto' }} />
           </div>
 
           <h1 style={{
