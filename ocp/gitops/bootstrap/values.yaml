@@ -115,8 +115,14 @@ components:
     enabled: true
     syncWave: "3"
     path: ocp/gitops/rhaap-portal
+    # ServerSideApply deliberately omitted — see the site entry. This app
+    # manages a ConsoleLink (console.openshift.io), the same OpenShift
+    # API-group exposure, and with SSA its two ExternalSecrets sit
+    # permanently OutOfSync on server-defaulted fields (conversionStrategy,
+    # metadataPolicy, creationPolicy, ...) that the manifests do not declare.
+    # Nothing here needs SSA: Namespace, two ExternalSecrets, a ConsoleLink
+    # and a child Application, none with contended field ownership.
     syncOptions:
-      - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
 
   gitea:
