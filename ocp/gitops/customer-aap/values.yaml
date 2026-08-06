@@ -1,0 +1,19 @@
+# Must stay in lockstep with the channel in ocp/gitops/aap/templates/operator.yaml.
+# AAP CRDs are cluster-scoped and shared with the platform install in the aap
+# namespace; whichever operator upgrades last owns the CRD versions for both.
+operatorChannel: stable-2.7
+
+# One entry per customer tenancy. Each gets a namespace, quota, a
+# namespace-scoped Argo CD instance, and its own AAP operator install.
+tenants:
+  - name: customer1-aap
+    # OpenShift group whose members administer the tenant Argo CD instance
+    # and the namespace. Create the group and its membership via cluster auth
+    # (ocp/gitops/auth), not here.
+    adminGroup: customer1-aap-admins
+    quota:
+      requestsCpu: "6"
+      requestsMemory: 20Gi
+      limitsCpu: "12"
+      limitsMemory: 28Gi
+      pods: "60"

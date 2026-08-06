@@ -1,0 +1,44 @@
+{{- range .Values.tenants }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ .name }}-quota
+  namespace: {{ .name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  hard:
+    requests.cpu: {{ .quota.requestsCpu | quote }}
+    requests.memory: {{ .quota.requestsMemory }}
+    limits.cpu: {{ .quota.limitsCpu | quote }}
+    limits.memory: {{ .quota.limitsMemory }}
+    pods: {{ .quota.pods | quote }}
+---
+# Quota with limits set rejects any pod that omits them; these defaults keep
+# operator-created pods (which mostly set their own) and ad-hoc tenant pods
+# admissible without tenant action.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ .name }}-limits
+  namespace: {{ .name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 256Mi
+{{- end }}
